@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Text.Json.Serialization;
 
 // The class belongs to the Scene namespace
@@ -295,7 +295,7 @@ namespace BimGo.Scene
                 RenderColour = RenderColour is Vector3 render ? Clamp01(render, new Vector3(0.8f)) : null,
                 AssetTint = AssetTint is Vector3 assetTint ? Clamp(assetTint, 0f, 4f, Vector3.One) : null,
                 Texture = string.IsNullOrWhiteSpace(Texture) ? null : Texture,
-                TextureState = Enum.IsDefined(TextureState) ? TextureState : TextureState.None,
+                TextureState = Enum.IsDefined(TextureState.GetType(), TextureState) ? TextureState : TextureState.None,
                 TextureSource = TextureSource,
                 TextureOrigin = string.IsNullOrWhiteSpace(TextureOrigin) ? null : TextureOrigin.Trim().ToLowerInvariant(),
                 Proxy = ProxyCatalog.Normalise(Proxy),
@@ -306,23 +306,23 @@ namespace BimGo.Scene
                 OffsetU = Finite(OffsetU),
                 OffsetV = Finite(OffsetV),
                 Angle = Finite(Angle) % 360f,
-                Fade = float.IsFinite(Fade) ? Math.Clamp(Fade, 0f, 1f) : 1f,
+                Fade = BimGo.NumericCompat.IsFinite(Fade) ? BimGo.NumericCompat.Clamp(Fade, 0f, 1f) : 1f,
                 Tint = Clamp(Tint, 0f, 4f, Vector3.One),
-                Reflectivity = float.IsFinite(Reflectivity) ? Math.Clamp(Reflectivity, 0f, 1f) : 0f,
-                Shine = float.IsFinite(Shine) ? Math.Clamp(Shine, 0f, 1f) : 0f,
-                Roughness = Roughness is float rough && float.IsFinite(rough) ? Math.Clamp(rough, 0f, 1f) : null,
+                Reflectivity = BimGo.NumericCompat.IsFinite(Reflectivity) ? BimGo.NumericCompat.Clamp(Reflectivity, 0f, 1f) : 0f,
+                Shine = BimGo.NumericCompat.IsFinite(Shine) ? BimGo.NumericCompat.Clamp(Shine, 0f, 1f) : 0f,
+                Roughness = Roughness is float rough && BimGo.NumericCompat.IsFinite(rough) ? BimGo.NumericCompat.Clamp(rough, 0f, 1f) : null,
                 Metallic = Metallic,
                 Water = Water,
                 SeeThrough = SeeThrough,
-                WaterBump = float.IsFinite(WaterBump) ? Math.Clamp(WaterBump, 0f, 1f) : 0f,
+                WaterBump = BimGo.NumericCompat.IsFinite(WaterBump) ? BimGo.NumericCompat.Clamp(WaterBump, 0f, 1f) : 0f,
                 ReflectSource = string.IsNullOrWhiteSpace(ReflectSource) ? null : ReflectSource
             };
 
-            static float Finite(float v) => float.IsFinite(v) ? v : 0f;
-            static float PositiveOr(float v, float fallback) => float.IsFinite(v) && v > 1e-4f ? Math.Min(v, 1e4f) : fallback;
+            static float Finite(float v) => BimGo.NumericCompat.IsFinite(v) ? v : 0f;
+            static float PositiveOr(float v, float fallback) => BimGo.NumericCompat.IsFinite(v) && v > 1e-4f ? Math.Min(v, 1e4f) : fallback;
             static Vector3 Clamp01(Vector3 v, Vector3 fallback) => Clamp(v, 0f, 1f, fallback);
             static Vector3 Clamp(Vector3 v, float min, float max, Vector3 fallback) =>
-                float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z)
+                BimGo.NumericCompat.IsFinite(v.X) && BimGo.NumericCompat.IsFinite(v.Y) && BimGo.NumericCompat.IsFinite(v.Z)
                     ? Vector3.Clamp(v, new Vector3(min), new Vector3(max))
                     : fallback;
         }

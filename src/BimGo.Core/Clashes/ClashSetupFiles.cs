@@ -209,7 +209,7 @@ namespace BimGo.Clashes
             {
                 string temp = path + ".tmp";
                 File.WriteAllBytes(temp, Serialize(file));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
@@ -297,7 +297,7 @@ namespace BimGo.Clashes
                 if (string.IsNullOrWhiteSpace(test.Id)) { test.Id = Guid.NewGuid().ToString("N"); }
                 test.Name = string.IsNullOrWhiteSpace(test.Name) ? "Imported test" : test.Name.Trim();
                 test.Kind = ClashKind.Normalise(test.Kind);
-                if (!double.IsFinite(test.Tolerance) || test.Tolerance < 0) { test.Tolerance = 0; }
+                if (!BimGo.NumericCompat.IsFinite(test.Tolerance) || test.Tolerance < 0) { test.Tolerance = 0; }
                 if (test.SetA != null && !ids.Contains(test.SetA)) { test.SetA = null; }
                 if (!string.IsNullOrEmpty(test.SetB) && !ids.Contains(test.SetB)) { test.SetB = null; }
             }

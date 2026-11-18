@@ -146,19 +146,19 @@ namespace BimGo.Format
         /// <returns>False when the key is unusable (no finite position or view).</returns>
         public bool Clean()
         {
-            if (!double.IsFinite(X) || !double.IsFinite(Y) || !double.IsFinite(Z) || !float.IsFinite(Yaw) || !float.IsFinite(Pitch)) { return false; }
+            if (!BimGo.NumericCompat.IsFinite(X) || !BimGo.NumericCompat.IsFinite(Y) || !BimGo.NumericCompat.IsFinite(Z) || !BimGo.NumericCompat.IsFinite(Yaw) || !BimGo.NumericCompat.IsFinite(Pitch)) { return false; }
             Id = string.IsNullOrWhiteSpace(Id) ? Guid.NewGuid().ToString("N") : Id;
             Name ??= string.Empty;
-            Pitch = Math.Clamp(Pitch, -1.5f, 1.5f);
-            if (Heading is CameraHeading heading && !Enum.IsDefined(heading)) { Heading = null; }
-            if (!HasTarget || !double.IsFinite(TargetX.Value) || !double.IsFinite(TargetY.Value) || !double.IsFinite(TargetZ.Value))
+            Pitch = BimGo.NumericCompat.Clamp(Pitch, -1.5f, 1.5f);
+            if (Heading is CameraHeading heading && !Enum.IsDefined(heading.GetType(), heading)) { Heading = null; }
+            if (!HasTarget || !BimGo.NumericCompat.IsFinite(TargetX.Value) || !BimGo.NumericCompat.IsFinite(TargetY.Value) || !BimGo.NumericCompat.IsFinite(TargetZ.Value))
             {
                 TargetX = TargetY = TargetZ = null;
             }
-            if (Smoothness is float smooth) { Smoothness = float.IsFinite(smooth) ? Math.Clamp(smooth, 0f, 1f) : null; }
-            if (Speed is float speed) { Speed = float.IsFinite(speed) ? Math.Clamp(speed, CameraPath.MIN_SPEED, CameraPath.MAX_SPEED) : null; }
-            HoldSeconds = float.IsFinite(HoldSeconds) ? Math.Clamp(HoldSeconds, 0f, MAX_HOLD) : 0f;
-            if (Swivel is float swivel) { Swivel = float.IsFinite(swivel) && swivel != 0f ? Math.Clamp(swivel, -TourSettings.MAX_SWIVEL, TourSettings.MAX_SWIVEL) : null; }
+            if (Smoothness is float smooth) { Smoothness = BimGo.NumericCompat.IsFinite(smooth) ? BimGo.NumericCompat.Clamp(smooth, 0f, 1f) : null; }
+            if (Speed is float speed) { Speed = BimGo.NumericCompat.IsFinite(speed) ? BimGo.NumericCompat.Clamp(speed, CameraPath.MIN_SPEED, CameraPath.MAX_SPEED) : null; }
+            HoldSeconds = BimGo.NumericCompat.IsFinite(HoldSeconds) ? BimGo.NumericCompat.Clamp(HoldSeconds, 0f, MAX_HOLD) : 0f;
+            if (Swivel is float swivel) { Swivel = BimGo.NumericCompat.IsFinite(swivel) && swivel != 0f ? BimGo.NumericCompat.Clamp(swivel, -TourSettings.MAX_SWIVEL, TourSettings.MAX_SWIVEL) : null; }
             Section?.Clean();
             if (Visibility != null)
             {
@@ -252,11 +252,11 @@ namespace BimGo.Format
             Keys ??= new List<CameraKey>();
             Keys.RemoveAll(k => k == null || !k.Clean());
             if (Keys.Count > MAX_KEYS) { Keys.RemoveRange(MAX_KEYS, Keys.Count - MAX_KEYS); }
-            Speed = float.IsFinite(Speed) ? Math.Clamp(Speed, MIN_SPEED, MAX_SPEED) : 1.5f;
-            Smoothness = float.IsFinite(Smoothness) ? Math.Clamp(Smoothness, 0f, 1f) : 0.8f;
-            if (!Enum.IsDefined(Heading)) { Heading = CameraHeading.Follow; }
-            LookAhead = float.IsFinite(LookAhead) ? Math.Clamp(LookAhead, MIN_LOOK_AHEAD, MAX_LOOK_AHEAD) : 3f;
-            FadeSeconds = float.IsFinite(FadeSeconds) ? Math.Clamp(FadeSeconds, 0f, MAX_FADE) : 0.5f;
+            Speed = BimGo.NumericCompat.IsFinite(Speed) ? BimGo.NumericCompat.Clamp(Speed, MIN_SPEED, MAX_SPEED) : 1.5f;
+            Smoothness = BimGo.NumericCompat.IsFinite(Smoothness) ? BimGo.NumericCompat.Clamp(Smoothness, 0f, 1f) : 0.8f;
+            if (!Enum.IsDefined(Heading.GetType(), Heading)) { Heading = CameraHeading.Follow; }
+            LookAhead = BimGo.NumericCompat.IsFinite(LookAhead) ? BimGo.NumericCompat.Clamp(LookAhead, MIN_LOOK_AHEAD, MAX_LOOK_AHEAD) : 3f;
+            FadeSeconds = BimGo.NumericCompat.IsFinite(FadeSeconds) ? BimGo.NumericCompat.Clamp(FadeSeconds, 0f, MAX_FADE) : 0.5f;
             return this;
         }
 

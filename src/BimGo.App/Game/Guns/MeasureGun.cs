@@ -158,11 +158,18 @@ namespace BimGo.Game.Guns
         public override bool CycleMode(int direction)
         {
             int count = MODE_NAMES.Length;
-            _mode = (MeasureMode)((((int)_mode + Math.Sign(direction)) % count + count) % count);
+            SetMode((MeasureMode)((((int)_mode + Math.Sign(direction)) % count + count) % count));
+            return true;
+        }
+
+        /// <summary>Selects a mode directly from the Inspect panel.</summary>
+        public void SetMode(MeasureMode mode)
+        {
+            if (_mode == mode) { return; }
+            _mode = mode;
             CancelPending();
             Session.Sound.Play(SoundId.UiClick);
-            Session.Toast($"Measure: {Title(_mode)} (the wheel or {Hotkeys.Label(InputAction.Gun2)} again changes mode)", 2f);
-            return true;
+            Session.Toast($"Measure: {Title(_mode)}", 2f);
         }
 
         public override void Update(float dt, in AimInfo aim)
@@ -207,6 +214,12 @@ namespace BimGo.Game.Guns
         public override void OnDeselect()
         {
             _hasLive = false;
+            _previewValid = false;
+        }
+
+        public override void OnCancel()
+        {
+            CancelPending();
             _previewValid = false;
         }
 

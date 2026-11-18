@@ -90,7 +90,7 @@ namespace BimGo.Format
                         }
                     }
                 }
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex)
@@ -235,7 +235,7 @@ namespace BimGo.Format
         private static XElement Vector(string name, BcfVector v) => new(name,
             new XElement("X", Number(v.X)), new XElement("Y", Number(v.Y)), new XElement("Z", Number(v.Z)));
 
-        private static string Number(double value) => double.IsFinite(value) ? value.ToString("0.#######", INV) : "0";
+        private static string Number(double value) => BimGo.NumericCompat.IsFinite(value) ? value.ToString("0.#######", INV) : "0";
 
         private static string Date(DateTimeOffset value) => value.ToString("yyyy-MM-dd'T'HH:mm:sszzz", INV);
 
@@ -278,7 +278,7 @@ namespace BimGo.Format
                 foreach (ZipArchiveEntry entry in zip.Entries)
                 {
                     string name = entry.FullName.Replace('\\', '/').TrimStart('/');
-                    if (name.Length > 0 && !name.EndsWith('/')) { entries[name] = entry; }
+                    if (name.Length > 0 && !name.EndsWith("/", StringComparison.Ordinal)) { entries[name] = entry; }
                 }
 
                 XElement version = LoadXml(entries, "bcf.version");
@@ -412,7 +412,7 @@ namespace BimGo.Format
             viewpoint.Direction = direction.Value;
             viewpoint.Up = ReadVector(Child(camera, "CameraUpVector")) ?? new BcfVector(0, 0, 1);
             string fov = Text(camera, viewpoint.Orthogonal ? "ViewToWorldScale" : "FieldOfView");
-            if (double.TryParse(fov, NumberStyles.Float, INV, out double value) && double.IsFinite(value)) { viewpoint.FieldOfView = value; }
+            if (double.TryParse(fov, NumberStyles.Float, INV, out double value) && BimGo.NumericCompat.IsFinite(value)) { viewpoint.FieldOfView = value; }
 
             XElement clipping = Descendant(root, "ClippingPlanes");
             if (clipping != null)

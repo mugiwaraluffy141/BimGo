@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using BimGo.Scene;
 
 // The class belongs to the Format namespace
@@ -26,12 +26,12 @@ namespace BimGo.Format
         /// </summary>
         public SunTime Clamped(int year)
         {
-            int month = Math.Clamp(Month, 1, 12);
+            int month = BimGo.NumericCompat.Clamp(Month, 1, 12);
             return new SunTime
             {
                 Month = month,
-                Day = Math.Clamp(Day, 1, DateTime.DaysInMonth(Math.Clamp(year, 1, 9999), month)),
-                Minutes = Math.Clamp(Minutes, 0, 24 * 60 - 1),
+                Day = BimGo.NumericCompat.Clamp(Day, 1, DateTime.DaysInMonth(BimGo.NumericCompat.Clamp(year, 1, 9999), month)),
+                Minutes = BimGo.NumericCompat.Clamp(Minutes, 0, 24 * 60 - 1),
                 DaylightSaving = DaylightSaving
             };
         }
@@ -74,8 +74,8 @@ namespace BimGo.Format
         /// <returns>The clock time in fractional minutes (0 – 1439.99), so the sun can move smoothly.</returns>
         public static double Between(SunTime a, SunTime b, float t, int year, SunTime into)
         {
-            t = float.IsFinite(t) ? Math.Clamp(t, 0f, 1f) : 0f;
-            year = Math.Clamp(year, 1, 9998);
+            t = BimGo.NumericCompat.IsFinite(t) ? BimGo.NumericCompat.Clamp(t, 0f, 1f) : 0f;
+            year = BimGo.NumericCompat.Clamp(year, 1, 9998);
             int days = DateTime.IsLeapYear(year) ? 366 : 365;
             int dayA = DayOfYear(year, a), dayB = DayOfYear(year, b);
             int span = dayB - dayA;
@@ -86,9 +86,9 @@ namespace BimGo.Format
             DateTime date = new DateTime(year, 1, 1).AddDays(day - 1);
             into.Month = date.Month;
             into.Day = date.Day;
-            int minutesA = Math.Clamp(a.Minutes, 0, 1439), minutesB = Math.Clamp(b.Minutes, 0, 1439);
-            double minutes = Math.Clamp(minutesA + (minutesB - minutesA) * (double)t, 0.0, 1439.99);
-            into.Minutes = Math.Clamp((int)minutes, 0, 1439);
+            int minutesA = BimGo.NumericCompat.Clamp(a.Minutes, 0, 1439), minutesB = BimGo.NumericCompat.Clamp(b.Minutes, 0, 1439);
+            double minutes = BimGo.NumericCompat.Clamp(minutesA + (minutesB - minutesA) * (double)t, 0.0, 1439.99);
+            into.Minutes = BimGo.NumericCompat.Clamp((int)minutes, 0, 1439);
             into.DaylightSaving = t < 0.5f ? a.DaylightSaving : b.DaylightSaving;
             return minutes;
         }
@@ -96,8 +96,8 @@ namespace BimGo.Format
         /// <summary>A sun time's day of the year (1–366) in <paramref name="year"/> (the day clamped to its month).</summary>
         public static int DayOfYear(int year, SunTime time)
         {
-            int month = Math.Clamp(time.Month, 1, 12);
-            return new DateTime(year, month, Math.Clamp(time.Day, 1, DateTime.DaysInMonth(year, month))).DayOfYear;
+            int month = BimGo.NumericCompat.Clamp(time.Month, 1, 12);
+            return new DateTime(year, month, BimGo.NumericCompat.Clamp(time.Day, 1, DateTime.DaysInMonth(year, month))).DayOfYear;
         }
     }
 
@@ -242,7 +242,7 @@ namespace BimGo.Format
             SunSize = Clamp(SunSize, MIN_SUN_SIZE, 2f, 1f);
             SunGlare = Clamp(SunGlare, 0f, 2f, 1f);
             MoonLight = Clamp(MoonLight, 0f, 2f, 1f);
-            if (MoonPhase is float phase) { MoonPhase = float.IsFinite(phase) ? Math.Clamp(phase, 0.05f, 1f) : null; }
+            if (MoonPhase is float phase) { MoonPhase = BimGo.NumericCompat.IsFinite(phase) ? BimGo.NumericCompat.Clamp(phase, 0.05f, 1f) : null; }
             StarDensity = Clamp(StarDensity, 0f, 2f, 1f);
             StarBrightness = Clamp(StarBrightness, 0f, 2f, 1f);
             StarTwinkle = Clamp(StarTwinkle, 0f, 2f, 1f);
@@ -252,7 +252,7 @@ namespace BimGo.Format
             WeatherIntensity = Clamp(WeatherIntensity, 0.05f, 1f, 0.5f);
             Wetness = Clamp(Wetness, 0f, 1f, 1f);
             SnowCover = Clamp(SnowCover, 0f, 1f, 0.6f);
-            LightningFrequency = Math.Clamp(LightningFrequency, 0, 2);
+            LightningFrequency = BimGo.NumericCompat.Clamp(LightningFrequency, 0, 2);
             LightningFlash = Clamp(LightningFlash, 0f, 1f, 0.35f);
             if (Location != null && !Location.Clean().IsValid) { Location = null; }
             return this;
@@ -298,7 +298,7 @@ namespace BimGo.Format
         public static SunSettings DefaultsFor(SiteInfo site) => new() { Time = SunTime.StartFor(site) };
 
         private static float Clamp(float value, float min, float max, float fallback) =>
-            float.IsFinite(value) ? Math.Clamp(value, min, max) : fallback;
+            BimGo.NumericCompat.IsFinite(value) ? BimGo.NumericCompat.Clamp(value, min, max) : fallback;
     }
 
     /// <summary>
@@ -330,7 +330,7 @@ namespace BimGo.Format
 
         /// <summary>True when the coordinates and the offset are usable.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
-        public bool IsValid => double.IsFinite(Latitude) && double.IsFinite(Longitude) && double.IsFinite(TimeZone)
+        public bool IsValid => BimGo.NumericCompat.IsFinite(Latitude) && BimGo.NumericCompat.IsFinite(Longitude) && BimGo.NumericCompat.IsFinite(TimeZone)
             && Math.Abs(Latitude) <= 90.0 && Math.Abs(Longitude) <= 180.0;
 
         /// <summary>
@@ -338,7 +338,7 @@ namespace BimGo.Format
         /// </summary>
         public LocationOverride Clean()
         {
-            if (double.IsFinite(TimeZone)) { TimeZone = Math.Clamp(TimeZone, -14.0, 14.0); }
+            if (BimGo.NumericCompat.IsFinite(TimeZone)) { TimeZone = BimGo.NumericCompat.Clamp(TimeZone, -14.0, 14.0); }
             ZoneId = string.IsNullOrWhiteSpace(ZoneId) ? null : ZoneId.Trim();
             Name = (Name ?? string.Empty).Trim();
             if (Name.Length > 120) { Name = Name[..120]; }

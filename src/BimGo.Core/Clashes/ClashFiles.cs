@@ -249,7 +249,7 @@ namespace BimGo.Clashes
                 if (!string.IsNullOrEmpty(folder)) { Directory.CreateDirectory(folder); }
                 string temp = path + ".tmp";
                 File.WriteAllBytes(temp, bytes);
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 ModelFolders.MirrorAfterWrite(path);
                 return true;
             }

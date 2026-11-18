@@ -28,6 +28,9 @@ namespace BimGo.Rendering
         /// <summary>Horizontal field of view in degrees.</summary>
         public float HorizontalFovDegrees = 90f;
 
+        /// <summary>Far clip distance in metres; desktop Fit View raises this only for very large models.</summary>
+        public float FarClip = FAR;
+
         /// <summary>Viewport aspect ratio (width / height).</summary>
         public float Aspect = 16f / 9f;
 
@@ -112,7 +115,7 @@ namespace BimGo.Rendering
             PixelScale = 2f * MathF.Tan(FovY * 0.5f) / MathF.Max(ViewportHeight, 1f);
 
             View = Matrix4x4.CreateLookAt(Position, Position + Forward, up);
-            Projection = Perspective(FovY, Aspect, NEAR, FAR);
+            Projection = Perspective(FovY, Aspect, NEAR, MathF.Max(FarClip, NEAR + 1f));
             ViewProjection = View * Projection;
             InverseViewProjection = Matrix4x4.Invert(ViewProjection, out Matrix4x4 inverse) ? inverse : Matrix4x4.Identity;
             ExtractPlanes(ViewProjection, Planes);

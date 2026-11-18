@@ -96,8 +96,7 @@ namespace BimGo.Game
         #region Setup
 
         /// <summary>
-        /// Creates the store (embedded in a .bimgo, else entourage.json in the model folder) and starts drawing the
-        /// built-in pictures on a worker.
+        /// Creates the store (embedded in a .bimgo, else entourage.json in the model folder).
         /// </summary>
         private void InitialiseEntourage()
         {
@@ -112,12 +111,6 @@ namespace BimGo.Game
                 Entourage.Load();
             }
             Entourage.Changed += UpdateTitle;
-            _builtInTask = Task.Run(() =>
-            {
-                var pictures = new EntourageImage[EntourageArt.BUILT_INS.Length];
-                for (int i = 0; i < pictures.Length; i++) { pictures[i] = EntourageArt.Draw(EntourageArt.BUILT_INS[i].Key); }
-                return pictures;
-            });
         }
 
         /// <summary>Frees the panel's thumbnails (session end).</summary>
@@ -532,7 +525,7 @@ namespace BimGo.Game
                 else
                 {
                     _slotClearArmed = "instances";
-                    _entourageNotice = "CLEAR again to undo every one-off change (swaps, hides, sizes made with the Place gun)";
+                    _entourageNotice = "CLEAR again to undo every one-off change (swaps, hides, sizes made with Place)";
                 }
             }
             cy += S(36);
@@ -648,7 +641,7 @@ namespace BimGo.Game
             if (item == null) { return; }
             if (item.Type == _entourageType)
             {
-                Toast($"It's already a {EntourageNameOf(item.Type)}: LMB with the Place gun away from billboards picks another type", 2.6f);
+                Toast($"It's already a {EntourageNameOf(item.Type)}: click away from billboards with Place selected to pick another type", 2.6f);
                 return;
             }
             if (item.Slot != null)
@@ -837,7 +830,7 @@ namespace BimGo.Game
         }
 
         private static readonly KeyHint HINT_ENTOURAGE = new(() =>
-            $"Place gun in ENTOURAGE mode ({Hotkeys.Label(InputAction.GunModeNext)} switches): {Hotkeys.Label(InputAction.GunSecondary)} plants · {Hotkeys.Label(InputAction.GunPrimary)} on one removes it · {Hotkeys.Label(InputAction.HoldStepDown)} / {Hotkeys.Label(InputAction.HoldStepUp)} or {Hotkeys.Label(InputAction.HoldScale)}+wheel size · {Hotkeys.Label(InputAction.HoldRotate)} mirror");
+            $"Place in ENTOURAGE mode ({Hotkeys.Label(InputAction.GunModeNext)} switches): {Hotkeys.Label(InputAction.GunSecondary)} plants · {Hotkeys.Label(InputAction.GunPrimary)} on one removes it · {Hotkeys.Label(InputAction.HoldStepDown)} / {Hotkeys.Label(InputAction.HoldStepUp)} or {Hotkeys.Label(InputAction.HoldScale)}+wheel size · {Hotkeys.Label(InputAction.HoldRotate)} mirror");
 
         /// <summary>The types as cards, a section per category.</summary>
         private void BuildEntourageCards(FontAtlas f, InputState input, float x, float y, float w, float bottom)

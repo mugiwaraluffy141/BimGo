@@ -97,7 +97,6 @@ namespace BimGo.Game
         #region Start / leave
 
         /// <summary>The eye (scene-local) as the player stands or flies.</summary>
-        private Vector3 PlayerEye => _player.Feet + Vector3.UnitZ * _player.Controller.StandEye;
 
         /// <summary>Starts a tool (leaving the one that was on): closes lists, stops typing and flying.</summary>
         private void BeginClashTool(int tool)
@@ -220,7 +219,11 @@ namespace BimGo.Game
         /// <summary>RMB-drag looks (pick points and cluster), unless it began over the dock.</summary>
         private void ClashToolLook(InputState input)
         {
-            if (input.Down(InputAction.DragLook) && !_clashFlying && !_clashMenuLook) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
+            if (input.Down(InputAction.DragLook) && ReviewLookDragging && !_clashFlying && !_clashMenuLook
+                && !OverClashDock(input.MousePosition) && !OverClashToolBar(input.MousePosition) && !OverlayOpen)
+            {
+                _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY);
+            }
         }
 
         /// <summary>A clash point, scene-local.</summary>
@@ -409,7 +412,7 @@ namespace BimGo.Game
             var forward = new Vector3(cp * MathF.Cos(yaw), cp * MathF.Sin(yaw), MathF.Sin(pitch));
             Vector3 eye = _clashOrbitTarget - forward * distance;
             _clashFlying = false;
-            _player.TeleportTo(eye - Vector3.UnitZ * _player.Controller.StandEye, yaw, pitch);
+            SetReviewCameraPose(eye, yaw, pitch);
             _clashOrbitLastEye = eye;
         }
 
@@ -446,7 +449,9 @@ namespace BimGo.Game
 
             // Orbit (RMB-drag) and zoom (wheel) round the target
             float distance = MathF.Max(0.5f, Vector3.Distance(eye, _clashOrbitTarget));
-            if (input.Down(InputAction.DragLook) && !_clashMenuLook && (input.MouseDeltaX != 0f || input.MouseDeltaY != 0f))
+            if (input.Down(InputAction.DragLook) && ReviewLookDragging && !_clashMenuLook
+                && !OverClashDock(input.MousePosition) && !OverClashToolBar(input.MousePosition) && !OverlayOpen
+                && (input.MouseDeltaX != 0f || input.MouseDeltaY != 0f))
             {
                 _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY);
                 PlaceClashOrbit(_player.Yaw, _player.Pitch, distance);

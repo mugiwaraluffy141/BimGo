@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BimGo.Audio;
 using BimGo.Format;
 using BimGo.Game.Guns;
@@ -21,46 +21,43 @@ namespace BimGo.Game
         private readonly List<Highlight> _highlights = new();
 
         // Help panel column widths (measured from the text; recomputed when the UI scale or the rows change)
-        private float _helpScale = -1f, _helpKeyWidth, _helpPadWidth, _helpActionWidth;
+        private float _helpScale = -1f, _helpKeyWidth, _helpActionWidth;
 
         // F1 help rows (polish round P-B: generated from the catalogue for the current situation), rebuilt when a binding,
-        // the situation or the gamepad's presence changes. Row 0 is the situation's title; the last row always shows.
-        private (string Key, string Pad, string Action)[] _helpRows;
+        // the situation changes. Row 0 is the situation's title; the last row always shows.
+        private (string Key, string Action)[] _helpRows;
         private int _helpRowsVersion = int.MinValue;
-        private bool _helpRowsPad;
         private string _helpRowsSituation;
 
         /// <summary>
         /// The F1 sheet for what you are doing (polish round P-B): the situation's title, its rows from
-        /// <see cref="InputSituation.Help"/> with the keys bound now (a gamepad column while one is connected; rows with
-        /// nothing bound are left out), then "Esc → CONTROLS" and the F1 row.
+        /// <see cref="InputSituation.Help"/> with the keys bound now (rows with nothing bound are left out), then
+        /// "MORE → CONTROLS" and the F1 row.
         /// </summary>
-        private (string Key, string Pad, string Action)[] HelpRows()
+        private (string Key, string Action)[] HelpRows()
         {
-            bool pad = Gamepad.Connected;
             string name = CurrentSituation();
-            if (_helpRows != null && _helpRowsVersion == Hotkeys.Version && _helpRowsPad == pad && ReferenceEquals(_helpRowsSituation, name)) { return _helpRows; }
+            if (_helpRows != null && _helpRowsVersion == Hotkeys.Version && ReferenceEquals(_helpRowsSituation, name)) { return _helpRows; }
             KeyMap m = Hotkeys.Map;
             InputSituation situation = InputCatalog.Situation(name) ?? InputCatalog.Situation(InputCatalog.SIT_WALKING);
 
-            var rows = new List<(string Key, string Pad, string Action)>(situation.Help.Count + 3)
+            var rows = new List<(string Key, string Action)>(situation.Help.Count + 3)
             {
-                (string.Empty, string.Empty, situation.Name.ToUpperInvariant())
+                (string.Empty, situation.Name.ToUpperInvariant())
             };
             foreach (HelpEntry entry in situation.Help)
             {
+                if (entry.Actions.Any(action => !InputCatalog.ReviewAction(action))) { continue; }
                 string keys = m.HelpKeys(entry);
-                string padText = pad ? m.HelpPad(entry) : string.Empty;
-                if (keys.Length == 0 && padText.Length == 0) { continue; } // nothing bound
-                rows.Add((keys, padText, entry.Label));
+                if (keys.Length == 0) { continue; } // nothing bound
+                rows.Add((keys, entry.Label));
             }
-            rows.Add(("ESC → CONTROLS", pad && m.PadLabel(InputAction.Back).Length > 0 ? m.PadLabel(InputAction.Back) + " → CONTROLS" : string.Empty,
-                "Every key and gamepad button, and changing them"));
-            rows.Add((m.Label(InputAction.Help).ToUpperInvariant(), pad ? m.PadLabel(InputAction.Help) : string.Empty,
+            rows.Add(("MORE → CONTROLS",
+                "Every key and changing them"));
+            rows.Add((m.Label(InputAction.Help).ToUpperInvariant(),
                 "Hide help · BimGo " + Program.Version + " · Revit® is a trademark of Autodesk, Inc."));
 
             _helpRows = rows.ToArray();
-            _helpRowsPad = pad;
             _helpRowsSituation = name;
             _helpRowsVersion = Hotkeys.Version;
             _helpScale = -1f; // re-measure the columns
@@ -121,18 +118,12 @@ namespace BimGo.Game
             _dockOverMapNext = false;
             if (_showMap && !_paused && !_uiHidden && !_photoOpen && !_clashModeOn && !_dockOverMap) { DrawMinimapPlan(mapX + S(8), mapY + S(30), S(204), S(170)); }
 
-            BeginFocusFrame(); // polish round P-A2: the controls drawn now are the next frame's gamepad focus targets
             if (_paused)
             {
                 // A text box opened from a panel (reply, assignee) sits over the menu and takes the clicks
                 if (IsEditingComment) { _window.Input.ConsumeClicks(); }
                 BuildPauseMenu();
                 if (IsEditingComment) { BuildCommentEditor(); }
-            }
-            else if (_kiosk)
-            {
-                // Round Z-C: kiosk mode: the key hint (or the idle tour's fades and line) and the exit bar only
-                BuildKioskHud(width, height);
             }
             else if (_photoOpen)
             {
@@ -151,10 +142,8 @@ namespace BimGo.Game
                 if (_uiHidden) { BuildHiddenHud(width); }
                 else { BuildHud(mapX, mapY); }
                 if (IsEditingComment) { BuildCommentEditor(); }
-                if (_welcomeOpen) { BuildWelcome(width, height); } // Round Z-E
             }
             _ui.ResetClip(); // polish round P-A1: a scroll region left open by an early return never outlives the frame
-            EndFocusFrame(); // P-A2: the focus ring, over everything
             _ui.Flush(width, height);
         }
 
@@ -193,12 +182,6 @@ namespace BimGo.Game
 
             // ---- Colour round A: the active colour profile (evaluated again only when something changed)
             UpdateProfile();
-
-            // ---- Round X-B: billboards (pictures once drawn, then the instances when they change: before the shadow maps)
-            UpdateBillboards();
-
-            // ---- Round W-B / W-C: the cover map, this frame's rain / snow and lightning (before the lighting: a flash lifts it)
-            UpdateWeather();
 
             // ---- Sun lighting and shadow maps (only changed cascades re-render). Clash pictures (C-B2) other than the real
             // model view draw without the sun, so they leave the cascades as the main view needs them
@@ -265,7 +248,7 @@ namespace BimGo.Game
                 Tint = _tintMode,
                 Plan = false,
                 ClipZ = new Vector2(-1e7f, 1e7f),
-                FogDensity = 0.0022f * WeatherFog, // W-B: thicker in the rain / snow
+                FogDensity = 0.0022f,
                 Sun = true,
                 Section = true,
                 ScreenReflections = ssr // Round X-C1
@@ -335,7 +318,6 @@ namespace BimGo.Game
                 }
                 if (!photo) { timers.Stage(GpuTimers.REST); }
                 DrawGrass(p); // grass round: blades over the grass materials (Realistic)
-                _renderer.DrawBillboards(p); // Round X-B: entourage (trees, people, cars…)
 
                 // Gun highlights (scan target, primed demolitions, gizmo target…)
                 Gun active = _guns[_activeGun];
@@ -364,7 +346,6 @@ namespace BimGo.Game
                 Gl.DepthMask(true);
                 Gl.Disable(Gl.BLEND);
 
-                DrawWeather(p); // Round W-B: falling rain / snow (in photos and videos too)
 
                 // Round X-C1: this frame's colour (before bloom, markers and UI) for next frame's screen-space reflections
                 if (ssr > 0 && !_clashShot) { _renderer.CaptureReflectionHistory(target, Camera.ViewProjection, Camera.Position); }
@@ -375,7 +356,6 @@ namespace BimGo.Game
 
             // Round W-C: a lightning flash in the classic light (with sun lighting it lifted the sky light instead); drops on
             // the lens (the main view only: never photos, videos, thumbnails or screenshots)
-            if (!clashView) { DrawLightningFlash(); }
             if (!photo && !clashView) { DrawLensDrops(target); }
 
             // Photo exposure (the preview and the photo alike)
@@ -520,14 +500,7 @@ namespace BimGo.Game
 
             DrawMinimapGrids(f, mapX, mapY, mapW, mapH, cx, cy, metresPerPixel); // grids round B: under the markers
 
-            // Portals and comments on this level
-            for (int i = 0; i < 2; i++)
-            {
-                if (!_portalGun.IsActive(i)) { continue; }
-                Vector3 c = _portalGun.CentreOf(i);
-                if (LevelIndexAt(c.Z - 1f) != levelIndex) { continue; }
-                MapDot(c, PortalGun.ColourOf(i), S(4));
-            }
+            // Comments on this level
             foreach (CommentRecord record in Comments.Comments)
             {
                 if (LevelIndexAt(record.Local.Z - 0.5f) != levelIndex) { continue; }
@@ -577,6 +550,7 @@ namespace BimGo.Game
             // Clash mode (Round C-B): its own HUD (docked list, no crosshair or guns)
             if (_clashModeOn)
             {
+                BuildReviewPanels();
                 BuildClashHud(f, width, height);
                 return;
             }
@@ -601,23 +575,6 @@ namespace BimGo.Game
             for (int i = 0; i < _guns.Length; i++) { _guns[i].DrawLabels(_ui, i == _activeGun && !_unarmed); }
             DrawGridHoverLabel(f); // grids round B: the hovered node, over the other labels
 
-            // Crosshair
-            float cx = MathF.Round(width * 0.5f), cy = MathF.Round(height * 0.5f);
-            float t1 = S(2f), gap = S(5), arm = S(9);
-            _ui.Rect(cx - t1 * 0.5f, cy - gap - arm, t1, arm, UiTheme.TEXT);
-            _ui.Rect(cx - t1 * 0.5f, cy + gap, t1, arm, UiTheme.TEXT);
-            _ui.Rect(cx - gap - arm, cy - t1 * 0.5f, arm, t1, UiTheme.TEXT);
-            _ui.Rect(cx + gap, cy - t1 * 0.5f, arm, t1, UiTheme.TEXT);
-            _ui.Circle(cx, cy, S(1.8f), active.Colour, 10);
-
-            if (!_window.IsCaptured && !IsEditingComment && !_sunPanelOpen && !_sunHoursOpen && !_gridsPanelOpen && !_fixtureDockOpen)
-            {
-                const string hint = "Click to look around";
-                float hintWidth = UiBatch.Measure(f.Body, hint) + S(24);
-                _ui.Panel(cx - hintWidth * 0.5f, cy + S(28), hintWidth, S(28), UiTheme.PANEL, UiTheme.PANEL_BORDER);
-                _ui.TextCentred(f.Body, cx, cy + S(34), hint, UiTheme.TEXT);
-            }
-
             // Polish round P-A2: the right-hand column (tools): the minimap (hidden while a dock sits over it on a short
             // window), then the gun's context panel or the open dock beneath it
             if (_showMap && !_dockOverMap) { DrawMinimapOverlay(mapX, mapY); }
@@ -630,7 +587,6 @@ namespace BimGo.Game
                 active.DrawPanel(_ui, panelX + S(14), panelTop + S(12), panelWidth - S(28));
             }
 
-            BuildSunIcon(f, _window.Input);
             if (_sunPanelOpen) { BuildSunPanel(f, _window.Input); }
             if (_sunHoursOpen) { BuildSunHoursPanel(f, _window.Input); }
             BuildGridsPanel(f, _window.Input); // grids round A
@@ -639,11 +595,169 @@ namespace BimGo.Game
 
             // P-A2: the left-hand column (information): status, coordinates, the legends and the F1 sheet
             BuildInfoColumn(f, height, sunLegend: true, profileLegend: true, help: true);
-            BuildGunBar(f, width, height, active);
-            BuildGunWheel(f, width, height);
             BuildRoomBanner(f, width);
             BuildLiveBanner(f, width, height);
+            BuildReviewPanels();
             BuildToast(f, width);
+            BuildViewerToolbar(f, width, height);
+        }
+
+        private bool ViewerToolbarVisible => !_paused && !_uiHidden && !_photoOpen && !_tourActive
+            && !IsEditingComment && !_markupOpen && !_pathEditOn && !_clashModeOn && !OverlayOpen;
+
+        private void BuildViewerToolbar(FontAtlas f, int width, int height)
+        {
+            if (!ViewerToolbarVisible) { return; }
+            InputState input = _window.Input;
+            var g = ViewerToolbarGeometry(width, height);
+
+            string settingsLabel = g.W < S(70) ? "SET" : "SETTINGS";
+            string commentsLabel = g.W < S(70) ? "ISSUES" : "COMMENTS";
+            string bookmarksLabel = g.W < S(70) ? "BOOKS" : "BOOKMARKS";
+            MenuButton(f, g.X, g.Y, g.W, settingsLabel, false, false, height: g.H, compact: true);
+            MenuButton(f, g.X + (g.W + g.Gap), g.Y, g.W, IsDirty ? "SAVE *" : "SAVE", false, false, height: g.H, compact: true);
+            MenuButton(f, g.X + (g.W + g.Gap) * 2, g.Y, g.W, commentsLabel, false, false, height: g.H, compact: true);
+            MenuButton(f, g.X + (g.W + g.Gap) * 3, g.Y, g.W, bookmarksLabel, false, false, height: g.H, compact: true);
+            MenuButton(f, g.X + (g.W + g.Gap) * 4, g.Y, g.W, _viewerCommandsOpen ? "CLOSE" : "MORE", false, false, height: g.H, compact: true);
+            if (!_viewerCommandsOpen) { return; }
+
+            float buttonW = g.MenuButtonW, buttonH = g.MenuButtonH;
+            float bx = g.MenuX + S(8), by = g.MenuY + S(8);
+            _ui.Panel(g.MenuX, g.MenuY, g.MenuW, S(16) + 6 * buttonH + 5 * g.Gap, UiTheme.PANEL_STRONG, UiTheme.PANEL_BORDER);
+            MenuButton(f, bx, by, buttonW, "CONTROLS", false, false, height: buttonH, compact: true);
+            MenuButton(f, bx + buttonW + g.Gap, by, buttonW, "RETURN HOME", false, false, height: buttonH, compact: true);
+            by += buttonH + g.Gap;
+            MenuButton(f, bx, by, buttonW, _clock < _homeSetUntil ? "HOME SAVED" : "SET HOME", false, false, height: buttonH, compact: true);
+            MenuButton(f, bx + buttonW + g.Gap, by, buttonW, "FIND ROOM", false, false, enabled: Scene.Rooms.Length > 0, height: buttonH, compact: true);
+            by += buttonH + g.Gap;
+            MenuButton(f, bx, by, buttonW, "CLASHES", false, false, height: buttonH, compact: true);
+            MenuButton(f, bx + buttonW + g.Gap, by, buttonW, GeometryMenuLabel(), false, false, height: buttonH, compact: true);
+            by += buttonH + g.Gap;
+            int hidden = HiddenThingsCount();
+            MenuButton(f, bx, by, buttonW, hidden > 0 ? $"SHOW ALL ({hidden})" : "SHOW ALL", false, false, enabled: hidden > 0, height: buttonH, compact: true);
+            MenuButton(f, bx + buttonW + g.Gap, by, buttonW, "SAVE AS…", false, false, height: buttonH, compact: true);
+            by += buttonH + g.Gap;
+            MenuButton(f, bx, by, g.MenuW - S(16), "FIT VIEW", false, false, height: buttonH, compact: true);
+            by += buttonH + g.Gap;
+            MenuButton(f, bx, by, g.MenuW - S(16), _live != null ? "LEAVE SESSION" : _options.InApp ? "CLOSE MODEL" : "END SESSION", false, true, height: buttonH, compact: true);
+        }
+
+        private (float X, float Y, float W, float H, float Gap, float MenuX, float MenuY, float MenuW, float MenuButtonW, float MenuButtonH) ViewerToolbarGeometry(int width, int height)
+        {
+            float margin = S(UiTheme.COLUMN_MARGIN), gap = S(6);
+            float desiredLeft = S(UiTheme.COLUMN_MARGIN + 250 + UiTheme.COLUMN_GAP + REVIEW_PANEL_WIDTH + 20);
+            float minimum = S(5 * 44 + 4 * 6);
+            float x = MathF.Min(desiredLeft, MathF.Max(margin, width - minimum - margin));
+            float usable = MathF.Max(1f, width - x - margin - gap * 4);
+            float buttonW = MathF.Min(S(94), usable / 5f);
+            float buttonH = S(30), y = margin;
+            float menuW = MathF.Max(1f, MathF.Min(S(280), width - margin * 2));
+            float moreX = x + 4 * (buttonW + gap);
+            float menuXMax = MathF.Max(margin, width - menuW - margin);
+            float menuX = Math.Clamp(moreX + buttonW - menuW, margin, menuXMax);
+            float menuY = y + buttonH + gap;
+            float menuButtonW = MathF.Max(1f, (menuW - S(24)) * 0.5f);
+            return (x, y, buttonW, buttonH, gap, menuX, menuY, menuW, menuButtonW, S(32));
+        }
+
+        private bool UpdateViewerToolbarInput(InputState input)
+        {
+            if (!ViewerToolbarVisible)
+            {
+                _viewerCommandsOpen = false;
+                return false;
+            }
+            var g = ViewerToolbarGeometry(_window.Width, _window.Height);
+            bool leftClick = input.LeftPressed;
+            bool rightClick = input.RightPressed;
+            float menuH = S(16) + 6 * g.MenuButtonH + 5 * g.Gap;
+
+            bool Hit(float x, float y, float w, float h)
+            {
+                Vector2 mouse = input.MousePosition;
+                return mouse.X >= x && mouse.X < x + w && mouse.Y >= y && mouse.Y < y + h;
+            }
+
+            void RunToolbar(int index)
+            {
+                if (index == 4)
+                {
+                    _viewerCommandsOpen = !_viewerCommandsOpen;
+                    Sound.Play(SoundId.UiClick);
+                    return;
+                }
+                _viewerCommandsOpen = false;
+                Sound.Play(SoundId.UiClick);
+                switch (index)
+                {
+                    case 0: OpenSettingsPanel(); break;
+                    case 1: Save(saveAs: !IsFileMode); break;
+                    case 2: SetPaused(true); OpenComments(); break;
+                    case 3: SetPaused(true); OpenBookmarks(); break;
+                }
+            }
+
+            if (leftClick || rightClick)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    float x = g.X + i * (g.W + g.Gap);
+                    if (!Hit(x, g.Y, g.W, g.H)) { continue; }
+                    input.ConsumeClicks();
+                    if (leftClick) { RunToolbar(i); }
+                    return true;
+                }
+            }
+
+            if (!_viewerCommandsOpen) { return false; }
+            if (input.Pressed(InputAction.Back))
+            {
+                _viewerCommandsOpen = false;
+                input.ConsumeFrame();
+                return true;
+            }
+
+            bool overMenu = Hit(g.MenuX, g.MenuY, g.MenuW, menuH);
+            if (input.Wheel != 0) { input.ConsumeWheel(); }
+            if (leftClick)
+            {
+                float bx = g.MenuX + S(8), by = g.MenuY + S(8), bw = g.MenuButtonW, bh = g.MenuButtonH;
+                int command = -1;
+                for (int row = 0; row < 4; row++)
+                {
+                    float rowY = by + row * (bh + g.Gap);
+                    if (Hit(bx, rowY, bw, bh)) { command = row * 2; break; }
+                    if (Hit(bx + bw + g.Gap, rowY, bw, bh)) { command = row * 2 + 1; break; }
+                }
+                if (command < 0 && Hit(bx, by + 4 * (bh + g.Gap), g.MenuW - S(16), bh)) { command = 8; }
+                if (command < 0 && Hit(bx, by + 5 * (bh + g.Gap), g.MenuW - S(16), bh)) { command = 9; }
+                if (command >= 0)
+                {
+                    input.ConsumeClicks();
+                    if ((command == 3 && Scene.Rooms.Length == 0) || (command == 6 && HiddenThingsCount() == 0)) { return true; }
+                    _viewerCommandsOpen = false;
+                    Sound.Play(SoundId.UiClick);
+                    switch (command)
+                    {
+                        case 0: OpenControls(); break;
+                        case 1: _player.GoHome(); break;
+                        case 2: SetHomeHere(); break;
+                        case 3: if (Scene.Rooms.Length > 0) { OpenRooms(); } break;
+                        case 4: OpenClashes(); break;
+                        case 5: OpenGeometry(); break;
+                        case 6: if (HiddenThingsCount() > 0) { ShowAll(); } break;
+                        case 7: Save(saveAs: true); break;
+                        case 8: FitReviewView(); break;
+                        case 9: _endRequested = true; break;
+                    }
+                    return true;
+                }
+                _viewerCommandsOpen = false;
+                input.ConsumeClicks();
+                return true;
+            }
+            if (rightClick) { input.ConsumeClicks(); return true; }
+            return true;
         }
 
         /// <summary>
@@ -658,7 +772,6 @@ namespace BimGo.Game
                 _ui.Rect(0, 0, width, _window.Height, Rgba.WithAlpha(_flashColour, 0.35f * t));
             }
             if (_toastImportant) { BuildToast(_ui.Atlas, width); }
-            BuildGunWheel(_ui.Atlas, width, _window.Height);
         }
 
         /// <summary>
@@ -795,13 +908,12 @@ namespace BimGo.Game
                 return height - S(42);
             }
 
-            // Columns sized to the widest key, gamepad button and action (measured again when the UI scale or the rows change)
-            (string Key, string Pad, string Action)[] rows = HelpRows();
+            // Columns sized to the widest key and action (measured again when the UI scale or the rows change)
+            (string Key, string Action)[] rows = HelpRows();
             if (_helpScale != UiScale)
             {
                 _helpScale = UiScale;
                 _helpKeyWidth = 0f;
-                _helpPadWidth = 0f;
                 _helpActionWidth = 0f;
                 for (int i = 0; i < rows.Length; i++)
                 {
@@ -811,7 +923,6 @@ namespace BimGo.Game
                         continue;
                     }
                     _helpKeyWidth = MathF.Max(_helpKeyWidth, UiBatch.Measure(f.Mono, rows[i].Key));
-                    _helpPadWidth = MathF.Max(_helpPadWidth, UiBatch.Measure(f.Mono, rows[i].Pad));
                     _helpActionWidth = MathF.Max(_helpActionWidth, UiBatch.Measure(f.Body, rows[i].Action));
                 }
             }
@@ -827,8 +938,7 @@ namespace BimGo.Game
             float h = shown * row + S(20);
             float y = height - S(20) - h;
             float keyWidth = _helpKeyWidth + S(16);
-            float padWidth = _helpPadWidth > 0f ? _helpPadWidth + S(16) : 0f;
-            _ui.Panel(x, y, S(12) + keyWidth + padWidth + _helpActionWidth + S(14), h, Rgba.Hex(0x0C0E12, 0.66f), Rgba.Hex(0xFFFFFF, 0.1f));
+            _ui.Panel(x, y, S(12) + keyWidth + _helpActionWidth + S(14), h, Rgba.Hex(0x0C0E12, 0.66f), Rgba.Hex(0xFFFFFF, 0.1f));
 
             float rowY = y + S(10);
             for (int n = 0; n < shown; n++)
@@ -842,84 +952,10 @@ namespace BimGo.Game
                 }
                 bool last = i >= rows.Length - 2;
                 _ui.Text(f.Mono, x + S(12), rowY, rows[i].Key, last ? UiTheme.TEXT_MUTED : UiTheme.TEXT);
-                if (padWidth > 0f && rows[i].Pad.Length > 0) { _ui.Text(f.Mono, x + S(12) + keyWidth, rowY, rows[i].Pad, last ? UiTheme.TEXT_MUTED : UiTheme.GOOD); }
-                _ui.Text(f.Body, x + S(12) + keyWidth + padWidth, rowY - S(1), rows[i].Action, last ? UiTheme.TEXT_MUTED : UiTheme.TEXT_SOFT);
+                _ui.Text(f.Body, x + S(12) + keyWidth, rowY - S(1), rows[i].Action, last ? UiTheme.TEXT_MUTED : UiTheme.TEXT_SOFT);
                 rowY += row;
             }
             return y;
-        }
-
-        /// <summary>
-        /// Bottom-centre gun bar: square symbol slots with the key number in the corner. The selected gun's
-        /// name sits above the bar beside the LMB / RMB hints, so the bar stays compact as guns are added.
-        /// </summary>
-        private static readonly KeyHint HINT_NO_GUN_BAR = new(() =>
-            $"{Hotkeys.Label(InputAction.GunWheel)} (hold): gun wheel · {Hotkeys.Map.DescribeJoined(" / ", false, InputAction.GunModePrevious, InputAction.GunModeNext)}: gun mode · the wheel's bottom slot shows the gun bar");
-
-        private void BuildGunBar(FontAtlas f, int width, int height, Gun active)
-        {
-            if (_gunKeysVersion != Hotkeys.Version) { RefreshGunKeys(); }
-            float slot = S(52), gap = S(6), iconSize = S(30);
-            float total = _guns.Length * slot + (_guns.Length - 1) * gap;
-            float x = MathF.Round(width * 0.5f - total * 0.5f);
-            float y = height - S(20) - slot;
-            if (!_showGunBar)
-            {
-                // No bar (the default): a one-line hint where it would be; the name and hints row drops to just above it
-                y = height - S(20) - S(16);
-                _ui.TextCentred(f.Small, width * 0.5f, y, HINT_NO_GUN_BAR.Text, UiTheme.TEXT_FAINT);
-            }
-
-            for (int i = 0; i < _guns.Length && _showGunBar; i++)
-            {
-                Gun gun = _guns[i];
-                bool selected = i == _activeGun && !_unarmed;
-                float bx = x + i * (slot + gap);
-                _ui.Rect(bx, y, slot, slot, Rgba.Hex(0x0C0E12, selected ? 0.9f : 0.6f));
-                _ui.Outline(bx, y, slot, slot, S(2), selected ? gun.Colour : Rgba.Hex(0xFFFFFF, 0.14f));
-                gun.DrawIcon(_ui, bx + slot * 0.5f, y + slot * 0.5f + S(2), iconSize, selected ? gun.Colour : UiTheme.TEXT_MUTED);
-                _ui.Text(f.Small, bx + S(5), y + S(3), gun.Key, selected ? gun.Colour : UiTheme.TEXT_FAINT);
-            }
-
-            // Selected gun name, then the hints, on one row above the bar
-            float rowY = y - S(8) - S(24);
-            float nameWidth = UiBatch.Measure(f.Bold, active.Name, S(1f)) + S(20);
-            // The gamepad's triggers when it was used last (build B), else the mouse buttons
-            bool pad = _window.Input.LastInputWasPad && _window.Input.PadConnected;
-            string primary = pad && Hotkeys.Map.PadLabel(InputAction.GunPrimary).Length > 0 ? Hotkeys.Map.PadLabel(InputAction.GunPrimary) : Hotkeys.Label(InputAction.GunPrimary);
-            string secondary = pad && Hotkeys.Map.PadLabel(InputAction.GunSecondary).Length > 0 ? Hotkeys.Map.PadLabel(InputAction.GunSecondary) : Hotkeys.Label(InputAction.GunSecondary);
-            float lmbWidth = HintWidth(f, primary, active.HintPrimary);
-            float rmbWidth = HintWidth(f, secondary, active.HintSecondary);
-            float rowWidth = nameWidth + S(10) + lmbWidth + S(10) + rmbWidth;
-            float rowX = MathF.Round(width * 0.5f - rowWidth * 0.5f);
-
-            if (!_unarmed) // unarmed: no gun name or LMB / RMB hints
-            {
-                _ui.Rect(rowX, rowY, nameWidth, S(24), Rgba.WithAlpha(active.Colour, 0.9f));
-                _ui.Text(f.Bold, rowX + S(10), rowY + S(4), active.Name, UiTheme.SCAN_TAG_TEXT, S(1f));
-                rowX += nameWidth + S(10);
-                Hint(f, rowX, rowY, primary, active.HintPrimary, active.Colour);
-                Hint(f, rowX + lmbWidth + S(10), rowY, secondary, active.HintSecondary, active.Colour);
-            }
-
-            // Revit write-back activity
-            if (EditsPending > 0)
-            {
-                Text.Clear().Append("REVIT · ").Append(EditsPending).Append(" pending");
-                float pendingWidth = UiBatch.Measure(f.Small, Text.Span) + S(16);
-                _ui.Rect(width * 0.5f - pendingWidth * 0.5f, rowY - S(26), pendingWidth, S(20), Rgba.Hex(0x0C0E12, 0.7f));
-                _ui.TextCentred(f.Small, width * 0.5f, rowY - S(22), Text.Span, UiTheme.MEASURE_LABEL);
-            }
-        }
-
-        private float HintWidth(FontAtlas f, string button, string text) =>
-            UiBatch.Measure(f.Mono, button) + S(6) + UiBatch.Measure(f.Body, text) + S(16);
-
-        private void Hint(FontAtlas f, float x, float y, string button, string text, uint colour)
-        {
-            _ui.Rect(x, y, HintWidth(f, button, text), S(24), Rgba.Hex(0x0C0E12, 0.7f));
-            float used = _ui.Text(f.Mono, x + S(8), y + S(5), button, colour);
-            _ui.Text(f.Body, x + S(8) + used + S(6), y + S(4), text, Rgba.Hex(0xE5E7EB));
         }
 
         /// <summary>
@@ -941,7 +977,7 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// Above the gun bar: Revit changes waiting for a refresh, or a refresh in progress (live sessions).
+        /// Revit changes waiting for a refresh, or a refresh in progress (live sessions).
         /// </summary>
         private void BuildLiveBanner(FontAtlas f, int width, int height)
         {

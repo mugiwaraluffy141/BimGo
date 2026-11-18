@@ -127,8 +127,8 @@ namespace BimGo.Format
         /// </summary>
         public static string HashOf(string keySource)
         {
-            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(NormaliseKey(keySource)));
-            return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+            byte[] hash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(NormaliseKey(keySource)));
+            return BitConverter.ToString(hash, 0, 4).Replace("-", "").ToLowerInvariant();
         }
 
         /// <summary>
@@ -368,7 +368,7 @@ namespace BimGo.Format
                 string path = System.IO.Path.Combine(folder, INFO_FILE);
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(info, BimGoFormat.JSON_INDENTED));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
             }
             catch (Exception ex)
             {

@@ -35,7 +35,7 @@ namespace BimGo.Extraction
                     AddNames(element, names);
 
                     ElementId typeId = element.GetTypeId();
-                    if (typeId != null && typeId != ElementId.InvalidElementId && typesSeen.Add(typeId.Value))
+                    if (typeId != null && typeId != ElementId.InvalidElementId && typesSeen.Add(typeId.Ext_Value()))
                     {
                         AddNames(doc.GetElement(typeId), names);
                     }

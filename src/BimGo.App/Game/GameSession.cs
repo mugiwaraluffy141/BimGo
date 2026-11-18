@@ -46,7 +46,6 @@ namespace BimGo.Game
         private Bvh _bvh;
         private Player _player;
         private Gun[] _guns;
-        private PortalGun _portalGun;
         private CommentGun _commentGun;
         private readonly SessionOptions _options;
 
@@ -238,7 +237,6 @@ namespace BimGo.Game
             ReadEyeSettings(settings);
             _clashInstant = settings.ClashInstantFly;
             _clashThumbsOn = settings.ClashRowPictures;
-            _showGunBar = settings.ShowGunBar;
             ReadVideoSettings(settings);
             ReadAppearanceSettings(settings);
             UnitFormat.Read(settings);
@@ -306,7 +304,6 @@ namespace BimGo.Game
             _groundZ = _groundDefault;
             controller.GroundZ = _groundZ;
 
-            Sound.Initialise();
 
             // Comments: inside the file (standalone) or in a sidecar beside the Revit model
             if (IsFileMode)
@@ -329,13 +326,11 @@ namespace BimGo.Game
             InitialiseSun();
             InitialiseVisibility();
 
-            _portalGun = new PortalGun(this);
             _commentGun = new CommentGun(this);
             _placeGun = new PlaceGun(this);
             _guns = new Gun[]
             {
-                new ScanGun(this), _measureGun = new MeasureGun(this), _portalGun, _commentGun,
-                new TeleportGun(this), new HammerGun(this), new GizmoGun(this), new CloneGun(this), _placeGun
+                new ScanGun(this), _measureGun = new MeasureGun(this), _commentGun
             };
             RefreshGunKeys();
             InitialiseMeasurements(); // Round Y-A: saved measurements
@@ -352,22 +347,19 @@ namespace BimGo.Game
             else if (Bookmarks.LastError != null) { Toast(Bookmarks.LastError); }
             else if (!string.IsNullOrEmpty(Scene.PhaseNote)) { Toast(Scene.PhaseNote, 6f); }
             else if (replayFailures > 0) { Toast($"{replayFailures} saved edit{(replayFailures == 1 ? " refers" : "s refer")} to elements not in this file and {(replayFailures == 1 ? "was" : "were")} skipped.", 5f); }
-            else if (!_options.Kiosk && ShowControlsDefaultsNotice()) { /* polish round P-B: once after an update that changed default keys (not to kiosk visitors) */ }
+            else if (ShowControlsDefaultsNotice()) { /* polish round P-B: once after an update that changed default keys */ }
             else
             {
                 string edits = _journal.Count > 0 ? $" · {_journal.Count} edit{(_journal.Count == 1 ? string.Empty : "s")}" : string.Empty;
                 string links = Scene.Links.Length > 0 ? $" · {Scene.Links.Length} linked model{(Scene.Links.Length == 1 ? string.Empty : "s")}" : string.Empty;
                 string start = _startedAtSavedHome ? $" Starting at your saved home ({Key(InputAction.SetHome)} sets it)." : string.Empty;
-                Toast($"{Scene.Elements.Length:N0} elements · {Scene.TriangleCount:N0} triangles{links}{edits}.{start} Click to look around.", _startedAtSavedHome ? 4f : 2.6f);
+                Toast($"{Scene.Elements.Length:N0} elements · {Scene.TriangleCount:N0} triangles{links}{edits}.{start} Right-drag to orbit.", _startedAtSavedHome ? 4f : 2.6f);
             }
 
             // Round Z-E: a safe start or an add-in from another release says so (important: shown whatever else is up)
             if (LaunchSettings.SafeStart) { Toast("Safe start: default settings for this run, nothing is saved (start BimGo without Shift for your own)", 8f, important: true); }
             else if (!string.IsNullOrEmpty(_options.StartNotice)) { Toast(_options.StartNotice, 10f, important: true); }
 
-            // Round Z-C: a kiosk shortcut's launch (files only)
-            if (_options.Kiosk && IsFileMode) { EnterKiosk(); }
-            else if (!LaunchSettings.SafeStart && !Scene.Settings.WelcomeShown) { OpenWelcome(); } // Round Z-E: first walkthrough
         }
 
         /// <summary>
@@ -565,7 +557,7 @@ namespace BimGo.Game
 
                     // The window still exists (close was only requested): unsaved changes may cancel it (Round Z-C: never
                     // in kiosk mode, which makes no changes and has nobody to answer)
-                    if (_window.Handle != 0 && !_kiosk && !ConfirmDiscardOrSave())
+                    if (_window.Handle != 0 && !ConfirmDiscardOrSave())
                     {
                         _endRequested = false;
                         _endReason = SessionEndReason.EndedByUser;
@@ -585,7 +577,6 @@ namespace BimGo.Game
                 float worldDt = _video != null ? 0f : dt; // Round X-A: while recording, each video frame moves them by its own step
                 AdvanceSky(worldDt); // sky round: clouds drift, the sky look reaches the renderer
                 AdvanceWater(worldDt); // water round W: the ripples' clock runs at the ripple speed
-                AdvanceWeather(dt); // Round W-B: the rain and snow's clock
 
                 if (_window.IsMinimised)
                 {
@@ -597,7 +588,7 @@ namespace BimGo.Game
                 UpdateFrame(dt);
                 PollHost(dt);
 
-                if (!_paused)
+                if (!_paused && !_viewerCommandsOpen && (_window.IsActive || _tourActive))
                 {
                     accumulator += dt;
                     int ticks = 0;
@@ -635,43 +626,20 @@ namespace BimGo.Game
                 _target.Ensure(_window.Width, _window.Height, _msaa);
             }
 
-            // The gamepad's cursor (menus, editors) follows what is open (build B; used from the next frame's poll)
-            _window.PadCursor = CurrentPadCursorMode();
-
             // Round Z-C: kiosk mode has the keys: walk, fly and look only (its idle tour too; any input hands control back)
-            if (_kiosk)
-            {
-                UpdateKiosk(input, dt);
-                return;
-            }
-
             // Round Z-E: the welcome card (first walkthrough) has the cursor until it closes
-            if (_welcomeOpen)
+            if (_window.FocusLost)
             {
-                UpdateWelcome(input);
-                return;
+                CancelReviewPointerGesture();
+                _window.FocusLost = false;
             }
 
-            UpdatePadFocus(input); // polish round P-A2: the D-pad's focus ring and LB / RB tabs (before the keys below)
-            if (_paused || _tourActive) { CloseGunWheel(pick: false); }
-
+            if (UpdateViewerToolbarInput(input)) { return; }
+            UpdateReviewPanelInput(input, ReviewPanelsVisible);
             // A bookmark tour has the keys (it carries on when the window loses focus)
             if (_tourActive)
             {
                 UpdateTour(input, dt);
-                return;
-            }
-
-            if (_window.FocusLost)
-            {
-                _window.FocusLost = false;
-                if (!_paused && !IsEditingComment) { SetPaused(true); }
-            }
-
-            // CONTROLS → MAP BUTTONS has the generic controller (and Esc); the mouse still clicks SKIP / CANCEL
-            if (IsMappingPad)
-            {
-                UpdatePadMapping(input);
                 return;
             }
 
@@ -765,19 +733,23 @@ namespace BimGo.Game
             if (escape && _uiHidden)
             {
                 ShowUi();
-                escape = false;
+                return;
             }
             if (escape)
             {
-                if (_wheelOpen) { CloseGunWheel(pick: false); }
-                else if (captured) { current.OnCancel(); }
-                else if (PanelBack()) { /* one level back: overlay, sub-view, panel (polish round P-A1) */ }
-                else { SetPaused(!_paused); }
+                if (captured) { current.OnCancel(); return; }
+                if (PanelBack()) { return; }
+                if (_paused) { ClosePanelToGame(); return; }
+                if (!_unarmed)
+                {
+                    current.OnCancel();
+                    SetUnarmed(true);
+                    return;
+                }
             }
+            if (_menuPreview && input.Pressed(InputAction.MenuPreview)) { CloseMenuPreview(); return; }
             if (input.Pressed(InputAction.Help)) { _showHelp = !_showHelp; }
             if (input.Pressed(InputAction.Refresh) && !captured) { RefreshFromRevit(); }
-            if (input.Pressed(InputAction.RevitViewNew) && !captured) { SendRevitView(Live.RevitViewAction.Create); } // Round X-E
-            if (input.Pressed(InputAction.RevitViewUpdate) && !captured) { SendRevitView(Live.RevitViewAction.Update); }
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
 
@@ -793,16 +765,6 @@ namespace BimGo.Game
                 if (input.Pressed(InputAction.SaveAs))
                 {
                     Save(saveAs: true);
-                    return;
-                }
-                if (input.Pressed(InputAction.Undo))
-                {
-                    Undo();
-                    return;
-                }
-                if (input.Pressed(InputAction.Redo))
-                {
-                    Redo();
                     return;
                 }
                 if (!_paused)
@@ -838,16 +800,12 @@ namespace BimGo.Game
             {
                 current.OnKeys(input);
                 if (input.Pressed(InputAction.Minimap)) { _showMap = !_showMap; }
-                UpdateMouseLook(input);
+                UpdateMouseLook(input, dt);
                 return;
             }
 
-            // The gun wheel (MMB / the gamepad's stick click): while it is open the walking keys wait
-            UpdatePadSprint(input);
-            if (UpdateGunWheel(input)) { return; }
-
             if (input.Pressed(InputAction.Minimap)) { _showMap = !_showMap; }
-            if (input.Pressed(InputAction.Fly))
+            if (!DesktopReviewNavigation && input.Pressed(InputAction.Fly))
             {
                 _player.ToggleFly();
                 Toast(_player.Flying ? "Fly mode (no-clip)" : "Walk mode");
@@ -863,30 +821,10 @@ namespace BimGo.Game
                 return;
             }
             if (input.Pressed(InputAction.Coordinates)) { CycleCoordinateReadout(); }
-            if (input.Pressed(InputAction.SunStudy))
-            {
-                OpenSunHours();
-                return;
-            }
             if (input.Pressed(InputAction.ClashMode))
             {
                 // Clash detection stays dormant until this (or pause menu → CLASHES) switches it on
                 ToggleClashMode();
-                return;
-            }
-            if (input.Pressed(InputAction.PhotoMode))
-            {
-                OpenPhotoMode();
-                return;
-            }
-            if (input.Pressed(InputAction.MediaPanel))
-            {
-                OpenMediaPanel(); // Round K-A: photo, tour, paths, video
-                return;
-            }
-            if (input.Pressed(InputAction.PathEditMode))
-            {
-                EnterPathEditor(_mediaPath); // Round K-B: the 3D path editor
                 return;
             }
             if (input.Pressed(InputAction.SectionBox))
@@ -899,77 +837,38 @@ namespace BimGo.Game
                 QuickSectionPlane();
                 return;
             }
-            if (input.Pressed(InputAction.Lights)) { CycleLightMode(); }
-            if (input.Pressed(InputAction.Shadows))
-            {
-                ToggleShadows();
-                return;
-            }
-            if (input.Pressed(InputAction.SunPanel))
-            {
-                OpenSunPanel();
-                return;
-            }
             if (input.Pressed(InputAction.GridsPanel))
             {
                 OpenGridsPanel();
                 return;
             }
-            if (input.Pressed(InputAction.FixtureProfile))
-            {
-                ToggleFixtureDock(); // Round Y-C2: the aimed fixture's own light profile
-                return;
-            }
             if (input.Pressed(InputAction.GridsCycle)) { CycleGrids(); }
             if (input.Pressed(InputAction.ColourProfile)) { ToggleProfile(); } // colour round A
             if (input.Pressed(InputAction.RoomTags)) { ToggleRoomTags(); } // Round Z-A
-            if (ShadowsOn) { StepSunTimeKeys(input); }
-            if (input.Pressed(InputAction.Jump) && !_player.Flying) { _player.QueueJump(); }
+            if (!DesktopReviewNavigation && input.Pressed(InputAction.Jump) && !_player.Flying) { _player.QueueJump(); }
 
             for (int i = 0; i < _guns.Length; i++)
             {
-                if (!input.Pressed(InputCatalog.GunAction(i))) { continue; }
+                if (!input.Pressed(InputCatalog.GunAction(i == 2 ? 3 : i))) { continue; }
                 // The selected gun's own key again: the gun may cycle a mode (Measure: distance → area → angle → clearance);
                 // unarmed, any gun key arms that gun
                 if (i == _activeGun && !_unarmed) { _guns[i].OnReselect(); }
                 else { SelectGun(i); }
             }
             if (input.Pressed(InputAction.Unarmed)) { SetUnarmed(!_unarmed); }
-            else if (_unarmed) { /* no gun: the wheel and gun keys below wait */ }
-            else if (input.Wheel != 0 && _guns[_activeGun].OnWheel(input)) { input.ConsumeWheel(); } // X-B3: billboard size
-            else if (input.Pressed(InputAction.PreviousGun)) { SelectGun((_activeGun - 1 + _guns.Length) % _guns.Length); }
-            else if (input.Pressed(InputAction.NextGun)) { SelectGun((_activeGun + 1) % _guns.Length); }
-            // The mouse wheel (polish round): the selected gun's modes (Measure: distance / area / angle / clearance;
-            // Demolish: demolish / delete); guns without modes ignore it
-            else if (input.Pressed(InputAction.GunModeNext)) { _guns[_activeGun].CycleMode(+1); }
-            else if (input.Pressed(InputAction.GunModePrevious)) { _guns[_activeGun].CycleMode(-1); }
+            else if (_unarmed) { /* the persistent review panels select a tool */ }
 
             if (!_unarmed) { _guns[_activeGun].OnKeys(input); }
-            UpdateMouseLook(input);
+            UpdateMouseLook(input, dt);
         }
 
         /// <summary>
         /// Mouse capture (click to look) and mouse look.
         /// </summary>
-        private void UpdateMouseLook(InputState input)
+        private void UpdateMouseLook(InputState input, float dt)
         {
-            if (!_window.IsCaptured && input.LeftPressed && _window.IsActive)
-            {
-                // A click on the sun icon (cursor free) opens the sun panel instead of capturing the mouse
-                if (HoverSunIcon(input))
-                {
-                    input.ConsumeClicks();
-                    OpenSunPanel();
-                    return;
-                }
-                _window.SetCaptured(true);
-                input.ConsumeClicks();
-            }
-            if (_window.IsCaptured)
-            {
-                _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY);
-            }
-            if (_window.IsActive) { PadLook(input); } // the look actions (gamepad stick; any key bound to them)
+            if (_window.IsCaptured) { _window.SetCaptured(false); }
+            UpdateDesktopReviewNavigation(input, dt);
         }
 
         /// <summary>
@@ -978,8 +877,9 @@ namespace BimGo.Game
         private void FixedUpdate(float dt)
         {
             if (_tourActive) { return; } // the tour places the player itself
+            if (DesktopReviewNavigation) { return; } // desktop review camera: no gravity, collision, jump or crouch
             _player.Controller.GroundZ = _groundZ;
-            bool frozen = _welcomeOpen || IsEditingComment || _sunPanelOpen || _sunHoursOpen || GridsPanelHasKeys || FixtureDockHasKeys || !_window.IsActive || _guns[_activeGun].CapturesInput || ClashFreezesPlayer
+            bool frozen = IsEditingComment || _sunPanelOpen || _sunHoursOpen || GridsPanelHasKeys || FixtureDockHasKeys || !_window.IsActive || _guns[_activeGun].CapturesInput || ClashFreezesPlayer
                 || PathFreezesPlayer;
             if (_pathEditOn)
             {
@@ -995,7 +895,6 @@ namespace BimGo.Game
             {
                 _player.FixedUpdate(dt, _window.Input, inputEnabled: !frozen);
             }
-            _portalGun.CheckTeleport(_player, dt);
         }
 
         /// <summary>
@@ -1012,9 +911,18 @@ namespace BimGo.Game
             }
             else
             {
-                Camera.Position = _player.GetEye(Math.Clamp(alpha, 0f, 1f), dt);
-                Camera.Yaw = _player.Yaw;
-                Camera.Pitch = _player.Pitch;
+                if (_window.IsActive && DesktopReviewNavigation)
+                {
+                    Camera.Position = PlayerEye;
+                    Camera.Yaw = _player.Yaw;
+                    Camera.Pitch = _player.Pitch;
+                }
+                else if (_window.IsActive)
+                {
+                    Camera.Position = _player.GetEye(Math.Clamp(alpha, 0f, 1f), dt);
+                    Camera.Yaw = _player.Yaw;
+                    Camera.Pitch = _player.Pitch;
+                }
             }
             Camera.HorizontalFovDegrees = _fov;
             Camera.ViewportWidth = _window.Width;
@@ -1024,41 +932,56 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// Casts the crosshair ray.
+        /// Casts the ray through the pointer.
         /// </summary>
         private void UpdateAim()
         {
-            _aim.Origin = Camera.Position;
-            _aim.Direction = Camera.Forward;
-            _aim.HasHit = Pick(Camera.Position, Camera.Forward, PICK_DISTANCE, out _aim.Hit);
+            InputState input = _window.Input;
+            Vector2 pixel = input.MousePosition;
+            ScreenRay(pixel, out _aim.Origin, out _aim.Direction);
+            _aim.HasHit = Pick(_aim.Origin, _aim.Direction, PICK_DISTANCE, out _aim.Hit);
             UpdateGridHover(); // grids round B: the hovered grid node (and the Measure gun's snap to it)
         }
 
         /// <summary>
-        /// Gun updates and fire input.
+        /// Review tool updates and pointer input.
         /// </summary>
         private void UpdateGuns(float dt)
         {
             PumpSource(dt);
             foreach (Gun gun in _guns) { gun.Tick(dt); }
-            if (_paused || IsEditingComment || _tourActive) { return; }
+            if (_paused || _viewerCommandsOpen || IsEditingComment || _tourActive || _markupOpen || _photoOpen || _sectionOpen
+                || _sunPanelOpen || _sunHoursOpen || _gridsPanelOpen || _fixtureDockOpen || _pathEditOn || _clashModeOn || OverlayOpen) { return; }
 
             if (_unarmed) { return; } // no gun out: nothing aims or fires
             Gun active = _guns[_activeGun];
             active.Update(dt, _aim);
 
             InputState input = _window.Input;
-            if (_wheelOpen) { return; }
             if (_window.IsCaptured)
             {
                 if (input.Pressed(InputAction.GunPrimary)) { active.OnPrimary(_aim); }
-                if (input.Pressed(InputAction.GunSecondary)) { active.OnSecondary(_aim); }
             }
-            else if (input.PadConnected && CurrentPadCursorMode() == PadCursorMode.Off)
+            else
             {
-                // Walking with the gamepad while the mouse isn't captured: only the triggers fire (a mouse click captures first)
-                if (input.PressedByPad(InputAction.GunPrimary)) { active.OnPrimary(_aim); }
-                if (input.PressedByPad(InputAction.GunSecondary)) { active.OnSecondary(_aim); }
+                bool toolPointerBlocked = OverReviewPanel(input.MousePosition) || (ReviewLookDragging && input.RightDown);
+                bool primaryUsed = !toolPointerBlocked && (input.LeftPressed
+                    || (input.Pressed(InputAction.GunPrimary) && !input.PressedByPad(InputAction.GunPrimary)));
+                if (primaryUsed) { active.OnPrimary(_aim); }
+                bool secondaryUsed = false;
+                if (_reviewPendingSecondary && !toolPointerBlocked)
+                {
+                    active.OnSecondary(_aim);
+                    _reviewPendingSecondary = false;
+                    secondaryUsed = true;
+                }
+                else if (_reviewPendingSecondary) { _reviewPendingSecondary = false; }
+                // RMB clicks remain the secondary action; a drag that began on the viewport is camera look.
+                if (!toolPointerBlocked && !secondaryUsed && input.Pressed(InputAction.GunSecondary) && !input.RightPressed && !input.PressedByPad(InputAction.GunSecondary))
+                {
+                    active.OnSecondary(_aim);
+                    secondaryUsed = true;
+                }
             }
         }
 
@@ -1080,16 +1003,16 @@ namespace BimGo.Game
         #region Actions
 
         /// <summary>True when no gun is out (polish round: 0 or the gun wheel): no gun panel, hints, aiming or firing.</summary>
-        private bool _unarmed;
+        private bool _unarmed = true;
 
-        /// <summary>0 / the gun wheel's UNARMED slot: puts the gun away, or takes the last one out again.</summary>
+        /// <summary>0 puts the review tools away, or takes the last one out again.</summary>
         private void SetUnarmed(bool unarmed)
         {
             if (unarmed == _unarmed || _guns[_activeGun].CapturesInput) { return; }
             if (unarmed) { _guns[_activeGun].OnDeselect(); }
             _unarmed = unarmed;
             Sound.Play(SoundId.UiClick);
-            Toast(unarmed ? $"No gun ({Hotkeys.Label(InputAction.Unarmed)} or a gun key takes a gun out)" : _guns[_activeGun].Name, 1.6f);
+            Toast(unarmed ? $"Review tools idle ({Hotkeys.Label(InputAction.Unarmed)} or a tool key selects one)" : _guns[_activeGun].Name, 1.6f);
         }
 
         private void SelectGun(int index)
@@ -1112,22 +1035,17 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// True while a mode that works with a free cursor is on (sun panel, sun hours study, photo mode, the section box
-        /// editor, clash mode): resuming must not capture the mouse then.
-        /// </summary>
-        private bool CursorModeOpen => _sunPanelOpen || _sunHoursOpen || _photoOpen || _sectionOpen || _clashModeOn || _gridsPanelOpen || _pathEditOn || _fixtureDockOpen;
-
-        /// <summary>
         /// Pauses (releases the mouse) or resumes (captures it again, unless a free-cursor mode is on: C-B1 fixes, the
         /// cursor vanished coming back to clash mode).
         /// </summary>
         private void SetPaused(bool paused)
         {
             _paused = paused;
+            if (paused) { _viewerCommandsOpen = false; }
             _menuPreview = false; // QOL round: the options preview never outlives the pause menu
             CloseOverlay(); // a dropdown / confirm belongs to the screen it was opened on
             if (paused) { ShowUi(); } // e.g. focus lost while hidden: come back to a normal HUD
-            _window.SetCaptured(!paused && _window.IsActive && !CursorModeOpen);
+            _window.SetCaptured(false);
             _window.Input.ReleaseAll();
         }
 
@@ -1335,7 +1253,6 @@ namespace BimGo.Game
             settings.MouseSensitivity = _sensitivity;
             settings.ClashInstantFly = _clashInstant;
             settings.ClashRowPictures = _clashThumbsOn;
-            settings.ShowGunBar = _showGunBar;
             settings.InvertY = _invertY;
             settings.VSync = _vsync;
             settings.FrameRateLimit = _frameLimit;
@@ -1367,7 +1284,6 @@ namespace BimGo.Game
             try { AbortVideo(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Video stop failed: {ex.Message}"); }
             EndFrameLimit();
             if (_tourActive) { try { StopTour(finished: false); } catch (Exception ex) { Utilities.Log_Utils.Write($"Tour stop failed: {ex.Message}"); } }
-            _window.PadCursor = PadCursorMode.Menu; // the start screen
             try { SaveSettings(); } catch { /* logged inside */ }
             try { FlushSunSidecar(); } catch { /* logged inside */ }
             try { FlushVisibilitySidecar(); } catch { /* logged inside */ }

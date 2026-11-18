@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 // The class belongs to the Scene namespace
@@ -512,7 +512,7 @@ namespace BimGo.Scene
         }
 
         private static float CleanEye(float metres, float fallback) =>
-            float.IsFinite(metres) ? MathF.Round(Math.Clamp(metres, MIN_EYE_HEIGHT, MAX_EYE_HEIGHT) * 100f) / 100f : fallback;
+            BimGo.NumericCompat.IsFinite(metres) ? MathF.Round(BimGo.NumericCompat.Clamp(metres, MIN_EYE_HEIGHT, MAX_EYE_HEIGHT) * 100f) / 100f : fallback;
 
         /// <summary>
         /// Key bindings changed from the defaults (input round B2): action id (<see cref="InputAction"/> name) → its
@@ -637,7 +637,7 @@ namespace BimGo.Scene
             var ordered = LinkedModels.Where(p => !string.Equals(p.Key, hostModelKey, StringComparison.Ordinal)).ToList();
             if (links.Count > 0) { ordered.Add(new KeyValuePair<string, List<string>>(hostModelKey, links)); }
             int excess = Math.Max(0, ordered.Count - MAX_LINKED_MODEL_ENTRIES);
-            LinkedModels = new Dictionary<string, List<string>>(ordered.Skip(excess), StringComparer.Ordinal);
+            LinkedModels = ordered.Skip(excess).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         }
 
         /// <summary>Shadow-map quality on this machine (the sun panel and the Options dialog change it).</summary>
@@ -776,7 +776,7 @@ namespace BimGo.Scene
                 Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath));
                 string temp = SettingsPath + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(this, JSON_OPTIONS));
-                File.Move(temp, SettingsPath, overwrite: true);
+                FileCompat.MoveOverwrite(temp, SettingsPath);
             }
             catch (Exception ex)
             {
@@ -810,12 +810,12 @@ namespace BimGo.Scene
                 .ToList();
             ExistingPhase = ExistingPhase?.Trim() ?? string.Empty;
             NewPhase = NewPhase?.Trim() ?? string.Empty;
-            if (!Enum.IsDefined(CoordinateReadout)) { CoordinateReadout = CoordinateReadout.Off; }
-            if (!Enum.IsDefined(BcfCoordinates)) { BcfCoordinates = Format.BcfCoordinates.Shared; }
+            if (!Enum.IsDefined(CoordinateReadout.GetType(), CoordinateReadout)) { CoordinateReadout = CoordinateReadout.Off; }
+            if (!Enum.IsDefined(BcfCoordinates.GetType(), BcfCoordinates)) { BcfCoordinates = Format.BcfCoordinates.Shared; }
             if (!TryParseColour(SectionCapColour, out _)) { SectionCapColour = DEFAULT_CAP_COLOUR; }
-            if (!Enum.IsDefined(ShadowQuality)) { ShadowQuality = ShadowQuality.Medium; }
-            if (!Enum.IsDefined(ArtificialLights)) { ArtificialLights = ArtificialLightMode.Lights; }
-            if (!Enum.IsDefined(Colour)) { Colour = ColourMode.Material; }
+            if (!Enum.IsDefined(ShadowQuality.GetType(), ShadowQuality)) { ShadowQuality = ShadowQuality.Medium; }
+            if (!Enum.IsDefined(ArtificialLights.GetType(), ArtificialLights)) { ArtificialLights = ArtificialLightMode.Lights; }
+            if (!Enum.IsDefined(Colour.GetType(), Colour)) { Colour = ColourMode.Material; }
             TextureMaxSize = MaterialData.NearestTextureSize(TextureMaxSize);
             if (RevitTint != TintMode.Off) { RevitTint = TintMode.Multiply; } // unknown and retired values
             TextureSearchFolders = (TextureSearchFolders ?? new List<string>())
@@ -827,13 +827,13 @@ namespace BimGo.Scene
                 .Take(MAX_TEXTURE_SEARCH_FOLDERS)
                 .Reverse()
                 .ToList();
-            ArtificialLightIntensity = float.IsFinite(ArtificialLightIntensity) ? Math.Clamp(ArtificialLightIntensity, 0f, 2f) : 1f;
-            BloomIntensity = float.IsFinite(BloomIntensity) ? Math.Clamp(BloomIntensity, 0f, 2f) : 1f;
+            ArtificialLightIntensity = BimGo.NumericCompat.IsFinite(ArtificialLightIntensity) ? BimGo.NumericCompat.Clamp(ArtificialLightIntensity, 0f, 2f) : 1f;
+            BloomIntensity = BimGo.NumericCompat.IsFinite(BloomIntensity) ? BimGo.NumericCompat.Clamp(BloomIntensity, 0f, 2f) : 1f;
             ReflectionThreshold = ReflectionThreshold <= 37 ? 25 : 50;
-            ReflectionStrength = float.IsFinite(ReflectionStrength) ? Math.Clamp(ReflectionStrength, 0.5f, 2f) : 1f;
+            ReflectionStrength = BimGo.NumericCompat.IsFinite(ReflectionStrength) ? BimGo.NumericCompat.Clamp(ReflectionStrength, 0.5f, 2f) : 1f;
             ProbeResolution = ProbeResolution >= 192 ? 256 : 128;
-            ScreenReflections = Math.Clamp(ScreenReflections, 0, 3); // X-C1
-            FamilyLibraryMax = Math.Clamp(FamilyLibraryMax <= 0 ? 200 : FamilyLibraryMax, 10, MAX_FAMILY_LIBRARY);
+            ScreenReflections = BimGo.NumericCompat.Clamp(ScreenReflections, 0, 3); // X-C1
+            FamilyLibraryMax = BimGo.NumericCompat.Clamp(FamilyLibraryMax <= 0 ? 200 : FamilyLibraryMax, 10, MAX_FAMILY_LIBRARY);
             EmissiveKeywords = (EmissiveKeywords ?? DefaultEmissiveKeywords())
                 .Where(k => !string.IsNullOrWhiteSpace(k))
                 .Select(k => k.Trim())
@@ -843,28 +843,28 @@ namespace BimGo.Scene
             WaterKeywords = MaterialOverrides.CleanKeywords(WaterKeywords ?? DefaultWaterKeywords());
             GlassKeywords = MaterialOverrides.CleanKeywords(GlassKeywords);
             GrassKeywords = MaterialOverrides.CleanKeywords(GrassKeywords ?? DefaultGrassKeywords());
-            GrassDensity = Math.Clamp(GrassDensity, 0, 2);
-            GrassHeightMm = Math.Clamp(GrassHeightMm, MIN_GRASS_HEIGHT, MAX_GRASS_HEIGHT);
-            GrassDistance = Math.Clamp(GrassDistance, MIN_GRASS_DISTANCE, MAX_GRASS_DISTANCE);
+            GrassDensity = BimGo.NumericCompat.Clamp(GrassDensity, 0, 2);
+            GrassHeightMm = BimGo.NumericCompat.Clamp(GrassHeightMm, MIN_GRASS_HEIGHT, MAX_GRASS_HEIGHT);
+            GrassDistance = BimGo.NumericCompat.Clamp(GrassDistance, MIN_GRASS_DISTANCE, MAX_GRASS_DISTANCE);
             WaterColour = TryParseColour(WaterColour, out _) ? "#" + WaterColour.Trim().TrimStart('#').ToUpperInvariant() : string.Empty;
-            WaterReflection = float.IsFinite(WaterReflection) ? Math.Clamp(WaterReflection, 0f, 1f) : 1f;
+            WaterReflection = BimGo.NumericCompat.IsFinite(WaterReflection) ? BimGo.NumericCompat.Clamp(WaterReflection, 0f, 1f) : 1f;
             WaterRipple = CleanLookScale(WaterRipple);
             WaterRippleSpeed = CleanLookScale(WaterRippleSpeed);
             GrassSway = CleanLookScale(GrassSway);
             WaterWaveScale = CleanWaveScale(WaterWaveScale);
-            TriangleThreshold = Math.Clamp(TriangleThreshold, 100, 5_000_000);
+            TriangleThreshold = BimGo.NumericCompat.Clamp(TriangleThreshold, 100, 5_000_000);
             Msaa = Msaa >= 4 ? 4 : Msaa >= 2 ? 2 : 0;
-            MouseSensitivity = Math.Clamp(MouseSensitivity, 0.1f, 3f);
-            FieldOfView = Math.Clamp(FieldOfView, 60f, 120f);
-            MaxStepHeightMm = Math.Clamp(MaxStepHeightMm, 50f, 450f);
-            if (!Enum.IsDefined(EyePreset)) { EyePreset = EyePreset.Standing; }
-            if (!Enum.IsDefined(VideoSize)) { VideoSize = VideoSize.FullHd; }
-            if (!Enum.IsDefined(DisplayUnits)) { DisplayUnits = UnitSystem.Metric; }
+            MouseSensitivity = BimGo.NumericCompat.Clamp(MouseSensitivity, 0.1f, 3f);
+            FieldOfView = BimGo.NumericCompat.Clamp(FieldOfView, 60f, 120f);
+            MaxStepHeightMm = BimGo.NumericCompat.Clamp(MaxStepHeightMm, 50f, 450f);
+            if (!Enum.IsDefined(EyePreset.GetType(), EyePreset)) { EyePreset = EyePreset.Standing; }
+            if (!Enum.IsDefined(VideoSize.GetType(), VideoSize)) { VideoSize = VideoSize.FullHd; }
+            if (!Enum.IsDefined(DisplayUnits.GetType(), DisplayUnits)) { DisplayUnits = UnitSystem.Metric; }
             VideoFps = VideoFps >= 45 ? 60 : 30;
-            TimeLapseFrom = Math.Clamp(TimeLapseFrom, 0, 1439);
-            TimeLapseTo = Math.Clamp(TimeLapseTo, 0, 1439);
-            TimeLapseMargin = Math.Clamp(TimeLapseMargin, 0, TimeLapsePlan.MAX_MARGIN);
-            TimeLapseSeconds = Math.Clamp(TimeLapseSeconds, TimeLapsePlan.MIN_SECONDS, TimeLapsePlan.MAX_SECONDS);
+            TimeLapseFrom = BimGo.NumericCompat.Clamp(TimeLapseFrom, 0, 1439);
+            TimeLapseTo = BimGo.NumericCompat.Clamp(TimeLapseTo, 0, 1439);
+            TimeLapseMargin = BimGo.NumericCompat.Clamp(TimeLapseMargin, 0, TimeLapsePlan.MAX_MARGIN);
+            TimeLapseSeconds = BimGo.NumericCompat.Clamp(TimeLapseSeconds, TimeLapsePlan.MIN_SECONDS, TimeLapsePlan.MAX_SECONDS);
             BatchTimes = string.IsNullOrWhiteSpace(BatchTimes) ? BatchStills.DEFAULT_TIMES : BatchTimes.Trim();
             if (BatchTimes.Length > 200) { BatchTimes = BatchTimes[..200]; }
             EyeHeightStanding = CleanEye(EyeHeightStanding, DEFAULT_EYE_STANDING);
@@ -886,8 +886,8 @@ namespace BimGo.Scene
             }
             PadBindings = pad;
             ControlsDefaultsVersion = Math.Max(0, ControlsDefaultsVersion);
-            OcclusionMode = Math.Clamp(OcclusionMode, 0, 2); // Y-D1 r2
-            LightQuality = Math.Clamp(LightQuality, 0, 2); // Y-D2
+            OcclusionMode = BimGo.NumericCompat.Clamp(OcclusionMode, 0, 2); // Y-D1 r2
+            LightQuality = BimGo.NumericCompat.Clamp(LightQuality, 0, 2); // Y-D2
             var generic = new Dictionary<string, string>(StringComparer.Ordinal);
             if (GenericPadMap != null)
             {
@@ -899,10 +899,10 @@ namespace BimGo.Scene
             }
             GenericPadMap = generic;
             GenericPadName = GenericPadName?.Trim() ?? string.Empty;
-            PadLookSensitivity = float.IsFinite(PadLookSensitivity) ? Math.Clamp(PadLookSensitivity, 0.2f, 3f) : 1f;
-            PadDeadZone = float.IsFinite(PadDeadZone) ? Math.Clamp(PadDeadZone, 0.05f, 0.6f) : DEFAULT_PAD_DEAD_ZONE;
-            PadTriggerThreshold = float.IsFinite(PadTriggerThreshold) ? Math.Clamp(PadTriggerThreshold, 0.05f, 0.9f) : DEFAULT_PAD_TRIGGER;
-            LastOptionsTab = Math.Clamp(LastOptionsTab, 0, 6);
+            PadLookSensitivity = BimGo.NumericCompat.IsFinite(PadLookSensitivity) ? BimGo.NumericCompat.Clamp(PadLookSensitivity, 0.2f, 3f) : 1f;
+            PadDeadZone = BimGo.NumericCompat.IsFinite(PadDeadZone) ? BimGo.NumericCompat.Clamp(PadDeadZone, 0.05f, 0.6f) : DEFAULT_PAD_DEAD_ZONE;
+            PadTriggerThreshold = BimGo.NumericCompat.IsFinite(PadTriggerThreshold) ? BimGo.NumericCompat.Clamp(PadTriggerThreshold, 0.05f, 0.9f) : DEFAULT_PAD_TRIGGER;
+            LastOptionsTab = BimGo.NumericCompat.Clamp(LastOptionsTab, 0, 6);
 
             // Last: the profile is whatever the (clamped) values match, so a hand-edited or older file reads true
             QualityProfile = QualityProfiles.Detect(this);
@@ -935,15 +935,15 @@ namespace BimGo.Scene
         /// </summary>
         public static float CleanLookScale(float value)
         {
-            if (!float.IsFinite(value)) { return 1f; }
-            return MathF.Round(Math.Clamp(value, 0f, MAX_LOOK_SCALE) * 20f) / 20f;
+            if (!BimGo.NumericCompat.IsFinite(value)) { return 1f; }
+            return MathF.Round(BimGo.NumericCompat.Clamp(value, 0f, MAX_LOOK_SCALE) * 20f) / 20f;
         }
 
         /// <summary>Water round W: a wave size kept in 0.25–4 on 5 % steps; anything unreadable is 1.</summary>
         public static float CleanWaveScale(float value)
         {
-            if (!float.IsFinite(value)) { return 1f; }
-            return MathF.Round(Math.Clamp(value, MIN_WAVE_SCALE, MAX_WAVE_SCALE) * 20f) / 20f;
+            if (!BimGo.NumericCompat.IsFinite(value)) { return 1f; }
+            return MathF.Round(BimGo.NumericCompat.Clamp(value, MIN_WAVE_SCALE, MAX_WAVE_SCALE) * 20f) / 20f;
         }
 
         /// <summary>Reads "#RRGGBB" (the # optional) as 0xRRGGBB.</summary>

@@ -61,6 +61,22 @@ namespace BimGo.Utilities
         /// <returns>Null on success, else a reason.</returns>
         public static string AttachInApp(string sessionId) => Start("--session", sessionId);
 
+        private static string QuoteArgument(string argument)
+        {
+            var result = new System.Text.StringBuilder("\"");
+            int slashes = 0;
+            foreach (char c in argument)
+            {
+                if (c == '\\') { slashes++; continue; }
+                if (c == '"') { result.Append('\\', slashes * 2 + 1); }
+                else { result.Append('\\', slashes); }
+                result.Append(c);
+                slashes = 0;
+            }
+            result.Append('\\', slashes * 2);
+            return result.Append('"').ToString();
+        }
+
         /// <summary>
         /// Starts BimGo.exe with arguments.
         /// </summary>
@@ -75,7 +91,7 @@ namespace BimGo.Utilities
                     UseShellExecute = false,
                     WorkingDirectory = Path.GetDirectoryName(exe)
                 };
-                foreach (string argument in arguments) { start.ArgumentList.Add(argument); }
+                start.Arguments = string.Join(" ", arguments.Select(QuoteArgument));
                 Process.Start(start)?.Dispose();
                 return null;
             }

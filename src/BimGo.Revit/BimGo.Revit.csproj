@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<!-- Main property group -->
 	<PropertyGroup>
@@ -14,8 +14,8 @@
 
 		<!-- Debug/Release configurations per Revit version -->
 		<Configurations>
-			Debug R25;Debug R26;Debug R27;
-			Release R25;Release R26;Release R27
+			Debug R23;Debug R24;Debug R25;Debug R26;Debug R27;
+			Release R23;Release R24;Release R25;Release R26;Release R27
 		</Configurations>
 
 		<!-- Common add-in metadata (version and publisher: src/Directory.Build.props) -->
@@ -28,6 +28,16 @@
 	</PropertyGroup>
 
 	<!-- Per-Revit settings and constants -->
+	<PropertyGroup Condition="$(Configuration.Contains('23'))">
+		<RevitVersion>2023</RevitVersion>
+		<TargetFramework>net48</TargetFramework>
+		<DefineConstants>$(DefineConstants);REVIT2023</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="$(Configuration.Contains('24'))">
+		<RevitVersion>2024</RevitVersion>
+		<TargetFramework>net48</TargetFramework>
+		<DefineConstants>$(DefineConstants);REVIT2024</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="$(Configuration.Contains('25'))">
 		<RevitVersion>2025</RevitVersion>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -66,17 +76,27 @@
 	</PropertyGroup>
 
 	<!-- Revit specific dll references -->
+	<PropertyGroup>
+		<RevitApiDir Condition="'$(RevitApiDir)' == ''">$(ProgramFiles)\Autodesk\Revit $(RevitVersion)</RevitApiDir>
+	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="RevitAPI">
-			<HintPath>$(ProgramFiles)\Autodesk\Revit $(RevitVersion)\RevitAPI.dll</HintPath>
+			<HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="RevitAPIUI">
-			<HintPath>$(ProgramFiles)\Autodesk\Revit $(RevitVersion)\RevitAPIUI.dll</HintPath>
+			<HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
 
+	<ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+		<Compile Include="..\BimGo.Core\IsExternalInit.cs" Link="Compatibility\IsExternalInit.cs" />
+		<Compile Include="..\BimGo.Core\FrameworkRange.cs" Link="Compatibility\FrameworkRange.cs" />
+		<Compile Include="..\BimGo.Core\FrameworkExtensions.cs" Link="Compatibility\FrameworkExtensions.cs" />
+	</ItemGroup>
+
+	<ItemGroup><Compile Include="..\BimGo.Core\NumericCompat.cs" Link="Compatibility\NumericCompat.cs" /></ItemGroup>
 	<!-- Third party package references: none -->
 
 	<!--
@@ -119,9 +139,9 @@
 
 	<!--
 		Building process. Every build lays out bin\<config>\<year>\ as the installer needs it: BimGo.addin + BimGo\ (the dll,
-		BimGo.Core.dll, no .pdb). Debug builds then deploy it as the installer does, into the per-user Autodesk bundle
+		BimGo.Core.dll, no .pdb). Local builds then deploy it as the installer does, into the per-user Autodesk bundle
 		(%AppData%\Autodesk\ApplicationPlugins\BimGo.bundle\Contents\<year>\), and remove any older copy under
-		Addins\<year>\ (Revit refuses an add-in id loaded twice). Release builds copy nothing: build\publish.ps1 packages them.
+		Addins\<year>\ (Revit refuses an add-in id loaded twice). The packaging script disables local deployment.
 	-->
 	<Target Name="CopyToRevitAddins" AfterTargets="Build" Condition="'$(RevitVersion)' != ''">
 
@@ -146,19 +166,19 @@
 		<Delete Files="@(BinPdbFiles)" />
 		<Copy SourceFiles="$(AddinName).addin" DestinationFiles="$(BinRoot)$(AddinName).addin" SkipUnchangedFiles="true" />
 
-		<!-- Debug only: deploy into the bundle, like the installer -->
-		<ItemGroup Condition="$(Configuration.StartsWith('Debug'))">
+		<!-- Deploy into the bundle, like the installer -->
+		<ItemGroup Condition="'$(DeployBimGoLocally)' == 'true'">
 			<DeployFiles Include="$(BinAddinDir)**\*.*" Exclude="$(BinAddinDir)**\*.pdb" />
 		</ItemGroup>
-		<Copy Condition="$(Configuration.StartsWith('Debug'))" SourceFiles="@(DeployFiles)"
+		<Copy Condition="'$(DeployBimGoLocally)' == 'true'" SourceFiles="@(DeployFiles)"
 			  DestinationFiles="@(DeployFiles->'$(BundleYearDir)\$(AddinName)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-		<Copy Condition="$(Configuration.StartsWith('Debug'))" SourceFiles="$(AddinName).addin" DestinationFiles="$(BundleYearDir)\$(AddinName).addin" SkipUnchangedFiles="true" />
-		<WriteLinesToFile Condition="$(Configuration.StartsWith('Debug')) And Exists('$(BundleTemplate)')" File="$(BundleDir)\PackageContents.xml"
+		<Copy Condition="'$(DeployBimGoLocally)' == 'true'" SourceFiles="$(AddinName).addin" DestinationFiles="$(BundleYearDir)\$(AddinName).addin" SkipUnchangedFiles="true" />
+		<WriteLinesToFile Condition="'$(DeployBimGoLocally)' == 'true' And Exists('$(BundleTemplate)')" File="$(BundleDir)\PackageContents.xml"
 						  Lines="$([MSBuild]::Escape($([System.IO.File]::ReadAllText('$(BundleTemplate)').Replace('@VERSION@','$(BimGoVersion)'))))" Overwrite="true" WriteOnlyWhenDifferent="true" />
 
-		<!-- Debug only: an older copy under Addins\<year>\ would load the add-in twice -->
-		<Delete Condition="$(Configuration.StartsWith('Debug'))" Files="$(RevitAddinsRoot)\$(RevitVersion)\$(AddinName).addin" ContinueOnError="true" />
-		<RemoveDir Condition="$(Configuration.StartsWith('Debug')) And Exists('$(RevitAddinsRoot)\$(RevitVersion)\$(AddinName)')"
+		<!-- An older copy under Addins\<year>\ would load the add-in twice -->
+		<Delete Condition="'$(DeployBimGoLocally)' == 'true'" Files="$(RevitAddinsRoot)\$(RevitVersion)\$(AddinName).addin" ContinueOnError="true" />
+		<RemoveDir Condition="'$(DeployBimGoLocally)' == 'true' And Exists('$(RevitAddinsRoot)\$(RevitVersion)\$(AddinName)')"
 				   Directories="$(RevitAddinsRoot)\$(RevitVersion)\$(AddinName)" ContinueOnError="true" />
 	</Target>
 

@@ -4,13 +4,13 @@
 
 ## Settings
 
-- **Quality profile** (pause menu): Basic, Medium or Realistic; any change of your own shows CUSTOM.
-- The menu's tabs: **DISPLAY** (colour mode, anti-aliasing, field of view, mouse, VSync, frame rate limit, ambient
+- Open **SETTINGS** in the viewer toolbar to change the **Quality profile**: Basic, Medium or Realistic; any change of your own shows CUSTOM.
+- The Settings panel tabs: **DISPLAY** (colour mode, anti-aliasing, field of view, mouse, VSync, frame rate limit, ambient
   occlusion, light quality, performance details), **REFLECTIONS**, **APPEARANCE** (water, grass, colour profiles,
   materials) and **LIGHTS** (fixture light profiles).
 - **Units**: metric or imperial (feet-inches or decimal feet).
-- **CONTROLS**: every key and gamepad button (see [Controls](controls.md)).
-- In Revit, the **Options** window (opened by Go and Export) holds what is extracted and the player options.
+- **CONTROLS**: keyboard bindings (see [Controls](controls.md)).
+- In Revit, the **Options** window (opened by Go and Export) holds what is extracted and the viewer options.
 
 ![The CONTROLS panel](images/settings-controls-panel.png)
 

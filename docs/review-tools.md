@@ -12,7 +12,7 @@ saved with the model and in bookmarks, comments and BCF.
 
 ## Colour profiles
 
-**Shift+C** shows the active colour profile; Esc → APPEARANCE tab → *Colour profiles* sets them up. Colour by a field
+**Shift+C** shows the active colour profile; **SETTINGS → APPEARANCE → Colour profiles** sets them up. Colour by a field
 (category, family, type, level, phase, model) or any extracted Revit parameter, by number ranges, or by clash search
 set; make the rest ghosted, normal or one colour; rows can be see-through or hidden. The legend can go into photos.
 
@@ -35,4 +35,4 @@ bubbles, line style, colours).
 ## Hiding things
 
 The Scan gun's **I** hides an element and **Shift+I** isolates its category; CATEGORIES & LINKS switches categories
-and linked models; SHOW ALL brings everything back. This only changes the walkthrough, never Revit.
+and linked models; **MORE → SHOW ALL** brings everything back. This only changes the walkthrough, never Revit.

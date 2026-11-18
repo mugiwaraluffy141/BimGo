@@ -83,6 +83,9 @@ namespace BimGo.Scene
         /// <summary>A copy.</summary>
         public SectionCut Clone() => (SectionCut)MemberwiseClone();
 
+        private static float Get(Vector3 v, int axis) => axis == 0 ? v.X : axis == 1 ? v.Y : v.Z;
+        private static Vector3 Set(Vector3 v, int axis, float value) => axis == 0 ? new Vector3(value, v.Y, v.Z) : axis == 1 ? new Vector3(v.X, value, v.Z) : new Vector3(v.X, v.Y, value);
+
         /// <summary>
         /// Makes the cut sane: finite numbers, box corners ordered and at least <see cref="MIN_SIZE"/> apart, a unit
         /// plane normal (a zero normal switches the plane off).
@@ -94,7 +97,7 @@ namespace BimGo.Scene
             Vector3 min = Vector3.Min(a, b), max = Vector3.Max(a, b);
             for (int axis = 0; axis < 3; axis++)
             {
-                if (max[axis] - min[axis] < MIN_SIZE) { max[axis] = min[axis] + MIN_SIZE; }
+                if (Get(max, axis) - Get(min, axis) < MIN_SIZE) { max = Set(max, axis, Get(min, axis) + MIN_SIZE); }
             }
             BoxMin = min;
             BoxMax = max;
@@ -109,7 +112,7 @@ namespace BimGo.Scene
             PlaneNormal = Vector3.Normalize(n);
             return this;
 
-            static Vector3 Finite(Vector3 v) => new(float.IsFinite(v.X) ? v.X : 0f, float.IsFinite(v.Y) ? v.Y : 0f, float.IsFinite(v.Z) ? v.Z : 0f);
+            static Vector3 Finite(Vector3 v) => new(BimGo.NumericCompat.IsFinite(v.X) ? v.X : 0f, BimGo.NumericCompat.IsFinite(v.Y) ? v.Y : 0f, BimGo.NumericCompat.IsFinite(v.Z) ? v.Z : 0f);
         }
 
         /// <summary>
@@ -170,7 +173,7 @@ namespace BimGo.Scene
                 if (direction.LengthSquared() < 1e-8f) { dropped++; continue; }
                 Vector3 n = Vector3.Normalize(direction);
                 int face = AxisFace(n);
-                if (face >= 0 && faces[face] == null) { faces[face] = point[face / 2]; }
+                if (face >= 0 && faces[face] == null) { faces[face] = Get(point, face / 2); }
                 else { others.Add((point, n)); }
             }
 
@@ -188,7 +191,7 @@ namespace BimGo.Scene
                     if (!faces[f].HasValue) { continue; }
                     var n = new Vector3(f / 2 == 0 ? 1 : 0, f / 2 == 1 ? 1 : 0, f / 2 == 2 ? 1 : 0) * (f % 2 == 0 ? 1f : -1f);
                     Vector3 p = Vector3.Zero;
-                    p[f / 2] = faces[f].Value;
+                    p = Set(p, f / 2, faces[f].Value);
                     others.Insert(0, (p, n));
                 }
             }
@@ -206,7 +209,7 @@ namespace BimGo.Scene
             {
                 for (int axis = 0; axis < 3; axis++)
                 {
-                    if (MathF.Abs(n[axis]) > 0.9999f) { return axis * 2 + (n[axis] > 0 ? 0 : 1); }
+                    if (MathF.Abs(Get(n, axis)) > 0.9999f) { return axis * 2 + (Get(n, axis) > 0 ? 0 : 1); }
                 }
                 return -1;
             }

@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BimGo.Audio;
 using BimGo.Format;
 using BimGo.Game.Guns;
@@ -23,6 +23,7 @@ namespace BimGo.Game
         private int _showAllCount = -1;
 
         private bool _editing;
+        private bool _viewerCommandsOpen;
         private Vector3 _editPoint;
         private long _editElement;
         private string _editLevel;
@@ -57,7 +58,7 @@ namespace BimGo.Game
         private static readonly string[] UNIT_OPTIONS = { "Metric", "Imperial" };
 
         /// <summary>The pause menu's settings tabs.</summary>
-        private static readonly string[] RIGHT_TABS = { "DISPLAY", "REFLECTIONS", "APPEARANCE", "LIGHTS" }; // X-D1: LIGHTS
+        private static readonly string[] RIGHT_TABS = { "DISPLAY", "APPEARANCE" }; // X-D1: LIGHTS
 
         /// <summary>
         /// Height of the right column's card (unscaled): fits the Display tab, the tallest. Polish round P-A1: the card is
@@ -67,9 +68,6 @@ namespace BimGo.Game
 
         // The settings card's scroll (polish round P-A1)
         private readonly ScrollRegion _settingsScroll = new();
-
-        // The PREVIEW button's text (with its key; made once per session: CONTROLS changes show next session)
-        private string _previewButtonLabel;
 
         // Open right-column tab: 0 display, 1 reflections, 2 appearance, 3 lights (X-D1) (per session)
         private int _rightTab;
@@ -402,11 +400,24 @@ namespace BimGo.Game
 
         #region Pause menu
 
+        private void OpenSettingsPanel()
+        {
+            SetPaused(true);
+            _menuPreview = true;
+            _activeSlider = -1;
+        }
+
         /// <summary>
-        /// Builds and handles the pause menu.
+        /// Builds whichever explicit modal panel is open over the viewer.
         /// </summary>
         private void BuildPauseMenu()
         {
+            if (_menuPreview)
+            {
+                BuildMenuPreview(_ui.Atlas, _window.Input, _window.Width, _window.Height);
+                return;
+            }
+
             // The markup editor, the push report and the comment list take over the whole menu while open
             if (IsMarkupOpen)
             {
@@ -474,183 +485,6 @@ namespace BimGo.Game
                 BuildControlsPanel();
                 return;
             }
-
-            FontAtlas f = _ui.Atlas;
-            InputState input = _window.Input;
-            int width = _window.Width, height = _window.Height;
-            if (!input.LeftDown) { _activeSlider = -1; }
-
-            // Sky round: Tab (the pad's Y) toggles the preview
-            if (!_editing && input.Pressed(InputAction.MenuPreview))
-            {
-                _menuPreview = !_menuPreview;
-                _activeSlider = -1;
-                Sound.Play(SoundId.UiClick);
-            }
-
-            // QOL round: the options preview (no backdrop, graphics settings only; Esc returns)
-            if (_menuPreview)
-            {
-                BuildMenuPreview(f, input, width, height);
-                return;
-            }
-
-            _ui.Rect(0, 0, width, height, UiTheme.MENU_BACKGROUND);
-
-            // Layout (review tools round, to keep the menu inside a 720 px high window): the buttons in two stacks
-            // (session · review) when the window is wide enough, else one; the settings in two columns (profile, eye
-            // height, units · the Display / Reflections / Debug tabs) when they fit, else stacked. The category cards
-            // moved to their own panel (CATEGORIES & LINKS).
-            float pad = S(48);
-            float leftX = S(56), stackW = S(196), stackGap = S(20); // QOL round: slimmer buttons (were 220 px, 54 px pitch)
-            float columnW = S(280), columnGap = S(24);
-            float rightEdge = width - S(56);
-            bool twoStacks = width >= leftX + stackW * 2f + stackGap + S(40) + columnW * 2f + columnGap + S(56);
-            float stacksRight = leftX + stackW + (twoStacks ? stackGap + stackW : 0f);
-            bool twoColumns = rightEdge - (columnW * 2f + columnGap) >= stacksRight + S(40);
-
-            // ---- Buttons
-            float y = pad;
-            _ui.Text(f.Small, leftX, y, "BIMGO", UiTheme.TEXT_MUTED, S(2.6f));
-            y += S(20);
-            _ui.Text(f.Title, leftX, y, "PAUSED", UiTheme.TEXT, S(2.4f));
-            y += S(56);
-            float buttonsTop = y;
-
-            // Button pitch: 54 px, tightened when a stack would run into END SESSION (small or high-DPI screens)
-            float endY = height - pad - S(40);
-            int hiddenThings = HiddenThingsCount();
-            bool texturesButton = HasTexturePanel;
-            bool libraryButton = HasLibrary;
-            bool roomsButton = Scene.Rooms.Length > 0;
-            int sessionButtons = 4 + (IsFileMode ? 4 : 1) + (_live != null ? 2 : 0); // + CONTROLS (input round B2), + Revit views (X-E), + kiosk shortcut (Z-C)
-            int reviewButtons = 7 + (hiddenThings > 0 ? 1 : 0) + (texturesButton ? 1 : 0) + (libraryButton ? 1 : 0) + (roomsButton ? 1 : 0);
-            int rows = twoStacks ? Math.Max(sessionButtons, reviewButtons) : sessionButtons + reviewButtons;
-            float step = Math.Clamp((endY - S(12) - buttonsTop) / rows, S(32), S(44));
-            float buttonH = step - S(6);
-
-            // Stack 1: the session
-            float x = leftX;
-            if (MenuButton(f, x, y, stackW, "RESUME", primary: true, danger: false, height: buttonH, compact: true)) { SetPaused(false); return; }
-            y += step;
-            if (MenuButton(f, x, y, stackW, "RETURN HOME", false, false, height: buttonH, compact: true)) { _player.GoHome(); SetPaused(false); return; }
-            y += step;
-            if (MenuButton(f, x, y, stackW, _clock < _homeSetUntil ? "HOME SAVED HERE" : "SET HOME HERE", false, false, height: buttonH, compact: true)) { SetHomeHere(); }
-            y += step;
-
-            // Saving: back to the open file, or (Revit) a snapshot + session journal as a new .bimgo
-            if (IsFileMode)
-            {
-                if (MenuButton(f, x, y, stackW, IsDirty ? "SAVE *" : "SAVE", false, false, height: buttonH, compact: true)) { Save(saveAs: false); return; }
-                y += step;
-                if (MenuButton(f, x, y, stackW, "SAVE AS…", false, false, height: buttonH, compact: true)) { Save(saveAs: true); return; }
-                y += step;
-
-                // Edits made offline go into the Revit model they came from
-                if (MenuButton(f, x, y, stackW, PushMenuLabel(), false, false, height: buttonH, compact: true)) { OpenPush(); return; }
-                y += step;
-
-                // Round Z-C: a desktop shortcut that opens the saved file in kiosk mode
-                if (MenuButton(f, x, y, stackW, "MAKE KIOSK SHORTCUT", false, false, height: buttonH, compact: true)) { MakeKioskShortcut(); return; }
-                y += step;
-            }
-            else
-            {
-                if (MenuButton(f, x, y, stackW, "SAVE AS .BIMGO…", false, false, height: buttonH, compact: true)) { Save(saveAs: true); return; }
-                y += step;
-            }
-
-            // Round X-E: Revit views from here (live sessions), as Shift+F5 / Alt+F5
-            if (_live != null)
-            {
-                if (MenuButton(f, x, y, stackW, "NEW REVIT VIEW HERE", false, false, enabled: _live.Connected, height: buttonH, compact: true)) { SendRevitView(BimGo.Live.RevitViewAction.Create, sound: false); }
-                y += step;
-                if (MenuButton(f, x, y, stackW, "UPDATE REVIT VIEW", false, false, enabled: _live.Connected, height: buttonH, compact: true)) { SendRevitView(BimGo.Live.RevitViewAction.Update, sound: false); }
-                y += step;
-            }
-
-            // Keys, mouse buttons and the wheel: every binding, rebindable (input round B2)
-            if (MenuButton(f, x, y, stackW, "CONTROLS", false, false, height: buttonH, compact: true)) { OpenControls(); return; }
-            y += step;
-
-            // Stack 2: review tools and panels (beside the first, or below it)
-            if (twoStacks)
-            {
-                x = leftX + stackW + stackGap;
-                y = buttonsTop;
-            }
-            if (MenuButton(f, x, y, stackW, CommentsMenuLabel(), false, false, height: buttonH, compact: true)) { OpenComments(); return; }
-            y += step;
-            if (MenuButton(f, x, y, stackW, BookmarksMenuLabel(), false, false, height: buttonH, compact: true)) { OpenBookmarks(); return; }
-            y += step;
-            if (MenuButton(f, x, y, stackW, "MEDIA", false, false, height: buttonH, compact: true)) { OpenMedia(_mediaTab); return; } // Round K-A
-            y += step;
-            if (MenuButton(f, x, y, stackW, EntourageMenuLabel(), false, false, height: buttonH, compact: true)) { OpenEntourage(); return; } // Round X-B
-            y += step;
-            if (texturesButton)
-            {
-                if (MenuButton(f, x, y, stackW, TexturesMenuLabel(), false, false, height: buttonH, compact: true)) { OpenTextures(); return; }
-                y += step;
-            }
-            if (roomsButton)
-            {
-                if (MenuButton(f, x, y, stackW, "FIND ROOM", false, false, height: buttonH, compact: true)) { OpenRooms(); return; }
-                y += step;
-            }
-            if (MenuButton(f, x, y, stackW, "SUN HOURS STUDY", false, false, height: buttonH, compact: true)) { OpenSunHours(); return; }
-            y += step;
-            if (MenuButton(f, x, y, stackW, ClashesMenuLabel(), false, false, height: buttonH, compact: true)) { OpenClashes(); return; }
-            y += step;
-            if (libraryButton)
-            {
-                if (MenuButton(f, x, y, stackW, LibraryMenuLabel(), false, false, height: buttonH, compact: true)) { OpenLibrary(); return; }
-                y += step;
-            }
-            if (MenuButton(f, x, y, stackW, GeometryMenuLabel(), false, false, height: buttonH, compact: true)) { OpenGeometry(); return; }
-            y += step;
-
-            // Walkthrough-only hiding (Scan I / Shift+I, category and link toggles)
-            if (hiddenThings > 0)
-            {
-                if (_showAllCount != hiddenThings)
-                {
-                    _showAllCount = hiddenThings;
-                    _showAllLabel = $"SHOW ALL ({hiddenThings} HIDDEN)";
-                }
-                if (MenuButton(f, x, y, stackW, _showAllLabel, false, false, height: buttonH, compact: true)) { ShowAll(); }
-                y += step;
-            }
-
-            // Round W-A: CLEAR MARKERS left the menu (each gun clears its own markers with the clear key; comments are
-            // issues, managed in COMMENTS)
-
-            if (MenuButton(f, leftX, endY, stackW, _live != null ? "LEAVE SESSION" : _options.InApp ? "CLOSE MODEL" : "END SESSION", false, danger: true, height: S(40), compact: true)) { _endRequested = true; return; }
-
-            // ---- Settings: quality profile, eye height and units · Display / Reflections / Appearance
-            float tabsX = rightEdge - columnW;
-
-            // QOL round: PREVIEW hides the backdrop and everything but the graphics settings (Esc returns)
-            if (MenuButton(f, rightEdge - S(150), S(10), S(150), _previewButtonLabel ??= $"PREVIEW ({Hotkeys.Label(InputAction.MenuPreview)})", false, false, height: S(28), compact: true))
-            {
-                _menuPreview = true;
-                _activeSlider = -1;
-                return;
-            }
-            if (twoColumns)
-            {
-                BuildSettingsColumn(f, input, tabsX - columnGap - columnW, pad, columnW);
-                BuildSettingsTabs(f, input, tabsX, pad, columnW, reserve: S(32)); // the file footer stays clear
-            }
-            else
-            {
-                float used = BuildSettingsColumn(f, input, tabsX, pad, columnW);
-                BuildSettingsTabs(f, input, tabsX, pad + used + S(12), columnW, reserve: S(32));
-            }
-
-            // Version / file footer
-            Text.Clear().Append(DocumentName).Append(" · ").AppendGrouped(Scene.Elements.Length).Append(" elements · ").AppendGrouped(Scene.TriangleCount).Append(" tris · ")
-                .Append(_journal.Count).Append(_journal.Count == 1 ? " edit" : " edits");
-            _ui.TextRight(f.Small, width - S(56), height - S(28), Text.Span, UiTheme.TEXT_FAINT, S(0.5f));
         }
 
         /// <summary>
@@ -860,9 +694,7 @@ namespace BimGo.Game
             float bottom = y - S(13) + S(RIGHT_CARD_HEIGHT) - S(2);
             switch (_rightTab)
             {
-                case 1: BuildReflectionsTab(f, input, ix, y, iw); break;
-                case 2: BuildAppearanceTab(f, input, ix, y, iw); break;
-                case 3: bottom = MathF.Max(bottom, BuildLightsTab(f, input, ix, y, iw) + S(12)); break; // X-D1: a list, so it can run long
+                case 1: BuildAppearanceTab(f, input, ix, y, iw); break;
                 default: bottom = MathF.Max(bottom, BuildDisplayTab(f, input, ix, y, iw) + S(12)); break; // Y-D1: it can run long
             }
             EndScroll(_settingsScroll, input, bottom);
@@ -1034,19 +866,12 @@ namespace BimGo.Game
                 foreach (string label in labels) { labelsW += UiBatch.Measure(f.Small, label, tracking); }
                 spare = MathF.Max(0f, (w - labelsW) / labels.Length);
             }
-            int stepped = TakePadTabStep(selected, labels.Length); // P-A2: LB / RB tapped alone
-            if (stepped != selected)
-            {
-                selected = stepped;
-                Sound.Play(SoundId.UiClick);
-            }
             _ui.Rect(x, y + h - MathF.Max(1f, UiScale), w, MathF.Max(1f, UiScale), Rgba.Hex(0xFFFFFF, 0.12f));
             float tx = x;
             for (int i = 0; i < labels.Length; i++)
             {
                 float tab = fitted ? UiBatch.Measure(f.Small, labels[i], tracking) + spare : w / labels.Length;
                 bool on = i == selected;
-                if (on) { RegisterFocus(tx, y, tab, h); }
                 bool hover = !on && Hover(input, tx, y, tab, h);
                 uint colour = on ? UiTheme.TEXT : hover ? UiTheme.ACCENT : UiTheme.TEXT_MUTED;
                 _ui.TextCentred(f.Small, tx + tab * 0.5f, y + S(7), labels[i], colour, tracking);
@@ -1110,12 +935,10 @@ namespace BimGo.Game
 
         /// <summary>
         /// True when the mouse is over a rectangle. Inside a scroll region (polish round P-A1) the part clipped away
-        /// never counts, so rows scrolled out of view can't be clicked. P-A2: the rectangle is also a gamepad focus
-        /// target (the D-pad's ring); panels, viewports and scroll tracks pass <paramref name="focus"/> false.
+        /// never counts, so rows scrolled out of view can't be clicked.
         /// </summary>
-        private bool Hover(InputState input, float x, float y, float w, float h, bool focus = true)
+        private bool Hover(InputState input, float x, float y, float w, float h)
         {
-            if (focus) { RegisterFocus(x, y, w, h); }
             Vector2 m = input.MousePosition;
             return m.X >= x && m.X < x + w && m.Y >= y && m.Y < y + h && _ui.ClipContains(m.X, m.Y);
         }
@@ -1134,7 +957,7 @@ namespace BimGo.Game
 
             if (primary)
             {
-                _ui.Rect(x, y, w, h, Fade(hover ? Rgba.Hex(0x67E8F9) : UiTheme.ACCENT, alpha));
+                _ui.RoundedRect(x, y, w, h, S(UiTheme.ACTION_RADIUS), Fade(hover ? UiTheme.ACTION_HOVER : UiTheme.ACCENT, alpha));
             }
             else
             {
@@ -1142,7 +965,7 @@ namespace BimGo.Game
                 _ui.Outline(x, y, w, h, MathF.Max(1f, UiScale), Fade(danger ? Rgba.Hex(0xFCA5A5, 0.45f) : Rgba.Hex(0xFFFFFF, 0.2f), alpha));
             }
 
-            uint textColour = primary ? Rgba.Hex(0x06232A) : danger ? UiTheme.DANGER : UiTheme.TEXT;
+            uint textColour = primary ? UiTheme.ACTION_INK : danger ? UiTheme.DANGER : UiTheme.TEXT;
             UiFont font = compact ? f.Body : f.Bold;
             _ui.Text(font, x + S(compact ? 12 : 16), y + h * 0.5f - font.LineHeight * 0.5f, label, primary ? textColour : Fade(textColour, alpha), S(compact ? 0.9f : 1.3f));
 
@@ -1176,7 +999,6 @@ namespace BimGo.Game
             float trackY = y + S(30);
             float knobR = S(7);
             float knobX = x + w * Math.Clamp((value - min) / (max - min), 0f, 1f);
-            RegisterFocus(x - knobR, trackY - S(12), w + knobR * 2f, S(24), slider: true, anchorX: knobX, anchorY: trackY); // P-A2: D-pad ← → steps it
             bool hover = Hover(input, x - knobR, trackY - S(12), w + knobR * 2f, S(24));
             if (hover && input.LeftPressed) { _activeSlider = id; }
 

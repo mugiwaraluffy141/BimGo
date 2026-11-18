@@ -149,7 +149,7 @@ namespace BimGo.Game
             _activeSlider = -1;
             if (_clashModeOn) { return; } // clash mode keeps its free cursor
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive) { _window.SetCaptured(true); }
+            _window.SetCaptured(false);
         }
 
         /// <summary>True while the walking grids panel has the keys (not in clash mode, which keeps its own).</summary>

@@ -67,8 +67,8 @@ namespace BimGo.Forms
                 _dispatcher = Win.Threading.Dispatcher.CurrentDispatcher;
 
                 var stage = new Wpf.TextBlock { FontSize = 14, FontWeight = Win.FontWeights.SemiBold, Text = "Starting…", TextTrimming = Win.TextTrimming.CharacterEllipsis };
-                var detail = new Wpf.TextBlock { FontSize = 12, Foreground = new Media.SolidColorBrush(Media.Color.FromRgb(0x4B, 0x55, 0x60)), Margin = new Win.Thickness(0, 4, 0, 10), Text = " " };
-                var bar = new Wpf.ProgressBar { Height = 14, Minimum = 0, Maximum = 1000, Foreground = new Media.SolidColorBrush(Media.Color.FromRgb(0x0E, 0x74, 0x90)) };
+                var detail = new Wpf.TextBlock { FontSize = 12, Foreground = new Media.SolidColorBrush(Media.Color.FromRgb(0x48, 0x64, 0x7C)), Margin = new Win.Thickness(0, 4, 0, 10), Text = " " };
+                var bar = new Wpf.ProgressBar { Height = 14, Minimum = 0, Maximum = 1000, Foreground = new Media.SolidColorBrush(Media.Color.FromRgb(0x2E, 0x86, 0xC1)) };
                 var cancel = new Wpf.Button { Content = "Cancel", Width = 96, Height = 30, Margin = new Win.Thickness(0, 14, 0, 0), HorizontalAlignment = Win.HorizontalAlignment.Right };
 
                 var panel = new Wpf.StackPanel { Margin = new Win.Thickness(20, 18, 20, 16) };
@@ -88,7 +88,7 @@ namespace BimGo.Forms
                     ShowActivated = true,
                     Topmost = true,
                     FontFamily = new Media.FontFamily("Segoe UI"),
-                    Background = new Media.SolidColorBrush(Media.Color.FromRgb(0xF6, 0xF7, 0xF8)),
+                    Background = new Media.SolidColorBrush(Media.Color.FromRgb(0xEF, 0xF7, 0xFC)),
                     Content = panel
                 };
                 // Not owned by Revit's window on purpose: an owner on another (busy) thread would share its input
@@ -118,7 +118,7 @@ namespace BimGo.Forms
                     _progress.Read(out string stageText, out string detailText, out double fraction);
                     stage.Text = string.IsNullOrEmpty(stageText) ? "Working…" : stageText;
                     detail.Text = string.IsNullOrEmpty(detailText) ? " " : detailText;
-                    bar.Value = Math.Clamp(fraction, 0.0, 1.0) * 1000.0;
+                    bar.Value = NumericCompat.Clamp(fraction, 0.0, 1.0) * 1000.0;
                     if (!_progress.CanCancel && !_progress.CancelRequested) { cancel.IsEnabled = false; }
                     if (!window.IsVisible && (DateTime.UtcNow - started).TotalMilliseconds >= SHOW_DELAY_MS) { window.Show(); }
                 };

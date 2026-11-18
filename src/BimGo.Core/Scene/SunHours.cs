@@ -89,24 +89,24 @@ namespace BimGo.Scene
         /// <summary>A copy with every value clamped to something sensible (end after start, known grid and step).</summary>
         public SunHoursSettings Clean(int year)
         {
-            int month = Math.Clamp(Month, 1, 12);
-            int start = Math.Clamp(StartMinutes, 0, 24 * 60 - 5);
+            int month = BimGo.NumericCompat.Clamp(Month, 1, 12);
+            int start = BimGo.NumericCompat.Clamp(StartMinutes, 0, 24 * 60 - 5);
             return new SunHoursSettings
             {
                 Month = month,
-                Day = Math.Clamp(Day, 1, DateTime.DaysInMonth(Math.Clamp(year, 1, 9999), month)),
+                Day = BimGo.NumericCompat.Clamp(Day, 1, DateTime.DaysInMonth(BimGo.NumericCompat.Clamp(year, 1, 9999), month)),
                 StartMinutes = start,
-                EndMinutes = Math.Clamp(EndMinutes, start + 5, 24 * 60),
+                EndMinutes = BimGo.NumericCompat.Clamp(EndMinutes, start + 5, 24 * 60),
                 StepMinutes = STEPS.OrderBy(s => Math.Abs(s - StepMinutes)).First(),
                 DaylightSaving = DaylightSaving,
                 GridSize = GRID_SIZES.OrderBy(g => MathF.Abs(g - GridSize)).First(),
-                FloorOffset = float.IsFinite(FloorOffset) ? Math.Clamp(FloorOffset, 0f, 2f) : 0f,
-                WallOffset = float.IsFinite(WallOffset) ? Math.Clamp(WallOffset, 0f, 1f) : 0f,
+                FloorOffset = BimGo.NumericCompat.IsFinite(FloorOffset) ? BimGo.NumericCompat.Clamp(FloorOffset, 0f, 2f) : 0f,
+                WallOffset = BimGo.NumericCompat.IsFinite(WallOffset) ? BimGo.NumericCompat.Clamp(WallOffset, 0f, 1f) : 0f,
                 GlassBlocks = GlassBlocks,
                 Target = Target == SunTarget.Off ? SunTarget.Off : SunTarget.On, // older studies' presets (1, 2) read as on
                 TargetHours = Snap(TargetHours, 0.5f, 12f, 0.25f, 2f),
-                Mode = Enum.IsDefined(Mode) ? Mode : StudyMode.SunHours,
-                WorkPlane = float.IsFinite(WorkPlane) ? Math.Clamp(WorkPlane, 0f, 2f) : 0.7f,
+                Mode = Enum.IsDefined(Mode.GetType(), Mode) ? Mode : StudyMode.SunHours,
+                WorkPlane = BimGo.NumericCompat.IsFinite(WorkPlane) ? BimGo.NumericCompat.Clamp(WorkPlane, 0f, 2f) : 0.7f,
                 Rays = RAY_COUNTS.OrderBy(r => Math.Abs(r - Rays)).First(),
                 DirectSun = DirectSun,
                 StandardReflectance = StandardReflectance,
@@ -118,7 +118,7 @@ namespace BimGo.Scene
 
         /// <summary>A finite value clamped to a range and rounded to a step (else the default).</summary>
         private static float Snap(float value, float min, float max, float step, float fallback) =>
-            float.IsFinite(value) ? MathF.Round(Math.Clamp(value, min, max) / step) * step : fallback;
+            BimGo.NumericCompat.IsFinite(value) ? MathF.Round(BimGo.NumericCompat.Clamp(value, min, max) / step) * step : fallback;
     }
 
     /// <summary>
@@ -194,7 +194,7 @@ namespace BimGo.Scene
         /// </summary>
         public static Vector3 LegendColour(float hours)
         {
-            float t = float.IsFinite(hours) ? Math.Clamp(hours / LEGEND_MAX, 0f, 1f) : 0f;
+            float t = BimGo.NumericCompat.IsFinite(hours) ? BimGo.NumericCompat.Clamp(hours / LEGEND_MAX, 0f, 1f) : 0f;
             float position = t * (LADYBUG.Length - 1);
             int i = Math.Min((int)position, LADYBUG.Length - 2);
             float f = position - i;

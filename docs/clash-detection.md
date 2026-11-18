@@ -2,7 +2,7 @@
 
 ← [Docs home](README.md)
 
-Clash detection stays off until you use it: Esc → **CLASHES**, or **Y** for clash mode.
+Clash detection stays off until you use it: **MORE → CLASHES**, or **Y** for clash mode.
 
 ## Sets and tests
 
@@ -15,8 +15,9 @@ distance). Tests and sets can be exported and imported to share between models.
 
 ## Reviewing
 
-**Y** docks the clash list and frees the cursor (the move keys fly, right-drag looks). **.** and **,** step through
-clashes: each gets a section box and a view across the pair. **1–5** set the status, **G** changes how the rest of the
+**Y** docks the clash list. Use WASD to move, right-drag to orbit, middle-drag to pan, and the wheel to zoom outside the
+dock; the wheel scrolls the list over it. **.** and **,** step through clashes: each gets a section box and a view across
+the pair. **1–5** set the status, **G** changes how the rest of the
 model shows, **B** the section box, **R** shows the pair in Revit (live). Statuses carry over when you run a test again.
 
 ![Clash mode](images/clash-mode.png)

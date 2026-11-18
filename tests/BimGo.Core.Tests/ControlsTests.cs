@@ -790,7 +790,7 @@ namespace BimGo.Tests
                 foreach (HelpEntry entry in situation.Help)
                 {
                     Assert.IsFalse(string.IsNullOrWhiteSpace(entry.Label), $"{situation.Name}: a row without a label");
-                    Assert.IsTrue(entry.Actions.Count > 0, $"{situation.Name}: “{entry.Label}” shows no action");
+                    Assert.IsTrue(entry.Actions.Count > 0 || !string.IsNullOrWhiteSpace(entry.KeyText), $"{situation.Name}: “{entry.Label}” shows no action or key");
                     foreach (InputAction action in entry.Actions)
                     {
                         Assert.IsTrue(situation.Contains(action), $"{situation.Name}: “{entry.Label}” shows {action}, which isn't live there");
@@ -819,9 +819,9 @@ namespace BimGo.Tests
             Assert.AreEqual("WASD", map.HelpKeys(move));
             Assert.AreEqual("LS", map.HelpPad(move));
             HelpEntry guns = walking.Help.First(e => e.Actions.Contains(InputAction.Gun1));
-            Assert.AreEqual("1–9 · MMB", map.HelpKeys(guns));
-            Assert.AreEqual("RS click", map.HelpPad(guns));
-            Assert.AreEqual("MOUSE", map.HelpKeys(walking.Help.First(e => e.Label == "Look")));
+            Assert.AreEqual("1 · 2 · 4", map.HelpKeys(guns));
+            Assert.AreEqual(string.Empty, map.HelpPad(guns));
+            Assert.AreEqual("RMB · MMB · wheel", map.HelpKeys(walking.Help.First(e => e.Label == "Orbit · pan · zoom")));
 
             InputSituation clashes = InputCatalog.Situation(InputCatalog.SIT_CLASHES);
             HelpEntry status = clashes.Help.First(e => e.Actions.Contains(InputAction.ClashStatusNew));

@@ -22,14 +22,18 @@ namespace BimGo.Format
         /// </summary>
         public static string Encode(Guid guid)
         {
+            #if NETFRAMEWORK
+            System.Numerics.BigInteger value = System.Numerics.BigInteger.Parse("0" + guid.ToString("N"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
+#else
             UInt128 value = UInt128.Parse(guid.ToString("N"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
+#endif
             Span<char> chars = stackalloc char[LENGTH];
             for (int i = LENGTH - 1; i >= 0; i--)
             {
                 chars[i] = CHARS[(int)(value & 63)];
                 value >>= 6;
             }
-            return new string(chars);
+            return new string(chars.ToArray());
         }
 
         /// <summary>
@@ -40,12 +44,20 @@ namespace BimGo.Format
         {
             guid = Guid.Empty;
             if (!IsValid(text)) { return false; }
+            #if NETFRAMEWORK
+            System.Numerics.BigInteger value = 0;
+#else
             UInt128 value = 0;
+#endif
             foreach (char c in text)
             {
                 value = (value << 6) | (uint)CHARS.IndexOf(c);
             }
-            guid = Guid.ParseExact(value.ToString("x32", CultureInfo.InvariantCulture), "N");
+            string hex = value.ToString("x32", CultureInfo.InvariantCulture);
+#if NETFRAMEWORK
+            if (hex.Length > 32) { hex = hex.Substring(1); }
+#endif
+            guid = Guid.ParseExact(hex, "N");
             return true;
         }
 

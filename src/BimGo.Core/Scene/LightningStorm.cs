@@ -92,7 +92,7 @@ namespace BimGo.Scene
         /// <summary>The strike in a time window, if any.</summary>
         public static bool TryGetStrike(long window, int frequency, out LightningStrike strike)
         {
-            frequency = Math.Clamp(frequency, RARE, OFTEN);
+            frequency = BimGo.NumericCompat.Clamp(frequency, RARE, OFTEN);
             ulong h = Hash((ulong)window * 3UL + (ulong)frequency);
             strike = default;
             if (Unit(ref h) >= CHANCE[frequency]) { return false; }
@@ -106,7 +106,7 @@ namespace BimGo.Scene
             float elevation = (float)((8.0 + Unit(ref h) * 26.0) * Math.PI / 180.0);
             bool bolt = Unit(ref h) < 0.75 - 0.4 * distance;
             float seed = (float)Unit(ref h);
-            strike = new LightningStrike(window, start, azimuth, elevation, distance, Math.Clamp(pulses, 1, 3), gap, bolt, seed);
+            strike = new LightningStrike(window, start, azimuth, elevation, distance, BimGo.NumericCompat.Clamp(pulses, 1, 3), gap, bolt, seed);
             return true;
         }
 
@@ -120,7 +120,7 @@ namespace BimGo.Scene
         /// <param name="brightness">0–1 (0 when none).</param>
         public static bool Evaluate(double time, int frequency, bool reduceFlashing, out LightningStrike strike, out float brightness)
         {
-            frequency = Math.Clamp(frequency, RARE, OFTEN);
+            frequency = BimGo.NumericCompat.Clamp(frequency, RARE, OFTEN);
             long window = (long)Math.Floor(time / WINDOW[frequency]);
             for (long w = window; w >= window - 1; w--)
             {
@@ -165,7 +165,7 @@ namespace BimGo.Scene
             }
             // The tail fades to nothing by the end (no step)
             float tail = 1f - SmoothStep((float)FLASH_LENGTH - 0.4f, (float)FLASH_LENGTH, t);
-            return Math.Clamp(sum * tail, 0f, 1f);
+            return BimGo.NumericCompat.Clamp(sum * tail, 0f, 1f);
         }
 
         #endregion
@@ -191,7 +191,7 @@ namespace BimGo.Scene
 
         private static float SmoothStep(float edge0, float edge1, float x)
         {
-            float t = Math.Clamp((x - edge0) / (edge1 - edge0), 0f, 1f);
+            float t = BimGo.NumericCompat.Clamp((x - edge0) / (edge1 - edge0), 0f, 1f);
             return t * t * (3f - 2f * t);
         }
 

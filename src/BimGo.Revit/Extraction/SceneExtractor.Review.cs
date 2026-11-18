@@ -109,7 +109,7 @@ namespace BimGo.Extraction
 
             // Materials per element (geometry and paint), read once per document
             var uses = new Dictionary<(int Link, long Id), int>();
-            var rowSource = new Dictionary<SceneMaterial, SourceModel>(ReferenceEqualityComparer.Instance);
+            var rowSource = new Dictionary<SceneMaterial, SourceModel>();
             int total = work.Sum(w => w.Elements.Count), done = 0;
             var ids = new HashSet<long>();
             _progress?.Begin("Reading materials", 0.3, 1.0);
@@ -128,8 +128,8 @@ namespace BimGo.Extraction
                     ids.Clear();
                     try
                     {
-                        foreach (ElementId id in element.GetMaterialIds(false)) { ids.Add(id.Value); }
-                        foreach (ElementId id in element.GetMaterialIds(true)) { ids.Add(id.Value); }
+                        foreach (ElementId id in element.GetMaterialIds(false)) { ids.Add(id.Ext_Value()); }
+                        foreach (ElementId id in element.GetMaterialIds(true)) { ids.Add(id.Ext_Value()); }
                     }
                     catch
                     {
@@ -141,7 +141,7 @@ namespace BimGo.Extraction
                         var key = (source.Link, id);
                         uses[key] = uses.TryGetValue(key, out int n) ? n + 1 : 1;
                         if (source.MaterialIndex.ContainsKey(id)) { continue; }
-                        if (source.Doc.GetElement(new ElementId(id)) is not Material material)
+                        if (source.Doc.GetElement(ElementId_Ext.Ext_FromValue(id)) is not Material material)
                         {
                             source.MaterialIndex[id] = MaterialData.NONE;
                             continue;

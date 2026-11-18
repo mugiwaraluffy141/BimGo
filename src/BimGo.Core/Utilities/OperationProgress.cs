@@ -33,8 +33,8 @@ namespace BimGo.Utilities
             {
                 _stage = stage ?? string.Empty;
                 _detail = string.Empty;
-                _start = Math.Clamp(start, 0.0, 1.0);
-                _end = Math.Clamp(Math.Max(end, start), 0.0, 1.0);
+                _start = BimGo.NumericCompat.Clamp(start, 0.0, 1.0);
+                _end = BimGo.NumericCompat.Clamp(Math.Max(end, start), 0.0, 1.0);
                 _fraction = _start;
             }
         }
@@ -45,7 +45,7 @@ namespace BimGo.Utilities
         /// <param name="local">How far through the stage (0..1).</param>
         public void Step(double local)
         {
-            lock (_lock) { _fraction = _start + (_end - _start) * Math.Clamp(local, 0.0, 1.0); }
+            lock (_lock) { _fraction = _start + (_end - _start) * BimGo.NumericCompat.Clamp(local, 0.0, 1.0); }
         }
 
         /// <summary>

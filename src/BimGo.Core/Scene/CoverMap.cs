@@ -155,10 +155,10 @@ namespace BimGo.Scene
                 Vector2 size = _max - _min;
                 float cell = MathF.Max(CELL, MathF.Max(size.X, size.Y) / (MAX_SIDE - 2));
                 Vector2 min = _min - new Vector2(cell);
-                int width = Math.Clamp((int)MathF.Ceiling(size.X / cell) + 2, 1, MAX_SIDE);
-                int height = Math.Clamp((int)MathF.Ceiling(size.Y / cell) + 2, 1, MAX_SIDE);
+                int width = BimGo.NumericCompat.Clamp((int)MathF.Ceiling(size.X / cell) + 2, 1, MAX_SIDE);
+                int height = BimGo.NumericCompat.Clamp((int)MathF.Ceiling(size.Y / cell) + 2, 1, MAX_SIDE);
                 _map = new CoverMap { Min = min, Cell = cell, Width = width, Height = height, Tops = new float[width * height] };
-                Array.Fill(_map.Tops, NONE);
+                BimGo.NumericCompat.Fill(_map.Tops, NONE);
                 return true;
             }
 
@@ -214,7 +214,7 @@ namespace BimGo.Scene
                 return covered == 0 ? Empty : m;
             }
 
-            private static bool Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
+            private static bool Finite(Vector3 v) => BimGo.NumericCompat.IsFinite(v.X) && BimGo.NumericCompat.IsFinite(v.Y) && BimGo.NumericCompat.IsFinite(v.Z);
         }
 
         /// <summary>Raises the cells along an edge (seen from above), sampled at half a cell, to the edge's height there.</summary>

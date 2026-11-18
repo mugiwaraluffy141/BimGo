@@ -10,10 +10,8 @@ namespace BimGo
     /// BimGo.exe entry point.
     ///
     /// Usage: <c>BimGo.exe [model.bimgo]</c> or <c>BimGo.exe --session &lt;id&gt;</c> (what Go in Revit runs).
-    /// <c>BimGo.exe --kiosk model.bimgo</c> (Round Z-C) opens the file in kiosk mode: visitors walk, fly and look only.
     /// Holding Shift while it starts (or <c>--safe</c>) is a safe start: default settings for that run, nothing saved.
-    /// A second launch hands its file / session to the running instance and exits (a kiosk launch only brings the
-    /// running window forward).
+    /// A second launch hands its file / session to the running instance and exits.
     /// <c>BimGo.exe --register</c> / <c>--unregister</c> add or remove the .bimgo association and the Start-menu
     /// shortcut for the current user (add <c>--quiet</c> for no message box), then exit.
     /// </summary>
@@ -40,7 +38,7 @@ namespace BimGo
             if (LaunchSettings.SafeStart) { Utilities.Log_Utils.Write("Safe start: default settings (Basic profile) for this run; nothing is saved."); }
 
             OpenTarget initial = ParseArguments(args);
-            Utilities.Log_Utils.Write($"BimGo {Version} starting{(initial?.Path != null ? ": " + initial.Path : initial?.SessionId != null ? ": session " + initial.SessionId : string.Empty)}{(initial?.Kiosk == true ? " (kiosk)" : string.Empty)}");
+            Utilities.Log_Utils.Write($"BimGo {Version} starting{(initial?.Path != null ? ": " + initial.Path : initial?.SessionId != null ? ": session " + initial.SessionId : string.Empty)}");
 
             using AppInstance instance = AppInstance.Claim();
             if (!instance.IsFirst)
@@ -106,8 +104,7 @@ namespace BimGo
         }
 
         /// <summary>
-        /// <c>--session &lt;id&gt;</c>, else the first argument that is an existing file (Round Z-C: in kiosk mode with
-        /// <c>--kiosk</c>), else null.
+        /// <c>--session &lt;id&gt;</c>, else the first argument that is an existing file, else null.
         /// </summary>
         private static OpenTarget ParseArguments(string[] args)
         {
@@ -121,12 +118,11 @@ namespace BimGo
 
             string file = FirstFileArgument(args);
             if (file == null) { return null; }
-            return HasSwitch(args, "--kiosk") ? OpenTarget.KioskFile(file) : OpenTarget.File(file);
+            return OpenTarget.File(file);
         }
 
         /// <summary>
-        /// The first argument that is an existing file (switches are skipped, and so are the values of switches that take
-        /// one: Round Z-C's <c>--kiosk</c> is a flag, so the file after it is still found).
+        /// The first argument that is an existing file (switches are skipped, as are values for switches that take one).
         /// </summary>
         private static string FirstFileArgument(string[] args)
         {
@@ -151,7 +147,7 @@ namespace BimGo
             return null;
         }
 
-        /// <summary>Switches followed by a value (the rest are flags: --kiosk, --safe, --register, --unregister, --quiet).</summary>
+        /// <summary>Switches followed by a value (the rest are flags: --safe, --register, --unregister, --quiet).</summary>
         private static bool TakesValue(string name) => string.Equals(name, "--session", StringComparison.OrdinalIgnoreCase);
 
         private static string GetVersion()

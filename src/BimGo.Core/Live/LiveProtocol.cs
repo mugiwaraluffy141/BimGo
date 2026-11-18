@@ -114,7 +114,7 @@ namespace BimGo.Live
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             string temp = path + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(value, options));
-            File.Move(temp, path, overwrite: true);
+            FileCompat.MoveOverwrite(temp, path);
         }
 
         /// <summary>
@@ -449,7 +449,7 @@ namespace BimGo.Live
             get
             {
                 double length = Math.Sqrt(DirectionX * DirectionX + DirectionY * DirectionY + DirectionZ * DirectionZ);
-                return double.IsFinite(length) && length > 1e-6 && Math.Abs(DirectionZ / length) < 0.999;
+                return BimGo.NumericCompat.IsFinite(length) && length > 1e-6 && Math.Abs(DirectionZ / length) < 0.999;
             }
         }
     }

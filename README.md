@@ -1,79 +1,21 @@
-# BimGo — First-Person BIM Walkthroughs
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FaussieBIMguru%2FBimGo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FaussieBIMguru%2FBimGo?ref=badge_shield)
+# BimGo — Clash Review
 
-BimGo turns a Revit model into an FPS-style, first-person walkthrough: collision, gravity, walkable stairs, a room readout and nine tool guns. It renders with its own small OpenGL engine (own renderer, window and input; GL function bindings from Silk.NET).
+BimGo lets teams review Revit models in a standalone Windows viewer. Use **Go** for a live session, or **Export .bimgo** to share a snapshot that opens without Revit.
 
-- **BimGo for Revit**: a slim add-in (extractor and session bridge). **Go** opens the model in the app as a *live session*: edits go straight back into Revit, Scan → R selects in Revit, and changes made in Revit prompt a refresh (F5). **Export .bimgo** writes a standalone file.
-- **BimGo** (`BimGo.exe`): joins live sessions, or opens `.bimgo` files without Revit, keeping edits in the file's journal (undo / redo) to **push** into the Revit model later.
+Create hard and clearance clash tests, inspect results using Scan, Measure, Find Room and section boxes, and record issues with comments, pictures and markup. Reports are available as HTML and XML; issues can also be exchanged as BCF. In a live session, select elements in Revit and refresh after the model changes. Comment markers can be synchronized into Revit.
 
-Publisher **Aussie BIM Guru** · licence **MIT No Attribution (MIT-0)**: use it for anything, no credit required, no warranty. Autodesk and Revit are registered trademarks of Autodesk, Inc.; BimGo is an independent project, not affiliated with, sponsored by or endorsed by Autodesk ("for Revit" describes compatibility only).
+The planned release targets Revit 2023–2027 with a separate add-in for each year and one viewer. **Host acceptance is still pending**; the included marker family is from Revit 2025 and cannot be loaded by Revit 2023 or 2024 without a compatible replacement. See the [implementation plan](docs/plans/clash-review.md).
 
-**Docs:** the **[user guide](docs/README.md)** (getting started, every tool, troubleshooting) · [controls](docs/controls.md) · [DEVELOPING.md](DEVELOPING.md) (architecture, file format, live protocol, conventions) · [HISTORY.md](HISTORY.md) (every build) · [releasing](docs/releasing.md) · `ai/` (each round's handoff and build notes) · [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+Start with the [user guide](docs/README.md), [clash detection](docs/clash-detection.md), and [comments and BCF](docs/comments-and-bcf.md). For maintainers, see [releasing](docs/releasing.md) and [DEVELOPING.md](DEVELOPING.md).
 
-![BimGo walkthrough](docs/images/home-hero.gif)
+Build the viewer with `dotnet build src/BimGo.App/BimGo.App.csproj -c Release` and run independent tests with `dotnet test tests/BimGo.Core.Tests/BimGo.Core.Tests.csproj -c Release`. Revit builds require the matching Revit API and solution configuration, such as `Release R25`. `build/publish.ps1` builds the viewer, selected add-in bundles, and installer.
 
-## Features
+For local development, close BimGo and Revit, then build the matching solution configuration, for example `dotnet build src/BimGo.sln -c "Release R26" -m:1`. The build updates the desktop app under `%LocalAppData%\Programs\BimGo` and deploys the add-in for that year to `%AppData%\Autodesk\ApplicationPlugins\BimGo.bundle`. Revit loads it at the next start. Pass `-p:DeployBimGoLocally=false` to build artifacts without updating the local installation.
 
-- **Walk and fly** through the model (V: no-clip), level up / down, go home, bookmarks with thumbnails, find a room and go there, minimap, coordinate readout (shared / project / internal), eye-height presets (standing, seated, child).
-- **Tool guns:** Scan (element info and parameters), Measure (distance, area, angle, clearance; saved), Portal, Comment, Teleport, Demolish, Gizmo (move / rotate), Clone, Place (family library and entourage).
-- **Edits** made in the walkthrough: live into Revit (demolish in the new phase, delete, move, rotate, copy, place family types), or into the file's journal and pushed into Revit later (conflict checks, one undo in Revit).
-- **Comments as issues:** status, priority, assignee, replies, saved view and picture, markup; BCF 2.1 export / import; one adaptive **comment marker** per comment placed in the Revit model.
-- **Lighting:** sun and shadows from the model's site (time-of-day slider, location override), night sky with moon and stars, artificial lights from lighting fixtures with IES / Revit photometric profiles, ambient occlusion, bloom.
-- **Realistic mode:** Revit materials and textures (missing images reconciled or replaced by CC0 proxies), reflection probes, sharp reflections in stills, water ripples, grass blades, rain, snow and lightning.
-- **Studies:** direct sun hours, daylight factor and illuminance on a room's surfaces, pass / fail against a target, CSV export.
-- **Review:** section box and plane with caps, colour profiles (by value, parameter ranges or search set), room data overlay with target checks, grids and levels with intersections, walkthrough-only hiding and isolating.
-- **Clash detection:** search sets, hard and clearance tests, clash mode with a docked list, statuses across runs, groups, comments / BCF, HTML and XML reports.
-- **Media:** photo mode (hi-res stills, 360° panoramas), bookmark tours, keyframed camera paths with a 3D editor, MP4 video, sun time-lapses, batch stills, entourage billboards (trees, people, cars; or Revit planting / entourage swapped for them).
-- **Presentation:** **kiosk mode** (a desktop shortcut opens a saved model fullscreen for visitors: walk, fly and look only; an idle tour after two minutes; Ctrl+Shift+Q held to leave).
-- **Controls:** every key rebindable (keyboard, mouse buttons, wheel), Xbox-style and generic gamepads, a context-sensitive F1 sheet, a gun wheel.
-- **Linked models**, active-view-only extraction, phases (existing / new), metric or imperial units, quality profiles.
+Publisher **Aussie BIM Guru** · licence **MIT No Attribution (MIT-0)**. Autodesk and Revit are registered trademarks of Autodesk, Inc.; BimGo is independent of Autodesk.
 
-## Install
+## Limitations and credits
 
-Download `BimGo-Setup-<version>.exe` from [Releases](https://github.com/aussieBIMguru/BimGo/releases) and run it: per user, no admin rights, BimGo for Revit 2025 / 2026 / 2027 included when Revit is found. Then in Revit: **BimGo → Go** (live) or **Export .bimgo**. See [Getting started](docs/getting-started.md).
+Hard clash depth is an estimate; a solid fully contained inside another is not reported. Tests assume closed solids and have a 10,000-clash limit per test. Linked models are read-only and extraction covers top-level instances. A live refresh re-extracts the model.
 
-## Build from source
-
-1. Open `src/BimGo.sln` in Visual Studio 2022 (.NET desktop workload; the .NET 10 SDK too for Revit 2027). Configurations `Debug R25` / `R26` / `R27` (Revit 2025 / 2026 / 2027) or Release.
-2. Build. **Debug** builds deploy like the installer: the app to `%LocalAppData%\Programs\BimGo\` (it registers `.bimgo` files and a Start-menu shortcut on start), the add-in into `%AppData%\Autodesk\ApplicationPlugins\BimGo.bundle\Contents\<year>\` (removing any older copy under `Revit\Addins\<year>\`). Release builds copy nothing.
-3. Tests: Test Explorer → Run All, or `dotnet test tests/BimGo.Core.Tests`.
-4. A release (tests, the self-contained app, the bundle and `BimGo-Setup-<version>.exe`): `build\publish.ps1`, see [releasing](docs/releasing.md). The version is set once, in `src/Directory.Build.props`.
-
-**Command line** (`BimGo.exe`):
-
-| Arguments | What it does |
-|---|---|
-| `model.bimgo` | Opens the file (a running BimGo takes it over and opens it when the current model closes) |
-| `--kiosk model.bimgo` | Opens the file in kiosk mode (a running BimGo is only brought forward) |
-| `--session <id>` | Joins a live Revit session (what Go runs; the id is the folder name under `%LocalAppData%\BimGo\Sessions`) |
-| `--register` / `--unregister` [`--quiet`] | Adds or removes the `.bimgo` association and the Start-menu shortcut for the current user (the installer runs these) |
-| `--safe`, or hold **Shift** while starting | Safe start: default settings and the Basic quality profile for this run, nothing saved |
-
-## Controls
-
-Every key, mouse button and wheel notch can be rebound (**Esc → CONTROLS**), and **F1** shows the keys for what you are doing. The defaults, the guns and the gamepad are in [docs/controls.md](docs/controls.md).
-
-## Files and folders
-
-| What | Where |
-|---|---|
-| App | `%LocalAppData%\Programs\BimGo\BimGo.exe` (per user, no admin) |
-| Add-in | `%AppData%\Autodesk\ApplicationPlugins\BimGo.bundle\` (one folder per Revit year) |
-| Settings | `%AppData%\BimGo\settings.json` (Options, display choices, key bindings) |
-| Logs | `%LocalAppData%\BimGo\Logs\BimGo.App.log` · `BimGo.Revit.log` |
-| Per-model data (live sessions) | `%LocalAppData%\BimGo\Models\<title>_<hash>\`: comments and their pictures, bookmarks, sun, visibility, camera paths, entourage, light profiles, measurements, clashes, texture choices, saved sun studies. Options → Player can mirror them beside the model so colleagues on a shared drive see each other's comments. |
-| `.bimgo` files | Everything above travels inside the file instead. |
-| Pictures, videos | `Pictures\BimGo`, `Videos\BimGo` |
-
-## Known limitations
-
-- Undo / redo are file-only (live: undo in Revit, then F5); a refresh is a full re-extract; one window walks one model.
-- Linked models are read-only, top-level instances only, phases matched by name.
-- Demolish removes hosted elements with their host. Push: moves and clones need a location point.
-- Rendering: one glass layer for shadows; AO is screen-space; Realistic mode has no bump maps or cutouts; reflection probes are static captures; sharp reflections only in stills; the live view lights a limited number of fixtures with shadows (photos and videos light them all).
-- Studies (sun hours, daylight, lux) are early design indicators, not compliance calculations.
-- Clash detection: hard depth is an estimate, an element wholly inside another isn't reported, closed solids are assumed, 10,000 clashes per test.
-- Video has no sound. Camera paths and glides fly through walls (the path editor marks where).
-- Kiosk mode locks BimGo, not Windows (the Windows key, Alt+Tab and Task Manager still work).
-
-The full list, by area, is in [DEVELOPING.md](DEVELOPING.md#known-limitations).
+BimGo uses Silk.NET OpenGL bindings. See [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) for third-party licences and notices. The project is licensed under [MIT No Attribution (MIT-0)](LICENSE), without warranty.

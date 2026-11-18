@@ -69,7 +69,7 @@ namespace BimGo.Shell
                     OpenTarget target = TakeNext() ?? _home.Run();
                     if (target == null) { return 0; }
 
-                    SessionEndReason reason = target.IsLive ? RunLive(target) : RunFile(target.Path, target.Kiosk);
+                    SessionEndReason reason = target.IsLive ? RunLive(target) : RunFile(target.Path);
                     if (reason == SessionEndReason.WindowClosed) { return 0; }
 
                     // A switch whose save prompt was cancelled must not fire later
@@ -107,8 +107,7 @@ namespace BimGo.Shell
         /// Opens and walks a .bimgo file.
         /// </summary>
         /// <param name="path">The file.</param>
-        /// <param name="kiosk">Round Z-C: start in kiosk mode (desktop kiosk shortcut).</param>
-        private SessionEndReason RunFile(string path, bool kiosk = false)
+        private SessionEndReason RunFile(string path)
         {
             BimGoDocument document = LoadFile(path);
             if (document == null) { return SessionEndReason.EndedByUser; }
@@ -122,7 +121,6 @@ namespace BimGo.Shell
                 OnOpenRequest = QueueFile,
                 OnSaved = saved => _recent.Touch(saved),
                 PollNotices = PollInbox,
-                Kiosk = kiosk
             };
             return RunSession(document.Scene, options, out _);
         }
@@ -291,12 +289,8 @@ namespace BimGo.Shell
 
             _window.SetCaptured(false);
             _window.Input.ReleaseAll();
-            // The model this file came from: staying lets the file's edits be pushed into it
-            string pushHint = _current?.HasPushableEditsFor(info?.ModelKey) == true
-                ? "\n\nChoose No to stay in this file and push its edits into that model (Esc → PUSH TO REVIT)."
-                : string.Empty;
             bool switchNow = FileDialogs.AskYesNo(_window.Handle,
-                $"Revit wants to open {title} in BimGo.\n\nSwitch now? (You'll be asked to save first if this model has unsaved changes.){pushHint}",
+                $"Revit wants to open {title} in BimGo.\n\nSwitch now? (You'll be asked to save first if this model has unsaved changes.)",
                 "BimGo");
             if (!switchNow) { return $"{title} was not opened. Join it later from the home screen."; }
 

@@ -102,7 +102,7 @@ namespace BimGo.Live
             SessionHost existing = Find(doc);
             if (existing != null) { return existing; }
 
-            var host = new SessionHost(doc, Environment.ProcessId);
+            var host = new SessionHost(doc, System.Diagnostics.Process.GetCurrentProcess().Id);
             lock (LOCK) { HOSTS.Add(host); }
             MarkStatusDirty();
             return host;
@@ -210,7 +210,7 @@ namespace BimGo.Live
                 case MessageTypes.EDIT:
                     EditRequest request = envelope.Read<EditRequest>();
                     if (request == null) { break; }
-                    EditResult result = host.Editor.Apply(host.Document, request);
+                    EditResult result = new EditResult { Ticket = request.Ticket, Op = request.Op, Success = false, Message = "Model edits are not supported in clash review." };
                     host.Send(MessageTypes.EDIT_RESULT, result, envelope.Id);
                     break;
 
@@ -251,7 +251,8 @@ namespace BimGo.Live
                     break;
 
                 case MessageTypes.JOURNAL_APPLY:
-                    host.Send(MessageTypes.JOURNAL_RESULT, PushJournal(host, envelope.Read<JournalApplyPayload>()), envelope.Id);
+                    JournalApplyPayload journal = envelope.Read<JournalApplyPayload>();
+                    host.Send(MessageTypes.JOURNAL_RESULT, new JournalResultPayload { RequestId = journal?.RequestId ?? string.Empty, DryRun = journal?.DryRun ?? true, Success = false, Message = "Pushing model edits is not supported in clash review." }, envelope.Id);
                     break;
 
                 case MessageTypes.DETACH:
@@ -319,21 +320,6 @@ namespace BimGo.Live
         }
 
         /// <summary>
-        /// Applies (or previews) a standalone file's journal (Revit thread). Large requests arrive as a file in the
-        /// session's snapshots folder.
-        /// </summary>
-        private static JournalResultPayload PushJournal(SessionHost host, JournalApplyPayload request)
-        {
-            JournalApplyPayload full = JournalPush.ResolvePayloadFile(host.SessionId, request, out string error);
-            if (full == null)
-            {
-                return new JournalResultPayload { RequestId = request?.RequestId ?? string.Empty, DryRun = request?.DryRun ?? true, Success = false, Message = error };
-            }
-
-            return host.Editor.ApplyJournal(host.Document, full, host.Info.ModelKey);
-        }
-
-        /// <summary>
         /// Selects and shows elements in Revit (the session's document must be the active one).
         /// </summary>
         private static MessagePayload Select(UIApplication app, SessionHost host, long[] ids)
@@ -346,7 +332,7 @@ namespace BimGo.Live
 
             var elementIds = ids
                 .Where(id => id > 0)
-                .Select(id => new ElementId(id))
+                .Select(id => ElementId_Ext.Ext_FromValue(id))
                 .Where(id => host.Document.GetElement(id) != null)
                 .ToList();
             if (elementIds.Count == 0)
@@ -385,7 +371,7 @@ namespace BimGo.Live
                 XYZ min = null, max = null;
                 foreach (long hostId in hosts ?? Array.Empty<long>())
                 {
-                    if (hostId <= 0 || host.Document.GetElement(new ElementId(hostId)) is not Element hostElement) { continue; }
+                    if (hostId <= 0 || host.Document.GetElement(ElementId_Ext.Ext_FromValue(hostId)) is not Element hostElement) { continue; }
                     references.Add(new DB.Reference(hostElement));
                     BoundingBoxXYZ hostBox = hostElement.get_BoundingBox(null);
                     if (hostBox == null) { continue; }
@@ -395,8 +381,8 @@ namespace BimGo.Live
                 foreach (LinkedElementRef item in linked)
                 {
                     if (item == null) { continue; }
-                    if (host.Document.GetElement(new ElementId(item.LinkInstanceId)) is not RevitLinkInstance instance) { continue; }
-                    if (instance.GetLinkDocument()?.GetElement(new ElementId(item.ElementId)) is not Element element) { continue; }
+                    if (host.Document.GetElement(ElementId_Ext.Ext_FromValue(item.LinkInstanceId)) is not RevitLinkInstance instance) { continue; }
+                    if (instance.GetLinkDocument()?.GetElement(ElementId_Ext.Ext_FromValue(item.ElementId)) is not Element element) { continue; }
 
                     references.Add(new DB.Reference(element).CreateLinkReference(instance));
 
@@ -674,7 +660,7 @@ namespace BimGo.Live
             if (box == null) { return; }
             double distance = -box.Max.Z;
             double halfWidth = (box.Max.X - box.Min.X) * 0.5, halfHeight = (box.Max.Y - box.Min.Y) * 0.5;
-            if (!(distance > 1e-6) || !(halfWidth > 1e-9) || !(halfHeight > 1e-9) || !double.IsFinite(distance))
+            if (!(distance > 1e-6) || !(halfWidth > 1e-9) || !(halfHeight > 1e-9) || !NumericCompat.IsFinite(distance))
             {
                 Utilities.Log_Utils.Write($"View from BimGo: crop box not as expected (min {FormatPoint(box.Min)}, max {FormatPoint(box.Max)}); field of view left alone.");
                 return;

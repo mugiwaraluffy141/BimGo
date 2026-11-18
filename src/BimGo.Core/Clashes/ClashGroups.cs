@@ -56,8 +56,8 @@ namespace BimGo.Clashes
 
         /// <summary>True when every coordinate is a number.</summary>
         [JsonIgnore]
-        public bool IsValid => double.IsFinite(MinX) && double.IsFinite(MinY) && double.IsFinite(MinZ)
-            && double.IsFinite(MaxX) && double.IsFinite(MaxY) && double.IsFinite(MaxZ);
+        public bool IsValid => BimGo.NumericCompat.IsFinite(MinX) && BimGo.NumericCompat.IsFinite(MinY) && BimGo.NumericCompat.IsFinite(MinZ)
+            && BimGo.NumericCompat.IsFinite(MaxX) && BimGo.NumericCompat.IsFinite(MaxY) && BimGo.NumericCompat.IsFinite(MaxZ);
 
         /// <summary>Swaps corners given the wrong way round.</summary>
         public ClashGroupBox Normalise()
@@ -269,7 +269,7 @@ namespace BimGo.Clashes
             {
                 string name = group.Name;
                 if (name != null && name.StartsWith("Group ", StringComparison.Ordinal)
-                    && int.TryParse(name.AsSpan(6), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n))
+                    && int.TryParse(name.Substring(6), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n))
                 {
                     next = Math.Max(next, n + 1);
                 }
@@ -909,8 +909,8 @@ namespace BimGo.Clashes
                 {
                     if (text == null || !text.StartsWith("Cluster ", StringComparison.Ordinal)) { continue; }
                     int end = 8;
-                    while (end < text.Length && char.IsAsciiDigit(text[end])) { end++; }
-                    if (end > 8 && int.TryParse(text.AsSpan(8, end - 8), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n))
+                    while (end < text.Length && (text[end] >= '0' && text[end] <= '9')) { end++; }
+                    if (end > 8 && int.TryParse(text.Substring(8, end - 8), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n))
                     {
                         next = Math.Max(next, n + 1);
                     }

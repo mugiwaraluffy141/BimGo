@@ -8,7 +8,7 @@ named pointer to one commit on `main`) and a **GitHub Release** (a page for that
 
 ## Once: tools
 
-- Visual Studio with the .NET 8 SDK, plus the .NET 10 SDK (BimGo for Revit 2027), and Revit 2025 / 2026 / 2027
+- Visual Studio with the .NET 8 SDK, plus the .NET 10 SDK (BimGo for Revit 2027), and Revit 2023 / 2024 / 2025 / 2026 / 2027
   installed (the build references their API dlls).
 - [Inno Setup 6](https://jrsoftware.org/isinfo.php) (free; the default install folder is found automatically).
 - Optional: the [GitHub CLI](https://cli.github.com/) (`gh`), if you'd rather publish from the command line.
@@ -38,7 +38,7 @@ the installer all read it.
    git pull
    powershell -ExecutionPolicy Bypass -File build\publish.ps1
    ```
-   It runs the tests, publishes the app, builds BimGo for Revit 2025–2027 and writes
+   It runs the tests, publishes the app, builds BimGo for Revit 2023–2027 and writes
    `artifacts\BimGo-Setup-1.0.1.exe` (plus a `.sha256.txt` checksum). `artifacts\` is never committed.
 4. **Test the setup** on a PC (or a Windows user) without your dev builds: install, open a `.bimgo`, Go from Revit,
    uninstall. The test list is in `DEVELOPING.md` (Installer).
@@ -67,3 +67,7 @@ the installer all read it.
   removes that later; `build\publish.ps1 -Sign -CertThumbprint <thumbprint>` signs the app, the add-in and the setup.
 - **Docs and links:** the welcome card's ONLINE GUIDE opens `docs/` on GitHub's `main` branch, so merge the docs with
   the release.
+
+Host acceptance and marker-family compatibility must be verified separately for each year; a successful build does not establish compatibility. The bundled marker family is Revit 2025 format and requires a compatible replacement for Revit 2023/2024.
+
+The Core Release test suite passed 517 tests on 16 November 2026. A standalone cross-runtime smoke also passed in both directions between .NET Framework 4.8 and .NET 8 for a room, comment, serialized clash, link identity, large element ID and high-bit IFC GUIDs; see `tests/BimGo.Compatibility.Smoke`. These results do not verify clash computation in that smoke, the installer, Revit host extraction, marker synchronization, or the viewer-only workflow; record those results separately when they are run.

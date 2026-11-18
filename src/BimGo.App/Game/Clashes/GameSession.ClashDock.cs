@@ -246,8 +246,8 @@ namespace BimGo.Game
             BuildClashDock(f, _window.Input, width, height);
             DrawGridHoverLabel(f); // grids round B
             BuildGridsPanel(f, _window.Input);
-            // P-A2: the left column: status, coordinates, the colour legend (real model view) and the F1 sheet
-            BuildInfoColumn(f, height, sunLegend: false, profileLegend: true, help: true);
+            // The review column takes the left edge on narrow windows so the clash dock and its headings both fit.
+            if (!ReviewPanelsUseLeftFallback) { BuildInfoColumn(f, height, sunLegend: false, profileLegend: true, help: true); }
             BuildRoomBanner(f, width);
             BuildLiveBanner(f, width, height);
             BuildToast(f, width);
@@ -274,8 +274,7 @@ namespace BimGo.Game
             if (_clashTool != CLASH_TOOL_NONE) { BuildClashToolBar(f, input, width, height, width - w - S(16)); }
             float x = width - w - S(16), y = S(16), h = height - S(32);
             _ui.Panel(x, y, w, h, UiTheme.PANEL_STRONG, UiTheme.PANEL_BORDER);
-            bool overDock = Hover(input, x, y, w, h, focus: false);
-            RegisterFocusArea(x, y, w, h); // P-A2: the D-pad navigates the dock while the cursor is over it
+            bool overDock = Hover(input, x, y, w, h);
             (_clashDockX, _clashDockY, _clashDockW, _clashDockH) = (x, y, w, h);
             if (overDock && input.RightPressed) { _clashMenuLook = true; } // C-C1: a right-click on the dock is a menu, not a look
 

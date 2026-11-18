@@ -22,8 +22,8 @@ namespace BimGo.Scene
             EyeHeight = eyeHeight;
             Yaw = yaw;
             Pitch = pitch;
-            HoldSeconds = MathF.Max(0f, float.IsFinite(holdSeconds) ? holdSeconds : 0f);
-            Swivel = float.IsFinite(swivel) ? swivel : 0f;
+            HoldSeconds = MathF.Max(0f, BimGo.NumericCompat.IsFinite(holdSeconds) ? holdSeconds : 0f);
+            Swivel = BimGo.NumericCompat.IsFinite(swivel) ? swivel : 0f;
         }
 
         /// <summary>Feet position (scene-local metres).</summary>
@@ -128,8 +128,8 @@ namespace BimGo.Scene
         {
             _stops = stops?.ToArray() ?? Array.Empty<TourStop>();
             _glideMode = transition == Format.TourTransition.Glide;
-            _fade = float.IsFinite(fadeSeconds) ? MathF.Max(0f, fadeSeconds) : 0f;
-            float glide = float.IsFinite(glideSeconds) ? MathF.Max(0.1f, glideSeconds) : 3f;
+            _fade = BimGo.NumericCompat.IsFinite(fadeSeconds) ? MathF.Max(0f, fadeSeconds) : 0f;
+            float glide = BimGo.NumericCompat.IsFinite(glideSeconds) ? MathF.Max(0.1f, glideSeconds) : 3f;
 
             int n = _stops.Length;
             _start = new float[n];
@@ -153,7 +153,7 @@ namespace BimGo.Scene
                 else
                 {
                     float distance = Vector3.Distance(_stops[i - 1].Feet, _stops[i].Feet);
-                    _glide[i] = Math.Clamp(MathF.Max(glide, distance / GLIDE_SPEED), glide, MathF.Max(glide, MAX_GLIDE_SECONDS));
+                    _glide[i] = BimGo.NumericCompat.Clamp(MathF.Max(glide, distance / GLIDE_SPEED), glide, MathF.Max(glide, MAX_GLIDE_SECONDS));
                     _start[i] = t;
                     _holdStart[i] = t + _glide[i];
                     t = _holdStart[i] + _stops[i].HoldSeconds;
@@ -175,7 +175,7 @@ namespace BimGo.Scene
         /// When a stop becomes the current one (s): its fade-in, or the start of the glide into it. Seeking here plays
         /// the stop from its beginning.
         /// </summary>
-        public float StartOf(int stop) => _stops.Length == 0 ? 0f : _start[Math.Clamp(stop, 0, _stops.Length - 1)];
+        public float StartOf(int stop) => _stops.Length == 0 ? 0f : _start[BimGo.NumericCompat.Clamp(stop, 0, _stops.Length - 1)];
 
         /// <summary>
         /// The current stop at a time (clamped to the tour).
@@ -203,7 +203,7 @@ namespace BimGo.Scene
             int n = _stops.Length;
             if (n == 0) { return pose; }
 
-            if (!float.IsFinite(time) || time < 0f) { time = 0f; }
+            if (!BimGo.NumericCompat.IsFinite(time) || time < 0f) { time = 0f; }
             if (time >= Duration)
             {
                 // The last stop's final view
@@ -242,7 +242,7 @@ namespace BimGo.Scene
                     }
                     else if (local > _fade + stop.HoldSeconds)
                     {
-                        pose.Black = Math.Clamp((local - _fade - stop.HoldSeconds) / _fade, 0f, 1f);
+                        pose.Black = BimGo.NumericCompat.Clamp((local - _fade - stop.HoldSeconds) / _fade, 0f, 1f);
                         if (i + 1 < n) { SetBlend(ref pose, i, i + 1, 0.5f * Smooth(pose.Black)); }
                     }
                 }
@@ -270,7 +270,7 @@ namespace BimGo.Scene
             if (hold < 0f)
             {
                 pose.Yaw = stop.Yaw;
-                pose.Black = _fade > 0f ? Math.Clamp(-hold / _fade, 0f, 1f) : 0f;
+                pose.Black = _fade > 0f ? BimGo.NumericCompat.Clamp(-hold / _fade, 0f, 1f) : 0f;
             }
             else if (hold <= stop.HoldSeconds)
             {
@@ -279,7 +279,7 @@ namespace BimGo.Scene
             else
             {
                 pose.Yaw = stop.Yaw + stop.Swivel;
-                pose.Black = _fade > 0f ? Math.Clamp((hold - stop.HoldSeconds) / _fade, 0f, 1f) : 0f;
+                pose.Black = _fade > 0f ? BimGo.NumericCompat.Clamp((hold - stop.HoldSeconds) / _fade, 0f, 1f) : 0f;
             }
             return pose;
         }
@@ -291,7 +291,7 @@ namespace BimGo.Scene
         {
             pose.BlendFrom = from;
             pose.BlendTo = to;
-            pose.BlendT = Math.Clamp(t, 0f, 1f);
+            pose.BlendT = BimGo.NumericCompat.Clamp(t, 0f, 1f);
         }
 
         /// <summary>
@@ -299,7 +299,7 @@ namespace BimGo.Scene
         /// </summary>
         public static float Smooth(float u)
         {
-            u = Math.Clamp(u, 0f, 1f);
+            u = BimGo.NumericCompat.Clamp(u, 0f, 1f);
             return u * u * (3f - 2f * u);
         }
 

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
@@ -74,7 +74,7 @@ namespace BimGo.Extraction
         /// is kept in <see cref="_lookups"/>.
         /// </summary>
         private bool _resolveOnly;
-        private readonly Dictionary<SceneMaterial, TextureLookup> _lookups = new(ReferenceEqualityComparer.Instance);
+        private readonly Dictionary<SceneMaterial, TextureLookup> _lookups = new();
 
         // Per-element temporary streams, parallel to _tmpVertices
         private readonly List<ushort> _tmpMaterial = new(4096);
@@ -265,7 +265,7 @@ namespace BimGo.Extraction
         private ushort MaterialIndexOf(Material material)
         {
             if (!_extractMaterials || material == null) { return MaterialData.NONE; }
-            long key = material.Id.Value;
+            long key = material.Id.Ext_Value();
             if (_src.MaterialIndex.TryGetValue(key, out ushort cached)) { return cached; }
 
             ushort index = MaterialData.NONE;
@@ -333,7 +333,7 @@ namespace BimGo.Extraction
                 Name = material.Name ?? string.Empty,
                 UniqueId = uniqueId,
                 Link = _src.Link,
-                MaterialId = material.Id.Value,
+                MaterialId = material.Id.Ext_Value(),
                 Colour = shading
             };
             TextureOverride choice = _overrides?.Find(DocumentKey(), uniqueId, entry.Name);
@@ -380,7 +380,7 @@ namespace BimGo.Extraction
             // Generic: how much of the image shows over the colour
             if (entry.TextureState == TextureState.Embedded && FindDouble(asset, "generic_diffuse_image_fade") is double fade && slot?.Name == "generic_diffuse")
             {
-                entry.Fade = (float)Math.Clamp(fade, 0.0, 1.0);
+                entry.Fade = (float)NumericCompat.Clamp(fade, 0.0, 1.0);
             }
 
             ApplyReflectivity(entry, asset, entry.Schema, material);
@@ -712,8 +712,9 @@ namespace BimGo.Extraction
 
         private static string HashName(string text)
         {
-            byte[] hash = SHA1.HashData(Encoding.UTF8.GetBytes(text));
-            return Convert.ToHexString(hash, 0, 10).ToLowerInvariant();
+            using var sha1 = SHA1.Create();
+            byte[] hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(text));
+            return BitConverter.ToString(hash, 0, 10).Replace("-", "").ToLowerInvariant();
         }
 
         private string DocumentFolder()
@@ -857,7 +858,7 @@ namespace BimGo.Extraction
                 {
                     case Visual.AssetPropertyDistance distance:
                         double metres = UnitUtils.Convert(distance.Value, distance.GetUnitTypeId(), UnitTypeId.Meters);
-                        if (double.IsFinite(metres)) { return (float)metres; }
+                        if (NumericCompat.IsFinite(metres)) { return (float)metres; }
                         break;
                     case Visual.AssetPropertyDouble d:
                         return (float)(d.Value * 0.0254); // older assets: inches

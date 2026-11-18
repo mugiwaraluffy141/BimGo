@@ -76,7 +76,7 @@ namespace BimGo.Game.Guns
         public override void ClearMarkers()
         {
             if (Session.Comments.Comments.Count == 0) { return; }
-            Session.Toast("Comments are kept: delete or close them one at a time in Esc → COMMENTS");
+            Session.Toast("Comments are kept: delete or close them one at a time in the Comments panel");
         }
 
         private void ReportSaveError()
@@ -85,12 +85,12 @@ namespace BimGo.Game.Guns
         }
 
         /// <summary>
-        /// The visible marker nearest the crosshair, within a few pixels.
+        /// The visible marker nearest the pointer, within a few pixels.
         /// </summary>
         private CommentRecord FindHovered()
         {
             FpsCamera camera = Session.Camera;
-            var centre = new Vector2(camera.ViewportWidth * 0.5f, camera.ViewportHeight * 0.5f);
+            Vector2 pointer = Session.Input.MousePosition;
             float limit = S(HOVER_PIXELS);
             CommentRecord best = null;
             float bestDistance = float.MaxValue;
@@ -101,7 +101,7 @@ namespace BimGo.Game.Guns
                 if (distance > MAX_HOVER_DISTANCE) { continue; }
                 if (!camera.WorldToScreen(record.Local, out Vector2 screen)) { continue; }
 
-                float pixels = Vector2.Distance(screen, centre);
+                float pixels = Vector2.Distance(screen, pointer);
                 if (pixels < limit && pixels < bestDistance)
                 {
                     best = record;

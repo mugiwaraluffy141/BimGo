@@ -54,7 +54,7 @@ namespace BimGo.Extraction
                         }
                         catch (Exception ex)
                         {
-                            Utilities.Log_Utils.Write($"{source.Describe()}: {key} {element.Id.Value} not recorded: {ex.Message}");
+                            Utilities.Log_Utils.Write($"{source.Describe()}: {key} {element.Id.Ext_Value()} not recorded: {ex.Message}");
                         }
                     }
                 }
@@ -102,7 +102,7 @@ namespace BimGo.Extraction
             return new EntourageSlot
             {
                 UniqueId = element.UniqueId ?? string.Empty,
-                ElementId = element.Id.Value,
+                ElementId = element.Id.Ext_Value(),
                 Link = source.Link,
                 LinkKey = source.Info?.InstanceUniqueId ?? string.Empty,
                 Category = key,
@@ -111,7 +111,7 @@ namespace BimGo.Extraction
                 Base = new Vector3((float)(basePoint.X * FT - _origin.X), (float)(basePoint.Y * FT - _origin.Y), (float)(basePoint.Z * FT - _origin.Z)),
                 Height = (float)((maxZ - basePoint.Z) * FT),
                 Width = (float)(Math.Max(maxX - minX, maxY - minY) * FT),
-                Element = extracted.TryGetValue((source.Link, element.Id.Value), out int index) ? index : -1
+                Element = extracted.TryGetValue((source.Link, element.Id.Ext_Value()), out int index) ? index : -1
             };
         }
     }

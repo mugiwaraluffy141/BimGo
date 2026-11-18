@@ -32,7 +32,9 @@ namespace BimGo.Scene
             {
                 try
                 {
+#if !NETFRAMEWORK
                     if (TimeZoneInfo.TryConvertIanaIdToWindowsId(ianaId, out string windowsId)) { found = TimeZoneInfo.FindSystemTimeZoneById(windowsId); }
+#endif
                 }
                 catch (Exception) { found = null; }
             }
@@ -51,7 +53,7 @@ namespace BimGo.Scene
 
         /// <summary>The nearest whole-hour offset for a longitude (15° per hour): a first guess to edit.</summary>
         public static double EstimateOffset(double longitude) =>
-            double.IsFinite(longitude) ? Math.Clamp(Math.Round(longitude / 15.0), -12.0, 14.0) : 0.0;
+            BimGo.NumericCompat.IsFinite(longitude) ? BimGo.NumericCompat.Clamp(Math.Round(longitude / 15.0), -12.0, 14.0) : 0.0;
     }
 
     /// <summary>
@@ -182,7 +184,7 @@ namespace BimGo.Scene
             if (words.Length == 0 || max <= 0) { return; }
 
             var scored = new List<(int Rank, long Population, Place Place)>();
-            string phrase = string.Join(' ', words);
+            string phrase = string.Join(" ", words);
             foreach (Place place in _places)
             {
                 bool all = true;
@@ -215,7 +217,7 @@ namespace BimGo.Scene
         public Place Nearest(double latitude, double longitude, double maxKm, out double distanceKm)
         {
             distanceKm = double.NaN;
-            if (!double.IsFinite(latitude) || !double.IsFinite(longitude)) { return null; }
+            if (!BimGo.NumericCompat.IsFinite(latitude) || !BimGo.NumericCompat.IsFinite(longitude)) { return null; }
             Place best = null;
             double bestKm = double.MaxValue;
             foreach (Place place in _places)
@@ -269,10 +271,10 @@ namespace BimGo.Scene
             value = double.NaN;
             string s = text.Trim().ToUpperInvariant();
             double sign = 1.0;
-            if (s.EndsWith(positive)) { s = s[..^1]; }
-            else if (s.EndsWith(negative)) { s = s[..^1]; sign = -1.0; }
-            else if (s.StartsWith(positive)) { s = s[1..]; }
-            else if (s.StartsWith(negative)) { s = s[1..]; sign = -1.0; }
+            if (s.EndsWith(positive.ToString(), StringComparison.Ordinal)) { s = s[..^1]; }
+            else if (s.EndsWith(negative.ToString(), StringComparison.Ordinal)) { s = s[..^1]; sign = -1.0; }
+            else if (s.StartsWith(positive.ToString(), StringComparison.Ordinal)) { s = s[1..]; }
+            else if (s.StartsWith(negative.ToString(), StringComparison.Ordinal)) { s = s[1..]; sign = -1.0; }
 
             // Degrees / minutes / seconds: split on the symbols
             string[] parts = s.Split(new[] { '°', '\'', '′', '"', '″', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -286,7 +288,7 @@ namespace BimGo.Scene
                 if (i == 0 && part < 0) { sign = -sign; }
             }
             value = sign * total;
-            return double.IsFinite(value);
+            return BimGo.NumericCompat.IsFinite(value);
         }
 
         /// <summary>Lower case without accents ("São Paulo" → "sao paulo") for matching.</summary>
@@ -301,7 +303,7 @@ namespace BimGo.Scene
                 if (category == UnicodeCategory.NonSpacingMark) { continue; }
                 builder.Append(c switch { 'ł' => 'l', 'ø' => 'o', 'đ' => 'd', 'ß' => 's', '–' or '-' or '\'' => ' ', _ => c });
             }
-            return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            return string.Join(" ", builder.ToString().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
         }
     }
 }

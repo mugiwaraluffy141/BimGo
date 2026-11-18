@@ -95,8 +95,8 @@ namespace BimGo.Live
         public bool IsValid()
         {
             double length = Math.Sqrt(ForwardX * ForwardX + ForwardY * ForwardY + ForwardZ * ForwardZ);
-            return double.IsFinite(EyeX) && double.IsFinite(EyeY) && double.IsFinite(EyeZ) && double.IsFinite(length) && length > 1e-6
-                && double.IsFinite(UpX) && double.IsFinite(UpY) && double.IsFinite(UpZ) && double.IsFinite(HorizontalFov) && double.IsFinite(Aspect);
+            return BimGo.NumericCompat.IsFinite(EyeX) && BimGo.NumericCompat.IsFinite(EyeY) && BimGo.NumericCompat.IsFinite(EyeZ) && BimGo.NumericCompat.IsFinite(length) && length > 1e-6
+                && BimGo.NumericCompat.IsFinite(UpX) && BimGo.NumericCompat.IsFinite(UpY) && BimGo.NumericCompat.IsFinite(UpZ) && BimGo.NumericCompat.IsFinite(HorizontalFov) && BimGo.NumericCompat.IsFinite(Aspect);
         }
     }
 

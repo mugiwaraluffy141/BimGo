@@ -6,7 +6,7 @@
 		net8.0 so the net8 (R25/R26) and net10 (R27) add-ins can both reference it.
 	-->
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFrameworks>net8.0;net48</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<ImplicitUsings>true</ImplicitUsings>
 		<Nullable>disable</Nullable>
@@ -18,5 +18,11 @@
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
 		<Configurations>Debug;Release</Configurations>
 	</PropertyGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+		<Reference Include="System.Numerics" />
+		<Reference Include="System.IO.Compression" />
+	</ItemGroup>
 
 </Project>

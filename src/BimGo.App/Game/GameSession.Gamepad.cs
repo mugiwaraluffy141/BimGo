@@ -6,34 +6,19 @@ using BimGo.Scene;
 namespace BimGo.Game
 {
     /// <summary>
-    /// The gamepad in the walkthrough (input round B2, build B): a secondary input beside the keyboard and mouse.
-    /// Movement, buttons and triggers go through the action map like keys (<see cref="Player"/> reads the sticks as
-    /// analog axes); this file adds what keys don't have: analog look, the sprint toggle, the cursor mode for menus and
-    /// editors, and looking in the free-cursor editors.
+    /// Compatibility hooks for controller call sites that are being removed from other session files.
     /// </summary>
     internal sealed partial class GameSession
     {
-        /// <summary>
-        /// What the gamepad does with the free cursor this frame: menus, panels and text boxes → Menu; the free-cursor
-        /// editors → Editor; walking, a tour, a video and a key capture → Off.
-        /// </summary>
-        private PadCursorMode CurrentPadCursorMode()
-        {
-            if (_kiosk || _tourActive || _video != null || IsCapturingKey || IsMappingPad) { return PadCursorMode.Off; } // Z-C: kiosk
-            if (_paused || IsEditingComment || _markupOpen || _welcomeOpen) { return PadCursorMode.Menu; } // Z-E: welcome card
-            if (_photoOpen || _sectionOpen || _sunHoursOpen || _sunPanelOpen || _clashModeOn || _gridsPanelOpen || _pathEditOn || _fixtureDockOpen) { return PadCursorMode.Editor; }
-            return PadCursorMode.Off;
-        }
-
         /// <summary>
         /// Polish round P-B: the <see cref="InputCatalog.Situations"/> entry the app is in (its name), for the generated F1
         /// sheet. Follows <see cref="UpdateFrame"/>'s order (what has the keys first): change the two together.
         /// </summary>
         private string CurrentSituation()
         {
-            if (_kiosk) { return InputCatalog.SIT_KIOSK; } // Round Z-C (its idle tour too: any input hands control back)
             if (_tourActive) { return InputCatalog.SIT_TOUR; }
             if (_video != null) { return InputCatalog.SIT_VIDEO; }
+            if (_menuPreview) { return InputCatalog.SIT_SETTINGS; }
             if (_paused) { return InputCatalog.SIT_PAUSE; }
             if (_markupOpen) { return InputCatalog.SIT_MARKUP; }
             if (_sunHoursOpen) { return InputCatalog.SIT_STUDY; }
@@ -59,43 +44,21 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// Walking: the look actions turn the camera at a rate (gamepad stick: analog with a squared response; a key
-        /// bound to them turns at full rate), scaled by the gamepad look speed and invert Y. Nothing when they rest.
+        /// Keyboard bindings for look actions let users turn the camera with their own keys.
         /// </summary>
-        private void PadLook(InputState input)
+        private void KeyboardLook(InputState input)
         {
             var look = new Vector2(input.Axis(InputAction.LookRight) - input.Axis(InputAction.LookLeft),
                 input.Axis(InputAction.LookUp) - input.Axis(InputAction.LookDown));
             if (look == Vector2.Zero) { return; }
             if (look.LengthSquared() > 1f) { look = Vector2.Normalize(look); }
-            look = Gamepad.Curve(look);
-            float rate = Gamepad.LOOK_RADIANS_PER_SECOND * Gamepad.LookSensitivity * _frameTime;
-            _player.Turn(-look.X * rate, (Gamepad.InvertY ? -look.Y : look.Y) * rate);
+            float rate = 3f * _frameTime;
+            _player.Turn(-look.X * rate, look.Y * rate);
         }
 
         /// <summary>
-        /// The free-cursor editors (photo, section box, study): the look stick drives the cursor there, so the move stick
-        /// looks around instead (the player stands still).
+        /// Compatibility hook for editor flows; controller input is disabled.
         /// </summary>
-        private void PadEditorLook(InputState input)
-        {
-            if (!input.PadConnected) { return; }
-            Vector2 look = Gamepad.Curve(Gamepad.MoveStick(input));
-            if (look == Vector2.Zero) { return; }
-            float rate = Gamepad.LOOK_RADIANS_PER_SECOND * Gamepad.LookSensitivity * _frameTime;
-            _player.Turn(-look.X * rate, (Gamepad.InvertY ? -look.Y : look.Y) * rate);
-        }
-
-        /// <summary>
-        /// Gamepad sprint: the run binding's gamepad button (the stick click) toggles it; it ends when movement stops.
-        /// Keyboard Shift is untouched (held, as before).
-        /// </summary>
-        private void UpdatePadSprint(InputState input)
-        {
-            if (input.PressedByPad(InputAction.Run)) { _player.PadSprint = !_player.PadSprint; }
-            float moving = MathF.Abs(input.Axis(InputAction.MoveForward) - input.Axis(InputAction.MoveBack))
-                + MathF.Abs(input.Axis(InputAction.MoveRight) - input.Axis(InputAction.MoveLeft));
-            if (moving < 0.2f) { _player.PadSprint = false; }
-        }
+        private void KeyboardEditorLook(InputState input) => KeyboardLook(input);
     }
 }

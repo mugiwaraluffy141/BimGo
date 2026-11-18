@@ -203,7 +203,7 @@ namespace BimGo.Scene
                 if (chord.IsEmpty || !ModifiersHeld(chord.Modifiers, state)) { continue; }
                 value = MathF.Max(value, state.KeyAnalog(chord.Key));
             }
-            return Math.Clamp(value, 0f, 1f);
+            return BimGo.NumericCompat.Clamp(value, 0f, 1f);
         }
 
         /// <summary>
@@ -449,27 +449,27 @@ namespace BimGo.Scene
             Changed();
         }
 
-        /// <summary>Puts one action back to its defaults (may leave a clash if another action took one of its keys).</summary>
-        public void Reset(InputAction action)
+        /// <summary>Puts one action back to its defaults. <paramref name="keysOnly"/> preserves its gamepad binding.</summary>
+        public void Reset(InputAction action, bool keysOnly = false)
         {
             if (InputCatalog.Get(action) == null) { return; }
-            SetDefaults(action);
+            SetDefaults(action, keysOnly);
             Changed();
         }
 
-        /// <summary>Puts every action back to its defaults.</summary>
-        public void ResetAll()
+        /// <summary>Puts every action back to its defaults. <paramref name="keysOnly"/> preserves gamepad bindings.</summary>
+        public void ResetAll(bool keysOnly = false)
         {
-            foreach (ActionDef def in InputCatalog.All) { SetDefaults(def.Action); }
+            foreach (ActionDef def in InputCatalog.All) { SetDefaults(def.Action, keysOnly); }
             Changed();
         }
 
-        private void SetDefaults(InputAction action)
+        private void SetDefaults(InputAction action, bool keysOnly = false)
         {
             ActionDef def = InputCatalog.Get(action);
             KeyChord[] slots = _slots[(int)action];
             for (int s = 0; s < MAX_SLOTS; s++) { slots[s] = s < def.Defaults.Count ? def.Defaults[s] : KeyChord.None; }
-            slots[PAD_SLOT] = def.PadDefault;
+            if (!keysOnly) { slots[PAD_SLOT] = def.PadDefault; }
         }
 
         private void Changed()
@@ -931,15 +931,24 @@ namespace BimGo.Scene
         {
             var map = new KeyMap();
             var md = new StringBuilder();
+            static bool InControlsGuide(InputAction action) => InputCatalog.ReviewAction(action)
+                && action is not (InputAction.Jump or InputAction.Crouch or InputAction.Fly or InputAction.PadClick or InputAction.PadMenuBack);
             foreach (InputContext context in InputCatalog.CONTEXT_ORDER)
             {
+                if (context == InputContext.Kiosk) { continue; }
+                if (!InputCatalog.All.Any(def => def.Context == context && InControlsGuide(def.Action))) { continue; }
                 md.Append("\n**").Append(InputCatalog.ContextName(context)).Append("**");
                 string note = InputCatalog.ContextNote(context);
+                if (context == InputContext.Fixed && note != null)
+                {
+                    int gamepad = note.IndexOf(" Gamepad", StringComparison.Ordinal);
+                    if (gamepad >= 0) { note = note[..gamepad].TrimEnd(); }
+                }
                 if (note != null) { md.Append(" ").Append(note); }
-                md.Append("\n\n| Action | Keys | Gamepad |\n|---|---|---|\n");
+                md.Append("\n\n| Action | Keys |\n|---|---|\n");
                 foreach (ActionDef def in InputCatalog.All)
                 {
-                    if (def.Context != context) { continue; }
+                    if (def.Context != context || !InControlsGuide(def.Action)) { continue; }
                     md.Append("| ").Append(def.Label).Append(" | ");
                     bool first = true;
                     for (int s = 0; s < MAX_SLOTS; s++)
@@ -950,8 +959,6 @@ namespace BimGo.Scene
                         first = false;
                         md.Append(Code(chord.ToDisplayString()));
                     }
-                    md.Append(" | ");
-                    if (!def.PadDefault.IsEmpty) { md.Append(Code(def.PadDefault.ToDisplayString())); }
                     md.Append(" |\n");
                 }
             }

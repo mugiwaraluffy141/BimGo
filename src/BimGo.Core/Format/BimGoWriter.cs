@@ -144,7 +144,7 @@ namespace BimGo.Format
 
                 // Past this point the write completes: the replace is quick and must not be half done
                 if (progress != null) { progress.CanCancel = false; }
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 progress?.Step(1.0);
                 Utilities.Log_Utils.Write($"Wrote {path} ({scene.Elements.Length} elements, {document.Journal?.Count ?? 0} journal entries).");
                 return true;
@@ -238,7 +238,7 @@ namespace BimGo.Format
                     UniqueId = string.IsNullOrEmpty(room.UniqueId) ? null : room.UniqueId, // Round Z-A
                     Id = room.ElementId >= 0 ? room.ElementId : null,
                     Level = string.IsNullOrEmpty(room.LevelName) ? null : room.LevelName,
-                    Area = float.IsFinite(room.Area) ? MathF.Round(room.Area * 1000f) / 1000f : null
+                    Area = BimGo.NumericCompat.IsFinite(room.Area) ? MathF.Round(room.Area * 1000f) / 1000f : null
                 };
                 foreach (System.Numerics.Vector2[] loop in room.Loops)
                 {

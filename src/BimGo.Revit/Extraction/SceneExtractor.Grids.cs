@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BimGo.Scene;
 
 // The class belongs to the Extraction namespace
@@ -50,7 +50,7 @@ namespace BimGo.Extraction
                     foreach (ElementId id in multi.GetGridIds())
                     {
                         if (doc.GetElement(id) is not DB.Grid segment) { continue; }
-                        segmentIds.Add(id.Value);
+                        segmentIds.Add(id.Ext_Value());
                         Vector2[] points = GridPoints(segment.Curve, transform);
                         if (points == null) { continue; }
                         segments.Add(points);
@@ -62,13 +62,13 @@ namespace BimGo.Extraction
                 }
                 catch (Exception ex)
                 {
-                    Utilities.Log_Utils.Write($"{source.Describe()}: multi-segment grid {multi.Id.Value} skipped: {ex.Message}");
+                    Utilities.Log_Utils.Write($"{source.Describe()}: multi-segment grid {multi.Id.Ext_Value()} skipped: {ex.Message}");
                 }
             }
 
             foreach (DB.Grid grid in new FilteredElementCollector(doc).OfClass(typeof(DB.Grid)).Cast<DB.Grid>())
             {
-                if (segmentIds.Contains(grid.Id.Value)) { continue; }
+                if (segmentIds.Contains(grid.Id.Ext_Value())) { continue; }
                 try
                 {
                     Vector2[] points = GridPoints(grid.Curve, transform);
@@ -79,7 +79,7 @@ namespace BimGo.Extraction
                 }
                 catch (Exception ex)
                 {
-                    Utilities.Log_Utils.Write($"{source.Describe()}: grid {grid.Id.Value} skipped: {ex.Message}");
+                    Utilities.Log_Utils.Write($"{source.Describe()}: grid {grid.Id.Ext_Value()} skipped: {ex.Message}");
                 }
             }
         }
@@ -90,7 +90,7 @@ namespace BimGo.Extraction
         private static void AddGrid(List<GridLine> into, string name, int link, IReadOnlyList<Vector2> points, float bottom, float top, bool curved)
         {
             if (points == null || points.Count < 2) { return; }
-            bool extent = float.IsFinite(bottom) && float.IsFinite(top) && top >= bottom;
+            bool extent = NumericCompat.IsFinite(bottom) && NumericCompat.IsFinite(top) && top >= bottom;
             into.Add(new GridLine
             {
                 Name = string.IsNullOrWhiteSpace(name) ? "?" : name.Trim(),

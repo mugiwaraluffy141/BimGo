@@ -673,7 +673,7 @@ footer{margin-top:28px;color:var(--muted);font-size:12px;border-top:1px solid va
             return clean?.ToString() ?? text;
         }
 
-        private static string Num(double value) => double.IsFinite(value) ? value.ToString("0.######", CultureInfo.InvariantCulture) : "0";
+        private static string Num(double value) => BimGo.NumericCompat.IsFinite(value) ? value.ToString("0.######", CultureInfo.InvariantCulture) : "0";
 
         #endregion
     }

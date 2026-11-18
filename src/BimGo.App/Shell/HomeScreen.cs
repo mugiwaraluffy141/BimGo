@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using BimGo.Format;
 using BimGo.Game;
 using BimGo.Live;
@@ -157,7 +157,7 @@ namespace BimGo.Shell
         {
             Gl.BindFramebuffer(Gl.FRAMEBUFFER, 0);
             Gl.Viewport(0, 0, _window.Width, _window.Height);
-            Gl.ClearColor(0.063f, 0.075f, 0.094f, 1f);
+            Gl.ClearColor(16f / 255f, 40f / 255f, 62f / 255f, 1f);
             Gl.Clear(Gl.COLOR_BUFFER_BIT | Gl.DEPTH_BUFFER_BIT);
         }
 
@@ -201,7 +201,7 @@ namespace BimGo.Shell
             y += S(18);
             _ui.Text(f.Small, leftX, y, "WALK A MODEL LIVE", UiTheme.TEXT_MUTED, S(1.6f));
             y += S(22);
-            _ui.TextWrapped(f.Body, leftX, y, leftW, "In Revit: BimGo tab → Go. The model opens here and your edits go back to Revit. Running sessions are listed on the right.", UiTheme.TEXT_SOFT, maxLines: 6);
+            _ui.TextWrapped(f.Body, leftX, y, leftW, "In Revit: BimGo tab → Go. The model opens here for review. Running sessions are listed on the right.", UiTheme.TEXT_SOFT, maxLines: 6);
 
             // ---- Right: live sessions (and the last one, greyed, when it isn't running), then recent files
             float top = pad;
@@ -236,7 +236,7 @@ namespace BimGo.Shell
             foreach (SessionInfo session in _sessions.Take(4))
             {
                 bool hover = Hover(input, x, y, width, row);
-                _ui.Panel(x, y, width, row, hover ? Rgba.Hex(0x22D3EE, 0.10f) : UiTheme.CARD, hover ? UiTheme.ACCENT : Rgba.WithAlpha(UiTheme.ACCENT, 0.35f));
+                _ui.Panel(x, y, width, row, hover ? UiTheme.HOVER : UiTheme.CARD, hover ? UiTheme.ACCENT : Rgba.WithAlpha(UiTheme.ACCENT, 0.35f));
                 _ui.Circle(x + S(18), y + S(18), S(4), UiTheme.GOOD);
                 _ui.TextWrapped(f.Bold, x + S(30), y + S(9), width - S(200), string.IsNullOrWhiteSpace(session.DocTitle) ? "Revit model" : session.DocTitle, UiTheme.TEXT, maxLines: 1);
                 _ui.TextRight(f.Small, x + width - S(16), y + S(12), "REVIT " + session.RevitVersion, UiTheme.TEXT_MUTED, S(0.5f));
@@ -468,14 +468,14 @@ namespace BimGo.Shell
             bool hover = Hover(input, x, y, w, h);
             if (primary)
             {
-                _ui.Rect(x, y, w, h, hover ? Rgba.Hex(0x67E8F9) : UiTheme.ACCENT);
+                _ui.RoundedRect(x, y, w, h, S(UiTheme.ACTION_RADIUS), hover ? UiTheme.ACTION_HOVER : UiTheme.ACCENT);
             }
             else
             {
                 _ui.Rect(x, y, w, h, hover ? Rgba.Hex(0xFFFFFF, 0.08f) : Rgba.Hex(0xFFFFFF, 0f));
                 _ui.Outline(x, y, w, h, MathF.Max(1f, _ui.Scale), Rgba.Hex(0xFFFFFF, 0.2f));
             }
-            _ui.Text(f.Bold, x + S(16), y + h * 0.5f - f.Bold.LineHeight * 0.5f, label, primary ? Rgba.Hex(0x06232A) : UiTheme.TEXT, S(1.3f));
+            _ui.Text(f.Bold, x + S(16), y + h * 0.5f - f.Bold.LineHeight * 0.5f, label, primary ? UiTheme.ACTION_INK : UiTheme.TEXT, S(1.3f));
 
             bool clicked = hover && input.LeftPressed;
             if (clicked) { input.ConsumeClicks(); }

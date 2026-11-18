@@ -51,8 +51,8 @@ namespace BimGo.Scene
         public override string ToString() => Kind switch
         {
             PadSourceKind.Button => "B" + (Index + 1).ToString(CultureInfo.InvariantCulture),
-            PadSourceKind.Pov => POVS[Math.Clamp(Index, 0, 3)],
-            PadSourceKind.Axis => AXES[Math.Clamp(Index, 0, 5)] + (Sign < 0 ? "-" : "+"),
+            PadSourceKind.Pov => POVS[BimGo.NumericCompat.Clamp(Index, 0, 3)],
+            PadSourceKind.Axis => AXES[BimGo.NumericCompat.Clamp(Index, 0, 5)] + (Sign < 0 ? "-" : "+"),
             _ => string.Empty
         };
 
@@ -60,8 +60,8 @@ namespace BimGo.Scene
         public string Describe() => Kind switch
         {
             PadSourceKind.Button => "button " + (Index + 1).ToString(CultureInfo.InvariantCulture),
-            PadSourceKind.Pov => "D-pad " + "↑→↓←"[Math.Clamp(Index, 0, 3)],
-            PadSourceKind.Axis => "axis " + AXES[Math.Clamp(Index, 0, 5)] + (Sign < 0 ? " −" : " +"),
+            PadSourceKind.Pov => "D-pad " + "↑→↓←"[BimGo.NumericCompat.Clamp(Index, 0, 3)],
+            PadSourceKind.Axis => "axis " + AXES[BimGo.NumericCompat.Clamp(Index, 0, 5)] + (Sign < 0 ? " −" : " +"),
             _ => "—"
         };
 
@@ -77,7 +77,7 @@ namespace BimGo.Scene
                 source = Pov(pov);
                 return true;
             }
-            if (text.Length >= 2 && text[0] == 'B' && int.TryParse(text.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out int button) && button is >= 1 and <= GenericPadMap.BUTTONS)
+            if (text.Length >= 2 && text[0] == 'B' && int.TryParse(text.Substring(1), NumberStyles.None, CultureInfo.InvariantCulture, out int button) && button is >= 1 and <= GenericPadMap.BUTTONS)
             {
                 source = Button(button - 1);
                 return true;
@@ -103,6 +103,7 @@ namespace BimGo.Scene
     /// </summary>
     public sealed class GenericPadMap
     {
+        private static int TrailingZeroCount(uint value) { int n = 0; while ((value & 1) == 0) { n++; value >>= 1; } return n; }
         /// <summary>Axes a generic controller can report (X, Y, Z, R, U, V).</summary>
         public const int AXES = 6;
 
@@ -137,6 +138,8 @@ namespace BimGo.Scene
         /// Start LS RS, the D-pad on the hat, the left stick on X / Y, the right stick on U / R, the triggers on Z.
         /// MAP BUTTONS replaces it with what the pad really does.
         /// </summary>
+        private static int TraailingZeroCount(uint value) { int n = 0; while ((value & 1) == 0) { n++; value >>= 1; } return n; }
+
         public static GenericPadMap XboxStyleGuess()
         {
             var map = new GenericPadMap();
@@ -183,9 +186,9 @@ namespace BimGo.Scene
                 PadSource source = _sources[i];
                 analog[i] = source.Kind switch
                 {
-                    PadSourceKind.Button => (buttons & (1u << Math.Clamp(source.Index, 0, 31))) != 0 ? 1f : 0f,
+                    PadSourceKind.Button => (buttons & (1u << BimGo.NumericCompat.Clamp(source.Index, 0, 31))) != 0 ? 1f : 0f,
                     PadSourceKind.Pov => PovPoints(povHundredths, source.Index) ? 1f : 0f,
-                    PadSourceKind.Axis => source.Index < axes.Length ? Math.Clamp(axes[source.Index] * source.Sign, 0f, 1f) : 0f,
+                    PadSourceKind.Axis => source.Index < axes.Length ? BimGo.NumericCompat.Clamp(axes[source.Index] * source.Sign, 0f, 1f) : 0f,
                     _ => 0f
                 };
             }
@@ -212,7 +215,7 @@ namespace BimGo.Scene
         public static PadSource Detect(ReadOnlySpan<float> restAxes, uint restButtons, ReadOnlySpan<float> axes, uint buttons, int povHundredths)
         {
             uint pressed = buttons & ~restButtons;
-            if (pressed != 0) { return PadSource.Button(System.Numerics.BitOperations.TrailingZeroCount(pressed)); }
+            if (pressed != 0) { return PadSource.Button(TrailingZeroCount(pressed)); }
             if (povHundredths >= 0 && povHundredths < 36000)
             {
                 int direction = (int)MathF.Round(povHundredths / 9000f) % 4;

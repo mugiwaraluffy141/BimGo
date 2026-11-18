@@ -189,7 +189,6 @@ namespace BimGo.Rendering
                 DrawStatic(p, groupVisible, transparent: false);
                 DrawDynamic(p, dynamics, transparent: false);
                 DrawGround(viewProjection, mirroredEye, groundZ);
-                DrawBillboards(p);
                 Gl.Enable(Gl.BLEND);
                 Gl.BlendFunc(Gl.SRC_ALPHA, Gl.ONE_MINUS_SRC_ALPHA);
                 Gl.DepthMask(false);

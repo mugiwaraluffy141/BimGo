@@ -1,4 +1,4 @@
-﻿// The class belongs to the extensions namespace
+// The class belongs to the extensions namespace
 namespace BimGo.Extensions
 {
     /// <summary>
@@ -6,6 +6,24 @@ namespace BimGo.Extensions
     /// </summary>
     public static class ElementId_Ext
     {
+        /// <summary>Returns the element identifier as a 64-bit value.</summary>
+        public static long Ext_Value(this DB.ElementId id)
+        {
+#if REVIT2023
+            return id.IntegerValue;
+#else
+            return id.Value;
+#endif
+        }
+        /// <summary>Creates an element identifier from its numeric value.</summary>
+        public static DB.ElementId Ext_FromValue(long value)
+        {
+#if REVIT2023
+            return new DB.ElementId(checked((int)value));
+#else
+            return new DB.ElementId(value);
+#endif
+        }
         /// <summary>
         /// Returns if an ElementId is not null or invalid.
         /// </summary>

@@ -80,12 +80,12 @@ namespace BimGo.Format
             int cells = Hours?.Length ?? 0;
             if (Faces == null || CellFaces == null || Points == null || CellFaces.Length != cells || Points.Length != cells * 3) { return false; }
             foreach (int face in CellFaces) { if (face < 0 || face >= Faces.Count) { return false; } }
-            foreach (float value in Points) { if (!float.IsFinite(value)) { return false; } }
-            foreach (float value in Hours) { if (!float.IsFinite(value) || value < 0f) { return false; } }
+            foreach (float value in Points) { if (!BimGo.NumericCompat.IsFinite(value)) { return false; } }
+            foreach (float value in Hours) { if (!BimGo.NumericCompat.IsFinite(value) || value < 0f) { return false; } }
             if (Shares != null)
             {
                 if (Shares.Length != cells) { return false; }
-                foreach (float value in Shares) { if (!float.IsFinite(value) || value < 0f || value > 1.0001f) { return false; } }
+                foreach (float value in Shares) { if (!BimGo.NumericCompat.IsFinite(value) || value < 0f || value > 1.0001f) { return false; } }
             }
             return true;
         }
@@ -178,7 +178,7 @@ namespace BimGo.Format
                 path = Path.Combine(folder, document.Name + ".json");
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(document, OPTIONS));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex)

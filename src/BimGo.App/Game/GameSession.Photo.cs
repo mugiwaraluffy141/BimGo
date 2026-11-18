@@ -89,7 +89,7 @@ namespace BimGo.Game
             _photoShotIn = 0;
             _fov = _photoSavedFov;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive && !_clashModeOn) { _window.SetCaptured(true); } // clash mode keeps its cursor
+            _window.SetCaptured(false);
             EndKeyPhoto(); // Round K-C: PHOTO AT THIS KEY puts the walkthrough back
         }
 
@@ -106,8 +106,11 @@ namespace BimGo.Game
             }
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.PhotoTake)) { RequestPhoto(); }
-            if (input.Down(InputAction.DragLook)) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
-            PadEditorLook(input);
+            Vector2 mouse = input.MousePosition;
+            bool overPanel = mouse.X >= _photoPanelRect.X && mouse.X < _photoPanelRect.X + _photoPanelRect.Z
+                && mouse.Y >= _photoPanelRect.Y && mouse.Y < _photoPanelRect.Y + _photoPanelRect.W;
+            if (ReviewLookDragging && input.Down(InputAction.DragLook) && !overPanel) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
+            KeyboardEditorLook(input);
             if (input.Wheel != 0 && _photoKind == 0) { _fov = Math.Clamp(_fov - input.Wheel * 2f, 30f, 120f); } // fixed: PhotoZoom
             if (ShadowsOn) { StepSunTimeKeys(input); }
 

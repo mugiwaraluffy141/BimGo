@@ -48,10 +48,10 @@ namespace BimGo.Scene
         {
             float peak = MathF.Max(colour.X, MathF.Max(colour.Y, colour.Z));
             Vector3 c = peak > 1e-4f ? colour / peak : Vector3.One;
-            byte r = (byte)Math.Clamp((int)MathF.Round(c.X * 255f), 0, 255);
-            byte g = (byte)Math.Clamp((int)MathF.Round(c.Y * 255f), 0, 255);
-            byte b = (byte)Math.Clamp((int)MathF.Round(c.Z * 255f), 0, 255);
-            byte a = (byte)Math.Clamp((int)MathF.Round(strength / MAX_STRENGTH * 255f), 1, 255);
+            byte r = (byte)BimGo.NumericCompat.Clamp((int)MathF.Round(c.X * 255f), 0, 255);
+            byte g = (byte)BimGo.NumericCompat.Clamp((int)MathF.Round(c.Y * 255f), 0, 255);
+            byte b = (byte)BimGo.NumericCompat.Clamp((int)MathF.Round(c.Z * 255f), 0, 255);
+            byte a = (byte)BimGo.NumericCompat.Clamp((int)MathF.Round(strength / MAX_STRENGTH * 255f), 1, 255);
             return r | ((uint)g << 8) | ((uint)b << 16) | ((uint)a << 24);
         }
 
@@ -63,7 +63,7 @@ namespace BimGo.Scene
         /// 10 000 cd/m² lamp both read sensibly (≈ 0.5 and 3).
         /// </summary>
         public static float StrengthFromLuminance(float luminance) =>
-            Math.Clamp(MathF.Log10(MathF.Max(luminance, 1f)) - 1f, 0.5f, MAX_STRENGTH);
+            BimGo.NumericCompat.Clamp(MathF.Log10(MathF.Max(luminance, 1f)) - 1f, 0.5f, MAX_STRENGTH);
 
         /// <summary>
         /// An approximate RGB (brightest channel 1) for a colour temperature in kelvin (1000–15000 K).
@@ -71,7 +71,7 @@ namespace BimGo.Scene
         public static Vector3 KelvinToRgb(float kelvin)
         {
             // Tanner Helland's fit of the blackbody locus, in 0–255 then normalised
-            float t = Math.Clamp(kelvin, 1000f, 15000f) / 100f;
+            float t = BimGo.NumericCompat.Clamp(kelvin, 1000f, 15000f) / 100f;
             float r, g, b;
             if (t <= 66f)
             {
@@ -85,7 +85,7 @@ namespace BimGo.Scene
                 g = 288.1221695283f * MathF.Pow(t - 60f, -0.0755148492f);
                 b = 255f;
             }
-            var rgb = new Vector3(Math.Clamp(r, 0f, 255f), Math.Clamp(g, 0f, 255f), Math.Clamp(b, 0f, 255f)) / 255f;
+            var rgb = new Vector3(BimGo.NumericCompat.Clamp(r, 0f, 255f), BimGo.NumericCompat.Clamp(g, 0f, 255f), BimGo.NumericCompat.Clamp(b, 0f, 255f)) / 255f;
             float peak = MathF.Max(rgb.X, MathF.Max(rgb.Y, rgb.Z));
             return peak > 0f ? rgb / peak : Vector3.One;
         }

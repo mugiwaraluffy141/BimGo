@@ -105,7 +105,7 @@ namespace BimGo.Game
             if (!_sunHoursOpen) { return; }
             _sunHoursOpen = false;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive && !_clashModeOn) { _window.SetCaptured(true); } // clash mode keeps its cursor
+            _window.SetCaptured(false);
         }
 
         /// <summary>
@@ -121,11 +121,14 @@ namespace BimGo.Game
             }
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
-            if (input.Down(InputAction.DragLook)) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
-            PadEditorLook(input);
+            KeyboardEditorLook(input);
 
             Vector2 m = input.MousePosition;
             bool overPanel = m.X >= _sunPanelRect.X && m.X < _sunPanelRect.X + _sunPanelRect.Z && m.Y >= _sunPanelRect.Y && m.Y < _sunPanelRect.Y + _sunPanelRect.W;
+            if (ReviewLookDragging && input.Down(InputAction.DragLook) && !overPanel)
+            {
+                _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY);
+            }
             if (input.LeftPressed && !overPanel && !_sunStudy.Running)
             {
                 input.ConsumeClicks();

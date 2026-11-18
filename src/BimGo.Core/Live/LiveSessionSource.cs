@@ -120,13 +120,13 @@ namespace BimGo.Live
 
             _attachment = new AppAttachment
             {
-                AppPid = Environment.ProcessId,
+                AppPid = System.Diagnostics.Process.GetCurrentProcess().Id,
                 AppVersion = appVersion ?? string.Empty,
                 AttachedUtc = DateTime.UtcNow,
                 HeartbeatUtc = DateTime.UtcNow
             };
             LiveSessions.WriteAttachment(SessionId, _attachment);
-            _channel.Send(MessageTypes.HELLO, new HelloPayload { AppPid = Environment.ProcessId, AppVersion = appVersion ?? string.Empty });
+            _channel.Send(MessageTypes.HELLO, new HelloPayload { AppPid = System.Diagnostics.Process.GetCurrentProcess().Id, AppVersion = appVersion ?? string.Empty });
             Utilities.Log_Utils.Write($"Attached to session {SessionId} ({DisplayName}, Revit {info.RevitVersion}, pid {info.RevitPid}).");
         }
 

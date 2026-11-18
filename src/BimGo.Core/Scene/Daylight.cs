@@ -66,7 +66,7 @@ namespace BimGo.Scene
         public static int PatchOf(Vector3 direction)
         {
             if (direction.Z <= 0f) { return -1; }
-            double altitude = Math.Asin(Math.Clamp(direction.Z, 0f, 1f));
+            double altitude = Math.Asin(BimGo.NumericCompat.Clamp(direction.Z, 0f, 1f));
             int band = Math.Min(ALT_BANDS - 1, (int)(altitude / BAND));
             double azimuth = Math.Atan2(direction.Y, direction.X);
             if (azimuth < 0) { azimuth += 2.0 * Math.PI; }
@@ -127,8 +127,8 @@ namespace BimGo.Scene
         public static double ClearLuminance(Vector3 direction, Vector3 sun)
         {
             double cosZ = Math.Max(0.01, direction.Z);
-            double chi = Math.Acos(Math.Clamp(Vector3.Dot(direction, sun), -1f, 1f));
-            double zs = Math.Acos(Math.Clamp(sun.Z, -1f, 1f));
+            double chi = Math.Acos(BimGo.NumericCompat.Clamp(Vector3.Dot(direction, sun), -1f, 1f));
+            double zs = Math.Acos(BimGo.NumericCompat.Clamp(sun.Z, -1f, 1f));
             double f = 0.91 + 10.0 * Math.Exp(-3.0 * chi) + 0.45 * Math.Cos(chi) * Math.Cos(chi);
             double fs = 0.91 + 10.0 * Math.Exp(-3.0 * zs) + 0.45 * Math.Cos(zs) * Math.Cos(zs);
             double phi = 1.0 - Math.Exp(-0.32 / cosZ);
@@ -216,8 +216,8 @@ namespace BimGo.Scene
         public static float InternalReflectedPercent(double windowArea, double totalArea, double averageReflectance, double lowerReflectance, double upperReflectance, double c = SPLIT_FLUX_C)
         {
             if (windowArea <= 0 || totalArea <= 0) { return 0f; }
-            double r = Math.Clamp(averageReflectance, 0.0, 0.95);
-            return (float)(0.85 * windowArea / (totalArea * (1.0 - r)) * (c * Math.Clamp(lowerReflectance, 0, 1) + 5.0 * Math.Clamp(upperReflectance, 0, 1)));
+            double r = BimGo.NumericCompat.Clamp(averageReflectance, 0.0, 0.95);
+            return (float)(0.85 * windowArea / (totalArea * (1.0 - r)) * (c * BimGo.NumericCompat.Clamp(lowerReflectance, 0, 1) + 5.0 * BimGo.NumericCompat.Clamp(upperReflectance, 0, 1)));
         }
 
         /// <summary>
@@ -226,7 +226,7 @@ namespace BimGo.Scene
         public static float FloorBounceLux(double flux, double totalArea, double averageReflectance, double lowerReflectance)
         {
             if (flux <= 0 || totalArea <= 0) { return 0f; }
-            return (float)(flux * Math.Clamp(lowerReflectance, 0, 1) / (totalArea * (1.0 - Math.Clamp(averageReflectance, 0.0, 0.95))));
+            return (float)(flux * BimGo.NumericCompat.Clamp(lowerReflectance, 0, 1) / (totalArea * (1.0 - BimGo.NumericCompat.Clamp(averageReflectance, 0.0, 0.95))));
         }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace BimGo.Scene
         public static float ReflectanceOf(byte r, byte g, byte b)
         {
             double y = 0.2126 * Linear(r) + 0.7152 * Linear(g) + 0.0722 * Linear(b);
-            return (float)Math.Clamp(y, 0.05, 0.9);
+            return (float)BimGo.NumericCompat.Clamp(y, 0.05, 0.9);
 
             static double Linear(byte value)
             {

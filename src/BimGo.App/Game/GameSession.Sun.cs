@@ -36,7 +36,7 @@ namespace BimGo.Game
         private const int SLIDER_CLOUDS = 20, SLIDER_CLOUD_SPEED = 21, SLIDER_SUN_SIZE = 22, SLIDER_SUN_GLARE = 23;
 
         /// <summary>Sky round: the sun panel's lower tabs.</summary>
-        private static readonly string[] SUN_TABS = { "LIGHTING", "SKY", "NIGHT", "WEATHER" }; // W-A: NIGHT (moon, stars); W-B: WEATHER
+        private static readonly string[] SUN_TABS = { "LIGHTING", "SKY", "NIGHT" }; // W-A: NIGHT (moon, stars)
 
         /// <summary>Round W-A: the NIGHT tab's sliders.</summary>
         private const int SLIDER_MOONLIGHT = 32, SLIDER_STAR_DENSITY = 33, SLIDER_STAR_BRIGHTNESS = 34, SLIDER_STAR_TWINKLE = 35, SLIDER_MILKY_WAY = 36;
@@ -322,7 +322,7 @@ namespace BimGo.Game
                 float cosElongation = Math.Clamp(1f - 2f * chosen, -1f, 1f);
                 lighting.MoonSunDirection = _moonDirection * cosElongation + side * MathF.Sqrt(1f - cosElongation * cosElongation);
             }
-            return SunLighting.WithWeather(lighting, WeatherOvercast, _sun.Snowing); // W-B: dimmer, greyer under rain or snow
+            return SunLighting.WithWeather(lighting, WeatherOvercast, WeatherOn && _sun.Snowing); // W-B: dimmer, greyer under rain or snow
         }
 
         /// <summary>
@@ -384,7 +384,7 @@ namespace BimGo.Game
             _sunPanelOpen = false;
             _activeSlider = -1;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive && !_clashModeOn) { _window.SetCaptured(true); } // clash mode keeps its cursor
+            _window.SetCaptured(false);
         }
 
         /// <summary>
@@ -574,7 +574,6 @@ namespace BimGo.Game
                     lh = MathF.Min(S(624), bottom - top);
                 }
                 _ui.Panel(lx, top, w, lh, UiTheme.PANEL_STRONG, Rgba.WithAlpha(UiTheme.SUN, 0.5f));
-                RegisterFocusArea(lx, top, w, lh);
                 BuildLocationPanel(f, input, lx, top, w, lh);
                 return;
             }
@@ -586,27 +585,21 @@ namespace BimGo.Game
             float cy = BeginDockBody(d, _sunDockScroll, input);
             bool stay = BuildSunPanelBody(f, input, d.Ix, ref cy, d.Iw);
             EndDockBody(_sunDockScroll, input, cy);
-            if (!stay) { return; } // CHANGE… or STUDY… left the dock
+            if (!stay) { return; } // CHANGE… left the dock
             if (EndDock(d, null, HINT_SUN_FOOT.Text) == DOCK_CLOSE) { CloseSunPanel(); }
         }
 
         /// <summary>The sun dock's body (from its first line; <paramref name="cy"/> ends at its bottom).</summary>
-        /// <returns>False when a button left the dock (the location picker, the study).</returns>
+        /// <returns>False when the location picker leaves the dock.</returns>
         private bool BuildSunPanelBody(FontAtlas f, InputState input, float ix, ref float cy, float iw)
         {
-            // Place: the location label, CHANGE… and STUDY…
-            float changeW = S(78), studyW = S(70);
+            // Place: the location label and CHANGE…
+            float changeW = S(78);
             uint placeColour = HasLocationOverride ? UiTheme.SUN : _locationKnown ? UiTheme.TEXT_MUTED : UiTheme.MEASURE_LABEL;
-            _ui.TextWrapped(f.Small, ix, cy + S(3), iw - changeW - studyW - S(14), _sunPlaceLabel, placeColour, maxLines: 1);
+            _ui.TextWrapped(f.Small, ix, cy + S(3), iw - changeW - S(8), _sunPlaceLabel, placeColour, maxLines: 1);
             if (SmallButton(f, input, ix + iw - changeW, cy - S(2), changeW, S(22), "CHANGE…"))
             {
                 OpenLocationPicker();
-                return false;
-            }
-            // QOL round: hop to the sun / daylight study (it closes this panel)
-            if (SmallButton(f, input, ix + iw - changeW - S(6) - studyW, cy - S(2), studyW, S(22), "STUDY…"))
-            {
-                OpenSunHours();
                 return false;
             }
             cy += S(26);
@@ -695,12 +688,6 @@ namespace BimGo.Game
                 cy = BuildNightTab(f, input, ix, cy, iw); // W-A
                 return true;
             }
-            if (_sunTab == 3)
-            {
-                cy = BuildWeatherTab(f, input, ix, cy, iw); // W-B
-                return true;
-            }
-
             // Intensities
             IntensitySlider(f, input, SLIDER_SUN, ix, cy, iw, "Sunlight", _sun.SunIntensity, 2f);
             cy += S(54);

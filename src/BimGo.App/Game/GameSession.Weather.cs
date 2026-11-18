@@ -70,10 +70,10 @@ namespace BimGo.Game
         #region State
 
         /// <summary>True when it rains or snows.</summary>
-        private bool WeatherOn => _sun != null && (_sun.Raining || _sun.Snowing);
+        private bool WeatherOn => false;
 
         /// <summary>Round W-C: lightning shows (it's raining and lightning is ticked).</summary>
-        private bool LightningOn => _sun != null && _sun.Raining && _sun.Lightning;
+        private bool LightningOn => WeatherOn && _sun.Raining && _sun.Lightning;
 
         /// <summary>How overcast the weather makes the sky (0 = none, up to 1 in a heavy storm).</summary>
         private float WeatherOvercast => WeatherOn ? 0.55f + 0.45f * _sun.WeatherIntensity : 0f;
@@ -89,7 +89,7 @@ namespace BimGo.Game
             if (_weatherClock > 3600f) { _weatherClock -= 3600f; }
 
             // W-C: the rain's sound (it fades out when the rain stops), and the drops on the lens
-            float rain = _sun != null && _sun.Raining && _sun.WeatherSound ? 0.35f + 0.65f * _sun.WeatherIntensity : 0f;
+            float rain = WeatherOn && _sun.Raining && _sun.WeatherSound ? 0.35f + 0.65f * _sun.WeatherIntensity : 0f;
             _weatherSound.Volume = Sound.Volume;
             _weatherSound.Update(rain, _eyeCovered);
             SimulateLensDrops(dt);

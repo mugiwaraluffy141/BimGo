@@ -103,7 +103,7 @@ namespace BimGo.Clashes
         {
             if (!box.IsValid) { return DISTANCE; }
             float radius = box.Size.Length() * 0.5f;
-            float halfH = Math.Clamp(horizontalFovDegrees, 20f, 150f) * MathF.PI / 360f;
+            float halfH = BimGo.NumericCompat.Clamp(horizontalFovDegrees, 20f, 150f) * MathF.PI / 360f;
             float halfV = MathF.Atan(MathF.Tan(halfH) / MathF.Max(aspect, 0.1f));
             float half = MathF.Min(halfH, halfV);
             return MathF.Max(DISTANCE, radius / MathF.Sin(half) * 1.05f);

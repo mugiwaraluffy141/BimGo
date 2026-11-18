@@ -1,4 +1,4 @@
-﻿// The class belongs to the Scene namespace
+// The class belongs to the Scene namespace
 namespace BimGo.Scene
 {
     /// <summary>
@@ -26,7 +26,7 @@ namespace BimGo.Scene
         /// <summary>Clash mode (Round C-B): the docked clash list, free cursor, flying.</summary>
         Clashes,
 
-        /// <summary>Sky round: the pause menu's own keys (the options preview).</summary>
+        /// <summary>The Settings panel's own key.</summary>
         PauseMenu,
 
         /// <summary>The 3D camera path editor (flythroughs).</summary>
@@ -106,7 +106,7 @@ namespace BimGo.Scene
         ClashSelectAll, ClashPictures, ClashGroup, ClashUngroup,
         ClashPickPoints, ClashStatusCycle, // polish round P-B
 
-        // Pause menu (sky round)
+        // Settings panel
         MenuPreview,
 
         // Path editor
@@ -183,7 +183,7 @@ namespace BimGo.Scene
 
         /// <summary>
         /// Polish round P-B: the F1 sheet's rows here, most used first (about 12–16; the sheet drops rows that don't fit
-        /// and always ends with "Esc → CONTROLS" and the F1 row).
+        /// and always ends with "MORE → CONTROLS" and the F1 row).
         /// </summary>
         public IReadOnlyList<HelpEntry> Help { get; }
 
@@ -278,13 +278,13 @@ namespace BimGo.Scene
         private static readonly Dictionary<string, InputAction> BY_ID = DEFS.ToDictionary(d => d.Id, d => d.Action, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The gun selection action for gun slot 0–8.</summary>
-        public static InputAction GunAction(int index) => (InputAction)((int)InputAction.Gun1 + Math.Clamp(index, 0, 8));
+        public static InputAction GunAction(int index) => (InputAction)((int)InputAction.Gun1 + BimGo.NumericCompat.Clamp(index, 0, 8));
 
         /// <summary>The go-to-bookmark action for bookmark 0–8.</summary>
-        public static InputAction BookmarkAction(int index) => (InputAction)((int)InputAction.Bookmark1 + Math.Clamp(index, 0, 8));
+        public static InputAction BookmarkAction(int index) => (InputAction)((int)InputAction.Bookmark1 + BimGo.NumericCompat.Clamp(index, 0, 8));
 
         /// <summary>The markup colour action for colour 0–4.</summary>
-        public static InputAction MarkupColourAction(int index) => (InputAction)((int)InputAction.MarkupColour1 + Math.Clamp(index, 0, 4));
+        public static InputAction MarkupColourAction(int index) => (InputAction)((int)InputAction.MarkupColour1 + BimGo.NumericCompat.Clamp(index, 0, 4));
 
         private static ActionDef[] BuildDefinitions()
         {
@@ -317,10 +317,7 @@ namespace BimGo.Scene
             Add(InputAction.MoveBack, c, "Move back", H, "S", "Down");
             Add(InputAction.MoveLeft, c, "Move left", H, "A", "Left");
             Add(InputAction.MoveRight, c, "Move right", H, "D", "Right");
-            Add(InputAction.Jump, c, "Jump (flying: up)", H, "Space");
             Add(InputAction.Run, c, "Run (hold)", H, "Shift");
-            Add(InputAction.Crouch, c, "Crouch (flying: down)", H, "Ctrl");
-            Add(InputAction.Fly, c, "Fly / walk (no-clip)", P, "V");
             Add(InputAction.LevelUp, c, "Level up", P, "PageUp");
             Add(InputAction.LevelDown, c, "Level down", P, "PageDown");
             Add(InputAction.GoHome, c, "Go home", P, "H");
@@ -331,19 +328,24 @@ namespace BimGo.Scene
             Add(InputAction.LookLeft, c, "Look left", H);
             Add(InputAction.LookRight, c, "Look right", H);
 
-            // Guns
+            // Legacy movement actions remain bound for kiosk mode.
+            Add(InputAction.Jump, c, "Jump (flying: up)", H, "Space");
+            Add(InputAction.Crouch, c, "Crouch (flying: down)", H, "Ctrl");
+            Add(InputAction.Fly, c, "Fly / walk (no-clip)", P, "V");
+
+            // Review tools
             c = InputContext.Guns;
             string[] guns = { "Scan", "Measure (again: next mode)", "Portal", "Comment", "Teleport", "Demolish", "Gizmo", "Clone", "Place" };
-            for (int i = 0; i < 9; i++) { Add(GunAction(i), c, "Gun " + (i + 1) + ": " + guns[i], P, (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)); }
-            Add(InputAction.PreviousGun, c, "Previous gun", P, "Shift+WheelUp");
-            Add(InputAction.NextGun, c, "Next gun", P, "Shift+WheelDown");
-            Add(InputAction.GunModePrevious, c, "Gun mode: previous (Measure, Demolish)", P, "WheelUp");
-            Add(InputAction.GunModeNext, c, "Gun mode: next (Measure, Demolish)", P, "WheelDown");
-            Add(InputAction.Unarmed, c, "None: no gun (again, or a gun key, arms)", P, "0");
-            Add(InputAction.GunPrimary, c, "Gun primary (fire)", P, "LMB");
-            Add(InputAction.GunSecondary, c, "Gun secondary", P, "RMB");
-            Add(InputAction.ClearMarkers, c, "Clear this gun's markers", P, "X");
-            Add(InputAction.GunWheel, c, "Gun wheel (mouse: hold, steer, release; gamepad: click, steer, A / click again picks, B cancels)", H, "MMB");
+            for (int i = 0; i < 9; i++) { Add(GunAction(i), c, "Tool " + (i + 1) + ": " + guns[i], P, (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)); }
+            Add(InputAction.PreviousGun, c, "Previous review tool", P, "Shift+WheelUp");
+            Add(InputAction.NextGun, c, "Next review tool", P, "Shift+WheelDown");
+            Add(InputAction.GunModePrevious, c, "Previous Measure mode", P, "WheelUp");
+            Add(InputAction.GunModeNext, c, "Next Measure mode", P, "WheelDown");
+            Add(InputAction.Unarmed, c, "Review tools idle / select tool", P, "0");
+            Add(InputAction.GunPrimary, c, "Primary tool action", P, "LMB");
+            Add(InputAction.GunSecondary, c, "Secondary tool action", P, "RMB");
+            Add(InputAction.ClearMarkers, c, "Clear this tool's markers", P, "X");
+            Add(InputAction.GunWheel, c, "Review tool wheel (legacy binding)", H, "MMB");
 
             // Views and tools
             c = InputContext.Tools;
@@ -414,7 +416,7 @@ namespace BimGo.Scene
             Add(InputAction.TourNext, InputContext.Tour, "Next stop", P, "Right", "PageDown", "LMB");
             Add(InputAction.TourPrevious, InputContext.Tour, "Previous stop (or this stop's start)", P, "Left", "PageUp", "RMB");
 
-            // Clash mode (Round C-B: Y or pause menu → CLASHES → REVIEW; the move keys fly, RMB-drag looks)
+            // Clash mode (Round C-B: Y or MORE → CLASHES; the move keys fly, RMB-drag looks)
             c = InputContext.Clashes;
             Add(InputAction.ClashNext, c, "Next clash", R, ".");
             Add(InputAction.ClashPrevious, c, "Previous clash", R, ",");
@@ -456,11 +458,11 @@ namespace BimGo.Scene
             // Kiosk mode (Round Z-C): held, so a visitor mashing keys doesn't fall out of it
             Add(InputAction.KioskExit, InputContext.Kiosk, "Leave kiosk mode (hold " + KIOSK_EXIT_HOLD_SECONDS.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " s)", ActionKind.Hold, "Ctrl+Shift+Q");
 
-            // Pause menu (sky round)
-            Add(InputAction.MenuPreview, InputContext.PauseMenu, "Options preview: the scene with the graphics settings only (again or Esc returns)", P, "Tab");
+            // Settings panel
+            Add(InputAction.MenuPreview, InputContext.PauseMenu, "Close the Settings panel", P, "Tab");
 
             // Fixed
-            Fixed(InputAction.Back, "Pause menu · back · cancel · stop", P, true, InputContext.Fixed, "Esc");
+            Fixed(InputAction.Back, "Back · cancel · stop", P, true, InputContext.Fixed, "Esc");
             Fixed(InputAction.CloseWindow, "Close the window", P, true, InputContext.Fixed, "Alt+F4");
             Fixed(InputAction.Click, "Menus, panels, handles, markup", P, false, InputContext.Fixed, "LMB");
             Fixed(InputAction.DragLook, "Look around (drag; photo, section box, study)", H, false, InputContext.Fixed, "RMB");
@@ -580,13 +582,33 @@ namespace BimGo.Scene
         private static ActionDef[] Index(ActionDef[] defs)
         {
             int max = 0;
-            foreach (InputAction action in Enum.GetValues<InputAction>()) { max = Math.Max(max, (int)action); }
+            foreach (InputAction action in (InputAction[])Enum.GetValues(typeof(InputAction))) { max = Math.Max(max, (int)action); }
             var byAction = new ActionDef[max + 1];
             foreach (ActionDef def in defs) { byAction[(int)def.Action] = def; }
             return byAction;
         }
 
         #endregion
+
+        /// <summary>Whether an action is available in the clash review controls.</summary>
+        public static bool ReviewAction(InputAction action) => action switch
+        {
+            InputAction.Undo or InputAction.Redo or InputAction.RevitViewNew or InputAction.RevitViewUpdate
+            or InputAction.PreviousGun or InputAction.NextGun or InputAction.GunModePrevious or InputAction.GunModeNext or InputAction.GunWheel
+            or InputAction.Gun3 or InputAction.Gun5 or InputAction.Gun6 or InputAction.Gun7 or InputAction.Gun8 or InputAction.Gun9
+            or InputAction.Lights or InputAction.Shadows or InputAction.SunPanel or InputAction.SunEarlier or InputAction.SunEarlierFine
+            or InputAction.SunLater or InputAction.SunLaterFine or InputAction.SunStudy or InputAction.PhotoMode
+            or InputAction.MediaPanel or InputAction.PathEditMode or InputAction.FixtureProfile
+            or InputAction.DemolishMode or InputAction.GizmoSnap or InputAction.GizmoDrop
+            or InputAction.HoldUp or InputAction.HoldDown or InputAction.HoldRotate or InputAction.HoldStepDown
+            or InputAction.HoldStepUp or InputAction.HoldFine or InputAction.HoldSnapInvert or InputAction.HoldScale
+            or InputAction.PhotoTake or InputAction.SunPlay or InputAction.TourPause or InputAction.TourNext or InputAction.TourPrevious
+            or InputAction.PathAddKey or InputAction.PathDeleteKey or InputAction.PathPreview or InputAction.PathPreviousKey
+            or InputAction.PathNextKey or InputAction.PathSetKey or InputAction.PathMoveForward or InputAction.PathMoveBack
+            or InputAction.PathMoveLeft or InputAction.PathMoveRight or InputAction.PathFlyUp or InputAction.PathFlyDown
+            or InputAction.PathFlyFast or InputAction.PathUndo or InputAction.KioskExit or InputAction.PhotoZoom => false,
+            _ => true
+        };
 
         #region Groups
 
@@ -604,13 +626,13 @@ namespace BimGo.Scene
         {
             InputContext.General => "General",
             InputContext.Movement => "Movement",
-            InputContext.Guns => "Guns",
+            InputContext.Guns => "Review tools",
             InputContext.Tools => "Views and tools",
-            InputContext.ScanGun => "Scan gun",
-            InputContext.MeasureGun => "Measure gun",
-            InputContext.CommentGun => "Comment gun",
-            InputContext.DemolishGun => "Demolish gun",
-            InputContext.GizmoGuns => "Gizmo, Clone and Place guns",
+            InputContext.ScanGun => "Scan tool",
+            InputContext.MeasureGun => "Measure tool",
+            InputContext.CommentGun => "Comment tool",
+            InputContext.DemolishGun => "Demolish tool",
+            InputContext.GizmoGuns => "Gizmo, Clone and Place tools",
             InputContext.Holding => "Holding an element",
             InputContext.Markup => "Markup editor",
             InputContext.SectionEditor => "Section box editor",
@@ -618,7 +640,7 @@ namespace BimGo.Scene
             InputContext.SunPanel => "Sun panel",
             InputContext.Tour => "Bookmark tour and camera paths",
             InputContext.Clashes => "Clash mode",
-            InputContext.PauseMenu => "Pause menu",
+            InputContext.PauseMenu => "Settings panel",
             InputContext.PathEditor => "Path editor",
             InputContext.Kiosk => "Kiosk mode",
             _ => "Fixed (not rebindable)"
@@ -628,16 +650,17 @@ namespace BimGo.Scene
         public static string ContextNote(InputContext context) => context switch
         {
             InputContext.ScanGun or InputContext.MeasureGun or InputContext.CommentGun or InputContext.DemolishGun or InputContext.GizmoGuns
-                => "While the gun is selected (walking keys still work).",
-            InputContext.Holding => "While the Gizmo, Clone or Place gun holds an element: the move keys move it (left / right turn it in rotate mode), gun secondary commits, Esc cancels.",
+                => "While the tool is selected (movement keys remain active).",
+            InputContext.Holding => "While Gizmo, Clone or Place holds an element: the move keys move it (left / right turn it in rotate mode), secondary action commits, Esc cancels.",
             InputContext.Markup => "After a comment's picture is taken. Text typing keeps Enter / Backspace / Esc.",
             InputContext.SectionEditor => "The section box key or Esc closes it; clear all cuts still works.",
             InputContext.PhotoMode => "The photo mode key or Esc closes it; the sun time keys work.",
             InputContext.SunPanel => "Shadows / sun panel or Esc closes it; the sun time keys work.",
             InputContext.Tour => "While a bookmark tour or a camera path plays (Esc stops it).",
-            InputContext.Clashes => "Clash detection's docked list (the clash mode key or Esc leaves): the move keys fly, run speeds up, RMB-drag looks, the wheel scrolls the list.",
-            InputContext.PauseMenu => "While the pause menu shows (not in its panels).",
-            InputContext.Kiosk => "A file opened from a kiosk shortcut: visitors walk, fly and look only (no menus, guns, panels or saving); after two minutes without input the bookmark tour plays. Leaving it goes to the normal walkthrough.",
+            InputContext.Clashes => "Clash detection's docked list (the clash mode key or Esc leaves): RMB orbits, MMB pans, the wheel zooms off the dock and scrolls the list over it.",
+            InputContext.Movement => "Desktop review: WASD moves freely, RMB orbits, MMB pans and the wheel zooms; MORE → FIT VIEW frames the model.",
+            InputContext.PauseMenu => "While the Settings panel is open.",
+            InputContext.Kiosk => "A file opened from a kiosk shortcut: visitors walk, fly and look only (no menus, tools, panels or saving); after two minutes without input the bookmark tour plays. Leaving it goes to the normal walkthrough.",
             InputContext.PathEditor => "The 3D camera path editor (the path editor key, or MEDIA → PATHS → EDIT IN 3D; Esc leaves): free cursor, RMB-drag looks, click a key or a handle, drag the handles; the scrubber at the bottom drives the camera.",
             InputContext.Fixed => "Text boxes also keep Enter, Tab, Backspace, ↑ / ↓, Ctrl+V and Esc. Gamepad in menus and editors: the look stick moves the cursor, the move stick scrolls (menus) or looks (editors); over menus and docks the D-pad moves the focus ring and LB / RB tapped alone switch tabs; A with LB / RB held is a chord, not a click.",
             _ => null
@@ -665,7 +688,8 @@ namespace BimGo.Scene
         public const string SIT_GRIDS = "Grids panel";
         public const string SIT_VIDEO = "Recording a video";
         public const string SIT_START = "Start screen";
-        public const string SIT_PAUSE = "Pause menu and panels";
+        public const string SIT_PAUSE = "Viewer panels";
+        public const string SIT_SETTINGS = "Settings panel";
         public const string SIT_PATH = "Path editor";
         public const string SIT_FIXTURE = "Fixture light profile";
         public const string SIT_KIOSK = "Kiosk mode";
@@ -702,6 +726,7 @@ namespace BimGo.Scene
             HelpEntry move = H("Move", InputAction.MoveForward, InputAction.MoveLeft, InputAction.MoveBack, InputAction.MoveRight);
             HelpEntry look = HK("Look", "MOUSE", InputAction.LookUp, InputAction.LookDown, InputAction.LookLeft, InputAction.LookRight);
             HelpEntry dragLook = H("Look (drag)", InputAction.DragLook);
+            HelpEntry reviewCamera = HK("Orbit · pan · zoom", "RMB · MMB · wheel");
             HelpEntry click = H("Click · back", InputAction.Click, InputAction.PadClick, InputAction.PadMenuBack);
             HelpEntry sunTimeRow = H("Sun time −/+ 5 min", InputAction.SunEarlier, InputAction.SunLater);
             HelpEntry sunFineRow = H("Sun time −/+ 1 min", InputAction.SunEarlierFine, InputAction.SunLaterFine);
@@ -713,13 +738,12 @@ namespace BimGo.Scene
                 var rows = new List<HelpEntry>
                 {
                     move,
-                    H("Jump · crouch", InputAction.Jump, InputAction.Crouch),
+                    reviewCamera,
                     H("Run", InputAction.Run),
-                    H("Fly / walk", InputAction.Fly),
                     H("Level up · down", InputAction.LevelUp, InputAction.LevelDown),
-                    H("Fire · secondary", InputAction.GunPrimary, InputAction.GunSecondary),
-                    H("Select gun · gun wheel", InputAction.Gun1, InputAction.Gun2, InputAction.Gun3, InputAction.Gun4, InputAction.Gun5,
-                        InputAction.Gun6, InputAction.Gun7, InputAction.Gun8, InputAction.Gun9, InputAction.GunWheel)
+                    H("Primary · secondary tool action", InputAction.GunPrimary, InputAction.GunSecondary),
+                    H("Esc · cancel tool · back · stop", InputAction.Back),
+                    H("Select review tool", InputAction.Gun1, InputAction.Gun2, InputAction.Gun4)
                 };
                 rows.AddRange(gunRows);
                 rows.AddRange(new[]
@@ -731,7 +755,6 @@ namespace BimGo.Scene
                     H("Clash mode", InputAction.ClashMode),
                     H("Grids · colour profile · room tags", InputAction.GridsCycle, InputAction.ColourProfile, InputAction.RoomTags),
                     H("Minimap · hide the UI", InputAction.Minimap, InputAction.HideUi),
-                    look,
                     H("Go home · go to bookmark", InputAction.GoHome, InputAction.Bookmark1, InputAction.Bookmark2, InputAction.Bookmark3,
                         InputAction.Bookmark4, InputAction.Bookmark5, InputAction.Bookmark6, InputAction.Bookmark7, InputAction.Bookmark8, InputAction.Bookmark9)
                 });
@@ -744,9 +767,9 @@ namespace BimGo.Scene
                 H("Go to it again", InputAction.ClashFrame),
                 H("Status 1–5 · next status", InputAction.ClashStatusNew, InputAction.ClashStatusActive, InputAction.ClashStatusReviewed,
                     InputAction.ClashStatusApproved, InputAction.ClashStatusResolved, InputAction.ClashStatusCycle),
-                H("Fly", InputAction.MoveForward, InputAction.MoveLeft, InputAction.MoveBack, InputAction.MoveRight),
+                H("Move around model", InputAction.MoveForward, InputAction.MoveLeft, InputAction.MoveBack, InputAction.MoveRight),
                 H("Fly up · down", InputAction.ClashFlyUp, InputAction.ClashFlyDown),
-                dragLook,
+                reviewCamera,
                 H("Model view · section box", InputAction.ClashView, InputAction.ClashSectionToggle),
                 H("Show in Revit", InputAction.ClashSelectInRevit),
                 H("Select all shown", InputAction.ClashSelectAll),
@@ -766,7 +789,7 @@ namespace BimGo.Scene
                     H("Hide · isolate its category", InputAction.ScanHide, InputAction.ScanIsolate),
                     H("Select in Revit (live)", InputAction.ScanSelectInRevit))),
                 new InputSituation(SIT_MEASURE, With(InputContext.MeasureGun), Array.Empty<InputAction>(), Walk(
-                    H("Measure mode", InputAction.GunModePrevious, InputAction.GunModeNext),
+                    H("Measure mode (also in INSPECT)", InputAction.Gun2),
                     H("Normal projection", InputAction.MeasureNormal),
                     H("Show / hide saved · export CSV", InputAction.MeasureShowAll, InputAction.MeasureExport),
                     H("Delete all (twice)", InputAction.ClearMarkers))),
@@ -896,16 +919,23 @@ namespace BimGo.Scene
                     H("Open a file", InputAction.OpenFile),
                     click
                 }),
-                new InputSituation(SIT_PAUSE, new[] { InputContext.PauseMenu }, Join(padMenu,
+                new InputSituation(SIT_PAUSE, Array.Empty<InputContext>(), Join(padMenu,
                     InputAction.Help, InputAction.Fullscreen, InputAction.Screenshot, InputAction.Refresh, InputAction.Save, InputAction.SaveAs,
                     InputAction.Undo, InputAction.Redo, InputAction.RevitViewNew, InputAction.RevitViewUpdate, InputAction.Click), new[]
                 {
                     click,
-                    H("Options preview", InputAction.MenuPreview),
                     H("Save · save as", InputAction.Save, InputAction.SaveAs),
                     H("Undo · redo (files)", InputAction.Undo, InputAction.Redo),
                     H("Refresh from Revit (live)", InputAction.Refresh),
                     H("New Revit view · update Revit's view (live)", InputAction.RevitViewNew, InputAction.RevitViewUpdate)
+                }),
+                new InputSituation(SIT_SETTINGS, new[] { InputContext.PauseMenu }, Join(padMenu,
+                    InputAction.MenuPreview, InputAction.Help, InputAction.Fullscreen, InputAction.Screenshot, InputAction.Save, InputAction.SaveAs,
+                    InputAction.Click), new[]
+                {
+                    click,
+                    H("Close Settings", InputAction.MenuPreview),
+                    H("Save · save as", InputAction.Save, InputAction.SaveAs)
                 }),
 
                 // Round K-B: the 3D path editor. ← / → snap into keys, so it flies on its own WASD / E / Q actions (the walking

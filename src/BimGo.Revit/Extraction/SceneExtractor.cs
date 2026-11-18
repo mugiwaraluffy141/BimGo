@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using BimGo.Format;
 using BimGo.Scene;
@@ -125,12 +125,11 @@ namespace BimGo.Extraction
         /// </param>
         /// <returns>The SceneData.</returns>
         /// <param name="liveSession">
-        /// True for Go and live refreshes: the family library is added when <see cref="LaunchSettings.FamilyLibrary"/>
-        /// is on. Export .bimgo passes false (files never carry the library from Revit).
+        /// True for Go and live refreshes. The clash-review viewer does not extract the family library.
         /// </param>
         public static SceneData Extract(UIDocument uiDoc, LaunchSettings settings, OperationProgress progress = null, bool liveSession = false)
         {
-            var extractor = new SceneExtractor(uiDoc.Document, settings, progress) { _includeLibrary = liveSession && settings.FamilyLibrary };
+            var extractor = new SceneExtractor(uiDoc.Document, settings, progress) { _includeLibrary = false };
             return extractor.Run(uiDoc);
         }
 
@@ -225,7 +224,7 @@ namespace BimGo.Extraction
                     }
                     catch (Exception ex)
                     {
-                        Utilities.Log_Utils.Write($"{source.Describe()}: element {element.Id.Value} skipped: {ex.Message}");
+                        Utilities.Log_Utils.Write($"{source.Describe()}: element {element.Id.Ext_Value()} skipped: {ex.Message}");
                     }
                 }
             }
@@ -268,12 +267,11 @@ namespace BimGo.Extraction
                 Elements = _elements.ToArray(),
                 Levels = levels,
                 Grids = grids,
-                EntourageSlots = CollectEntourageSlots(sources, view), // Round X-B2
                 Rooms = rooms.ToArray(),
                 Links = _links.ToArray(),
-                PhaseId = phase?.Id.Value ?? -1,
+                PhaseId = phase?.Id.Ext_Value() ?? -1,
                 PhaseName = phase?.Name,
-                ExistingPhaseId = _phases.Existing?.Id.Value ?? -1,
+                ExistingPhaseId = _phases.Existing?.Id.Ext_Value() ?? -1,
                 ExistingPhaseName = _phases.Existing?.Name,
                 PhaseNote = _phases.Note,
                 Spawn = ResolveSpawn(uiDoc),
@@ -432,7 +430,7 @@ namespace BimGo.Extraction
             {
                 float elevation = (float)(level.ProjectElevation * FT) - _origin.Z;
                 levels.Add(new LevelInfo(level.Name, elevation, IsBuildingStorey(level)));
-                _src.LevelNames[level.Id.Value] = level.Name;
+                _src.LevelNames[level.Id.Ext_Value()] = level.Name;
             }
             levels.Sort((a, b) => a.Elevation.CompareTo(b.Elevation));
             return levels.ToArray();
@@ -553,7 +551,7 @@ namespace BimGo.Extraction
             {
                 foreach (Level level in new FilteredElementCollector(source.Doc).OfClass(typeof(Level)).Cast<Level>())
                 {
-                    source.LevelNames[level.Id.Value] = level.Name;
+                    source.LevelNames[level.Id.Ext_Value()] = level.Name;
                 }
             }
             catch (Exception ex)
@@ -609,7 +607,7 @@ namespace BimGo.Extraction
         private bool IsHelperStyle(ElementId styleId)
         {
             if (styleId == null || styleId == ElementId.InvalidElementId) { return false; }
-            long key = styleId.Value;
+            long key = styleId.Ext_Value();
             if (_src.HelperStyles.TryGetValue(key, out bool cached)) { return cached; }
 
             bool helper = false;
@@ -618,7 +616,7 @@ namespace BimGo.Extraction
                 Category category = (_src.Doc.GetElement(styleId) as GraphicsStyle)?.GraphicsStyleCategory;
                 if (category != null)
                 {
-                    if (category.Id.Value == (long)BuiltInCategory.OST_LightingFixtureSource)
+                    if (category.Id.Ext_Value() == (long)BuiltInCategory.OST_LightingFixtureSource)
                     {
                         helper = true;
                     }
@@ -718,7 +716,7 @@ namespace BimGo.Extraction
 
             var record = new ElementRecord
             {
-                ElementId = element.Id.Value,
+                ElementId = element.Id.Ext_Value(),
                 UniqueId = element.UniqueId ?? string.Empty,
                 IfcGuid = IfcGuidOf(element),
                 HostId = HostIdOf(element),
@@ -1009,7 +1007,7 @@ namespace BimGo.Extraction
         {
             if (materialId == null || materialId == ElementId.InvalidElementId) { return new MaterialLook(fallback, 0u, false, MaterialData.NONE); }
 
-            long key = materialId.Value;
+            long key = materialId.Ext_Value();
             if (_src.MaterialLooks.TryGetValue(key, out MaterialLook cached)) { return cached; }
 
             uint colour = fallback;
@@ -1022,7 +1020,7 @@ namespace BimGo.Extraction
                 if (c != null && c.IsValid)
                 {
                     // A material named "mirror" is a mirror even when modelled with a glass appearance: drawn opaque
-                    int alpha = ReflectivityReader.IsMirrorByName(material) ? 255 : Math.Clamp(255 - (int)(material.Transparency * 2.55), 64, 255);
+                    int alpha = ReflectivityReader.IsMirrorByName(material) ? 255 : NumericCompat.Clamp(255 - (int)(material.Transparency * 2.55), 64, 255);
                     // QOL round: a glass keyword makes an opaque material see-through (Revit's default glass is ≈ 55 % transparent)
                     if (alpha >= 250 && ReflectivityReader.IsGlassByName(material)) { alpha = GLASS_KEYWORD_ALPHA; }
                     colour = Pack(c.Red, c.Green, c.Blue, (byte)alpha);
@@ -1045,7 +1043,7 @@ namespace BimGo.Extraction
             Category category = element.Category;
             if (category == null) { return DEFAULT_COLOUR; }
 
-            long key = category.Id.Value;
+            long key = category.Id.Ext_Value();
             if (_src.CategoryColours.TryGetValue(key, out uint cached)) { return cached; }
 
             uint colour = DEFAULT_COLOUR;
@@ -1136,7 +1134,7 @@ namespace BimGo.Extraction
                 }
             }
 
-            if (levelId != null && _src.LevelNames.TryGetValue(levelId.Value, out string name)) { return name; }
+            if (levelId != null && _src.LevelNames.TryGetValue(levelId.Ext_Value(), out string name)) { return name; }
             return "—";
         }
 
@@ -1151,7 +1149,7 @@ namespace BimGo.Extraction
             {
                 if (element is FamilyInstance instance && instance.Host is Element host && host is not RevitLinkInstance)
                 {
-                    return host.Id.Value;
+                    return host.Id.Ext_Value();
                 }
             }
             catch
@@ -1214,7 +1212,7 @@ namespace BimGo.Extraction
                 case StorageType.ElementId:
                     ElementId id = parameter.AsElementId();
                     if (id == null || id == ElementId.InvalidElementId) { return string.Empty; }
-                    return _src.Doc.GetElement(id)?.Name ?? id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    return _src.Doc.GetElement(id)?.Name ?? id.Ext_Value().ToString(System.Globalization.CultureInfo.InvariantCulture);
                 default:
                     return string.Empty;
             }
@@ -1313,7 +1311,7 @@ namespace BimGo.Extraction
                     site.Longitude = location.Longitude * 180.0 / Math.PI;
                     site.TimeZone = location.TimeZone;
                     site.PlaceName = location.PlaceName ?? string.Empty;
-                    site.HasLocation = double.IsFinite(site.Latitude) && double.IsFinite(site.Longitude);
+                    site.HasLocation = NumericCompat.IsFinite(site.Latitude) && NumericCompat.IsFinite(site.Longitude);
                 }
             }
             catch (Exception ex)
@@ -1391,7 +1389,7 @@ namespace BimGo.Extraction
             }
             catch (Exception ex)
             {
-                Utilities.Log_Utils.Write($"Movability check failed for {element.Id.Value}: {ex.Message}");
+                Utilities.Log_Utils.Write($"Movability check failed for {element.Id.Ext_Value()}: {ex.Message}");
                 return "Unknown";
             }
         }
@@ -1425,12 +1423,12 @@ namespace BimGo.Extraction
                     {
                         RoomInfo info = BuildRoom(room, options);
                         if (info == null) { continue; }
-                        long roomPhase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Value ?? -1;
+                        long roomPhase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Ext_Value() ?? -1;
                         all.Add((info, roomPhase));
                     }
                     catch (Exception ex)
                     {
-                        Utilities.Log_Utils.Write($"{source.Describe()}: room {room.Id.Value} skipped: {ex.Message}");
+                        Utilities.Log_Utils.Write($"{source.Describe()}: room {room.Id.Ext_Value()} skipped: {ex.Message}");
                     }
                 }
             }
@@ -1439,9 +1437,9 @@ namespace BimGo.Extraction
                 Utilities.Log_Utils.Write($"{source.Describe()}: room collection failed: {ex.Message}");
             }
 
-            if (phase != null && all.Any(r => r.PhaseId == phase.Id.Value))
+            if (phase != null && all.Any(r => r.PhaseId == phase.Id.Ext_Value()))
             {
-                return all.Where(r => r.PhaseId == phase.Id.Value).Select(r => r.Room).ToArray();
+                return all.Where(r => r.PhaseId == phase.Id.Ext_Value()).Select(r => r.Room).ToArray();
             }
             return all.Select(r => r.Room).ToArray();
         }
@@ -1514,7 +1512,7 @@ namespace BimGo.Extraction
                 TopZ = top,
                 Link = _src.Link,
                 UniqueId = room.UniqueId, // Round Z-A: identity, level, Revit's area and every parameter for the room overlay
-                ElementId = room.Id.Value,
+                ElementId = room.Id.Ext_Value(),
                 LevelName = room.Level?.Name,
                 Area = (float)(room.Area * FT * FT),
                 Parameters = ReadRoomParameters(room)
@@ -1544,7 +1542,7 @@ namespace BimGo.Extraction
                 {
                     Eye = ToScenePoint(orientation.EyePosition),
                     Yaw = MathF.Atan2(forward.Y, forward.X),
-                    Pitch = MathF.Asin(Math.Clamp(forward.Z, -1f, 1f)),
+                    Pitch = MathF.Asin(NumericCompat.Clamp(forward.Z, -1f, 1f)),
                     Source = view3D.Name
                 };
             }

@@ -210,7 +210,7 @@ namespace BimGo.Scene
             text = text.Trim();
             if (PARSE.TryGetValue(text, out code)) { return true; }
             if (text.StartsWith("Key0x", StringComparison.OrdinalIgnoreCase)
-                && ushort.TryParse(text.AsSpan(5), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out code) && code != NONE)
+                && ushort.TryParse(text.Substring(5), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out code) && code != NONE)
             {
                 return true;
             }

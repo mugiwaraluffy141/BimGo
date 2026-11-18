@@ -321,7 +321,7 @@ namespace BimGo.Format
                     UniqueId = string.IsNullOrWhiteSpace(room.UniqueId) ? null : room.UniqueId,
                     ElementId = room.Id ?? -1,
                     LevelName = string.IsNullOrWhiteSpace(room.Level) ? null : room.Level,
-                    Area = room.Area is float area && float.IsFinite(area) && area > 0f ? area : float.NaN,
+                    Area = room.Area is float area && BimGo.NumericCompat.IsFinite(area) && area > 0f ? area : float.NaN,
                     Parameters = roomPools.Row(r)
                 });
             }
@@ -427,7 +427,7 @@ namespace BimGo.Format
                 {
                     Entries = entries.ToArray(),
                     Previews = previews,
-                    VertexStart = anyTemplate ? Math.Clamp(dto.VertexStart, 0, vertexCount) : vertexCount
+                    VertexStart = anyTemplate ? BimGo.NumericCompat.Clamp(dto.VertexStart, 0, vertexCount) : vertexCount
                 };
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -485,14 +485,14 @@ namespace BimGo.Format
             {
                 if (light == null || light.Element < 0 || light.Element >= elementCount) { continue; }
                 Vector3 p = light.Position;
-                if (!float.IsFinite(p.X) || !float.IsFinite(p.Y) || !float.IsFinite(p.Z)) { continue; }
+                if (!BimGo.NumericCompat.IsFinite(p.X) || !BimGo.NumericCompat.IsFinite(p.Y) || !BimGo.NumericCompat.IsFinite(p.Z)) { continue; }
                 lights.Add(new LightSource
                 {
                     Element = light.Element,
                     Position = p,
-                    Lumens = float.IsFinite(light.Lumens) ? Math.Clamp(light.Lumens, 10f, 100000f) : 1000f,
-                    Kelvin = float.IsFinite(light.Kelvin) ? Math.Clamp(light.Kelvin, 1000f, 15000f) : 3500f,
-                    Downward = float.IsFinite(light.Downward) ? Math.Clamp(light.Downward, 0f, 1f) : 0.7f,
+                    Lumens = BimGo.NumericCompat.IsFinite(light.Lumens) ? BimGo.NumericCompat.Clamp(light.Lumens, 10f, 100000f) : 1000f,
+                    Kelvin = BimGo.NumericCompat.IsFinite(light.Kelvin) ? BimGo.NumericCompat.Clamp(light.Kelvin, 1000f, 15000f) : 3500f,
+                    Downward = BimGo.NumericCompat.IsFinite(light.Downward) ? BimGo.NumericCompat.Clamp(light.Downward, 0f, 1f) : 0.7f,
                     Estimated = light.Estimated,
                     Ies = files.ContainsKey(light.Ies ?? string.Empty) ? light.Ies : null, // Round X-D1
                     Aim = UnitOr(light.Aim, -Vector3.UnitZ),
@@ -510,7 +510,7 @@ namespace BimGo.Format
                 if (v == null) { return fallback; }
                 Vector3 value = v.Value;
                 float length = value.Length();
-                return float.IsFinite(length) && length > 1e-4f ? value / length : fallback;
+                return BimGo.NumericCompat.IsFinite(length) && length > 1e-4f ? value / length : fallback;
             }
         }
 
@@ -567,7 +567,7 @@ namespace BimGo.Format
                         stream.ReadExactly(MemoryMarshal.AsBytes(uvs.AsSpan()));
                         for (int i = 0; i < uvs.Length; i++)
                         {
-                            if (!float.IsFinite(uvs[i].X) || !float.IsFinite(uvs[i].Y)) { uvs[i] = Vector2.Zero; }
+                            if (!BimGo.NumericCompat.IsFinite(uvs[i].X) || !BimGo.NumericCompat.IsFinite(uvs[i].Y)) { uvs[i] = Vector2.Zero; }
                         }
                     }
                 }

@@ -85,7 +85,7 @@ namespace BimGo.Live
         private static bool Same(string a, string b) => string.Equals(a ?? string.Empty, b ?? string.Empty, StringComparison.Ordinal);
 
         /// <summary>True when the id is set and the point is finite.</summary>
-        public bool IsValid() => !string.IsNullOrWhiteSpace(Id) && double.IsFinite(X) && double.IsFinite(Y) && double.IsFinite(Z);
+        public bool IsValid() => !string.IsNullOrWhiteSpace(Id) && BimGo.NumericCompat.IsFinite(X) && BimGo.NumericCompat.IsFinite(Y) && BimGo.NumericCompat.IsFinite(Z);
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ namespace BimGo.Live
                     }
                     MarkerRecord v = have.Values;
                     bool move = Math.Abs(v.X - want.X) > MOVE_TOLERANCE || Math.Abs(v.Y - want.Y) > MOVE_TOLERANCE || Math.Abs(v.Z - want.Z) > MOVE_TOLERANCE
-                        || !double.IsFinite(v.X) || !double.IsFinite(v.Y) || !double.IsFinite(v.Z);
+                        || !BimGo.NumericCompat.IsFinite(v.X) || !BimGo.NumericCompat.IsFinite(v.Y) || !BimGo.NumericCompat.IsFinite(v.Z);
                     bool values = !v.SameValues(want);
                     if (move || values) { plan.Change.Add((have, want, move, values)); }
                     plan.PlacedAfter.Add(want.Id);

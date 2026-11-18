@@ -22,7 +22,7 @@ namespace BimGo.Platform
         private readonly char[] _chars = new char[64];
         private bool _leftReleased;
 
-        // Gamepad (build B): digital state, edges, auto-repeat and analog amount per gamepad code (Gamepad.Poll fills them)
+        // Legacy controller state is retained for stored action-map compatibility; no input path fills it now.
         private readonly bool[] _padDown = new bool[KeyCodes.PAD_COUNT];
         private readonly bool[] _padPressed = new bool[KeyCodes.PAD_COUNT];
         private readonly bool[] _padRepeated = new bool[KeyCodes.PAD_COUNT];
@@ -177,8 +177,7 @@ namespace BimGo.Platform
         private bool _injectingClick;
 
         /// <summary>
-        /// This frame's gamepad (from <see cref="Gamepad.Poll"/>): per gamepad code whether it is down and how far
-        /// (0–1), and the dead-zoned sticks. Works out the edges and the auto-repeat.
+        /// Legacy controller state setter. The current app no longer polls or dispatches controller input.
         /// </summary>
         public void SetPad(bool connected, bool[] down, float[] analog, Vector2 left, Vector2 right, float dt)
         {

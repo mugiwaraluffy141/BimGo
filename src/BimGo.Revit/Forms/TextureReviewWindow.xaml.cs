@@ -262,9 +262,15 @@ namespace BimGo.Forms
                 return;
             }
 
+#if NETFRAMEWORK
+            using var dialog = new System.Windows.Forms.FolderBrowserDialog { Description = $"Folder to search for {raws.Count} missing image{(raws.Count == 1 ? "" : "s")}" };
+            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK) { return; }
+            string folder = dialog.SelectedPath;
+#else
             var dialog = new Microsoft.Win32.OpenFolderDialog { Title = $"Folder to search for {raws.Count} missing image{(raws.Count == 1 ? "" : "s")}" };
             if (dialog.ShowDialog(this) != true) { return; }
             string folder = dialog.FolderName;
+#endif
 
             try
             {
@@ -537,9 +543,9 @@ namespace BimGo.Forms
 
             private static void Vector3Colour(System.Numerics.Vector3 c, out byte r, out byte g, out byte b)
             {
-                r = (byte)Math.Clamp((int)Math.Round(c.X * 255f), 0, 255);
-                g = (byte)Math.Clamp((int)Math.Round(c.Y * 255f), 0, 255);
-                b = (byte)Math.Clamp((int)Math.Round(c.Z * 255f), 0, 255);
+                r = (byte)NumericCompat.Clamp((int)Math.Round(c.X * 255f), 0, 255);
+                g = (byte)NumericCompat.Clamp((int)Math.Round(c.Y * 255f), 0, 255);
+                b = (byte)NumericCompat.Clamp((int)Math.Round(c.Z * 255f), 0, 255);
             }
 
             private static Media.Brush Frozen(byte r, byte g, byte b)

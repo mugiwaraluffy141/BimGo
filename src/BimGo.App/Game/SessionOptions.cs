@@ -82,7 +82,6 @@ namespace BimGo.Game
         /// Round Z-C: start in kiosk mode (files only): visitors walk, fly and look; no menus, guns, panels, edits or saving;
         /// an idle tour after two minutes; Ctrl+Shift+Q held leaves into the normal walkthrough.
         /// </summary>
-        public bool Kiosk { get; init; }
 
         /// <summary>
         /// Round Z-E: a notice for the start of the walkthrough, shown as an important toast (e.g. the add-in is from

@@ -1,9 +1,9 @@
-; BimGo installer (Inno Setup 6). Built by build\publish.ps1, which passes /DAppVersion and compiles from the
+﻿; BimGo installer (Inno Setup 6). Built by build\publish.ps1, which passes /DAppVersion and compiles from the
 ; artifacts it has just made (artifacts\app\, artifacts\bundle\BimGo.bundle\). Per user, no admin rights.
 ;
 ;   App:             %LocalAppData%\Programs\BimGo\ (fixed: every Revit year's add-in looks for BimGo.exe there)
-;   BimGo for Revit: %AppData%\Autodesk\ApplicationPlugins\BimGo.bundle\ (Revit 2025 / 2026 / 2027 each load their own
-;                    Contents\<year>\), offered when Revit 2025 or later is found
+;   BimGo for Revit: %AppData%\Autodesk\ApplicationPlugins\BimGo.bundle\ (Revit 2023 / 2024 / 2025 / 2026 / 2027 each load their own
+;                    Contents\<year>\), offered when Revit 2023–2027 is found
 ;   .bimgo + Start menu: owned by the app (BimGo.exe --register / --unregister), not by this script
 ;
 ; AppId, and the bundle's ProductCode / UpgradeCode (installer\PackageContents.xml), never change.
@@ -50,16 +50,20 @@ Name: "custom"; Description: "Custom"; Flags: iscustom
 
 [Components]
 Name: "app"; Description: "BimGo (the walkthrough app)"; Types: full app custom; Flags: fixed
-Name: "revit"; Description: "BimGo for Revit 2025 / 2026 / 2027 (the add-in: Go, Export .bimgo, comment markers)"; Types: full custom; Check: RevitInstalled
+Name: "revit"; Description: "BimGo for Revit 2023 / 2024 / 2025 / 2026 / 2027 (the add-in: Go, Export .bimgo, comment markers)"; Types: full custom; Check: RevitInstalled
 
 [InstallDelete]
 ; The app folder holds nothing but the app: start clean (an older build may have left files a new one doesn't use)
 Type: filesandordirs; Name: "{app}\*"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\ApplicationPlugins\BimGo.bundle"
 ; Copies from developer builds before the bundle (Revit refuses an add-in id loaded twice)
+Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2023\BimGo.addin"
+Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2024\BimGo.addin"
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\BimGo.addin"
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2026\BimGo.addin"
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2027\BimGo.addin"
+Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2023\BimGo"
+Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2024\BimGo"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2025\BimGo"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\BimGo"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2027\BimGo"
@@ -82,14 +86,14 @@ Type: filesandordirs; Name: "{app}"
 
 [Code]
 const
-  REVIT_YEARS = 3;
+  REVIT_YEARS = 5;
 
 function RevitYear(Index: Integer): String;
 begin
-  Result := IntToStr(2025 + Index);
+  Result := IntToStr(2023 + Index);
 end;
 
-{ Revit 2025 or later on this PC (the add-in is offered only then) }
+{ Revit 2023–2027 on this PC (the add-in is offered only then) }
 function RevitInstalled: Boolean;
 var
   I: Integer;

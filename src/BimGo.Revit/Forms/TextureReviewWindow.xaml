@@ -5,69 +5,70 @@
         Width="1060" Height="760" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        Background="#F6F7F8"
-        FontFamily="Segoe UI" FontSize="13" Foreground="#1B1F24"
+        Background="{DynamicResource ReviewBackground}"
+        FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource ReviewInk}"
         UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Accent" Color="#0E7490"/>
-        <SolidColorBrush x:Key="Muted" Color="#4B5560"/>
-        <SolidColorBrush x:Key="CardBorder" Color="#DADDE1"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ReviewTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
+            <Style x:Key="SectionHeader" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+                <Setter Property="Margin" Value="0,0,0,8"/>
+            </Style>
 
-        <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12"/>
-        </Style>
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12"/>
+            </Style>
 
-        <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Accent}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="22,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ReviewButton}">
+                <Setter Property="Background" Value="{StaticResource ReviewAction}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Height" Value="36"/>
+                <Setter Property="Padding" Value="22,0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
 
-        <Style x:Key="SecondaryButton" TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#B7BDC4"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="14,0"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
+            <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ReviewButton}">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource ReviewFieldBorder}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Padding" Value="14,0"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
 
-        <!-- Filter chips -->
-        <Style x:Key="Chip" TargetType="RadioButton">
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Chip" CornerRadius="14" Padding="12,4" BorderThickness="1" BorderBrush="#B7BDC4" Background="White">
-                            <ContentPresenter VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chip" Property="Background" Value="#E6F4F7"/>
-                                <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource Accent}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <!-- Filter chips -->
+            <Style x:Key="Chip" TargetType="RadioButton">
+                <Setter Property="Margin" Value="0,0,6,0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Chip" CornerRadius="14" Padding="12,4" BorderThickness="1" BorderBrush="{StaticResource ReviewFieldBorder}" Background="White">
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Chip" Property="Background" Value="{StaticResource ReviewTint}"/>
+                                    <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <DockPanel LastChildFill="True">

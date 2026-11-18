@@ -255,6 +255,6 @@ namespace BimGo.Format
             writer.WriteEndArray();
         }
 
-        private static float Finite(float value) => float.IsFinite(value) ? value : 0f;
+        private static float Finite(float value) => BimGo.NumericCompat.IsFinite(value) ? value : 0f;
     }
 }

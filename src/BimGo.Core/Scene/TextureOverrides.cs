@@ -181,7 +181,7 @@ namespace BimGo.Scene
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(this, JSON));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex)

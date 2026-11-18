@@ -478,7 +478,7 @@ namespace BimGo.Game
         #region Options preview
 
         /// <summary>
-        /// Leaves the options preview (Esc): back to the full pause menu.
+        /// Closes the settings panel and returns to the model.
         /// </summary>
         /// <returns>True when the preview was open.</returns>
         private bool CloseMenuPreview()
@@ -486,15 +486,16 @@ namespace BimGo.Game
             if (!_menuPreview) { return false; }
             _menuPreview = false;
             _activeSlider = -1;
+            if (_paused) { SetPaused(false); }
             return true;
         }
 
         /// <summary>
-        /// The options preview: no backdrop, no buttons, only the quality profile and the Display / Reflections /
-        /// Appearance card on a light panel, so the scene behind can be judged while tuning.
+        /// Settings over the model: quality profile and the Display / Reflections / Appearance card.
         /// </summary>
         private void BuildMenuPreview(FontAtlas f, InputState input, int width, int height)
         {
+            if (!input.LeftDown) { _activeSlider = -1; }
             // Polish round P-A1: the card's height comes from the window (it scrolls when short), DONE always fits under it
             float columnW = S(280), pad = S(48);
             float x = width - S(56) - columnW;
@@ -503,13 +504,13 @@ namespace BimGo.Game
             float panelTop = pad - S(36), panelBottom = cardTop + cardH + doneReserve + S(12);
             _ui.Rect(x - S(16), panelTop, columnW + S(32), MathF.Min(panelBottom, height - S(8)) - panelTop, Rgba.Hex(0x101318, 0.55f));
 
-            _ui.Text(f.Small, x, panelTop + S(10), "PREVIEW", UiTheme.ACCENT, S(2f));
-            _ui.TextRight(f.Small, x + columnW, panelTop + S(10), "ESC RETURNS", UiTheme.TEXT_MUTED, S(1.2f));
+            _ui.Text(f.Small, x, panelTop + S(10), "SETTINGS", UiTheme.ACCENT, S(2f));
+            _ui.TextRight(f.Small, x + columnW, panelTop + S(10), "ESC CLOSES", UiTheme.TEXT_MUTED, S(1.2f));
             BuildProfileRow(f, input, x, pad, columnW);
             cardH = BuildSettingsTabs(f, input, x, pad + S(68), columnW, doneReserve);
 
             float doneY = cardTop + cardH + S(12);
-            if (MenuButton(f, x, doneY, columnW, "DONE", false, false, height: S(36), compact: true)) { CloseMenuPreview(); }
+            if (MenuButton(f, x, doneY, columnW, "CLOSE SETTINGS", false, false, height: S(36), compact: true)) { CloseMenuPreview(); }
         }
 
         #endregion

@@ -301,7 +301,7 @@ namespace BimGo.Scene
                 for (int i = 0, j = loop.Length - 1; i < loop.Length; j = i++)
                 {
                     Vector2 a = loop[j], ab = loop[i] - a;
-                    float t = ab.LengthSquared() > 1e-12f ? Math.Clamp(Vector2.Dot(p - a, ab) / ab.LengthSquared(), 0f, 1f) : 0f;
+                    float t = ab.LengthSquared() > 1e-12f ? BimGo.NumericCompat.Clamp(Vector2.Dot(p - a, ab) / ab.LengthSquared(), 0f, 1f) : 0f;
                     best = MathF.Min(best, Vector2.Distance(p, a + ab * t));
                 }
             }
@@ -433,7 +433,7 @@ namespace BimGo.Scene
         /// Vertices that belong to the model itself: everything before the library templates (all of them when there
         /// is no library).
         /// </summary>
-        public int ModelVertexCount => Library.IsEmpty ? Vertices.Length : Math.Clamp(Library.VertexStart, 0, Vertices.Length);
+        public int ModelVertexCount => Library.IsEmpty ? Vertices.Length : BimGo.NumericCompat.Clamp(Library.VertexStart, 0, Vertices.Length);
 
         /// <summary>Optional extra parameter values per element (names picked in the Options dialog). Never null.</summary>
         public ParameterTable Parameters { get; init; } = ParameterTable.Empty;

@@ -54,7 +54,7 @@ namespace BimGo.Bridge
                 var clones = new Dictionary<int, ElementId>();
                 foreach (CloneRef known in request.KnownClones ?? new List<CloneRef>())
                 {
-                    if (known != null && known.CloneKey != 0 && known.ElementId > 0) { clones[known.CloneKey] = new ElementId(known.ElementId); }
+                    if (known != null && known.CloneKey != 0 && known.ElementId > 0) { clones[known.CloneKey] = ElementId_Ext.Ext_FromValue(known.ElementId); }
                 }
                 var createdBy = new Dictionary<int, int>();
                 foreach (JournalEntry entry in entries)
@@ -62,7 +62,7 @@ namespace BimGo.Bridge
                     if (JournalOps.Creates(entry.Op) && entry.NewCloneKey != 0) { createdBy[entry.NewCloneKey] = entry.Seq; }
                 }
 
-                double tolerance = Math.Clamp(request.ToleranceMm, 0.1, 1000.0);
+                double tolerance = NumericCompat.Clamp(request.ToleranceMm, 0.1, 1000.0);
                 using var group = new TransactionGroup(doc, label);
                 if (group.Start() != TransactionStatus.Started) { return Refuse(answer, "Revit could not start the push"); }
 
@@ -201,7 +201,7 @@ namespace BimGo.Bridge
             if (isClone)
             {
                 if (entry.NewCloneKey != 0) { clones[entry.NewCloneKey] = newId; }
-                result.NewElementId = newId.Value;
+                result.NewElementId = newId.Ext_Value();
                 note ??= phases.New == null ? "Copied" : $"Copied (new in {phases.New.Name})";
             }
             return Status(result, JournalStatus.APPLIED, note ?? "Moved");
@@ -228,7 +228,7 @@ namespace BimGo.Bridge
             if (!placed.Success) { return Status(result, JournalStatus.FAILED, placed.Message); }
 
             if (entry.NewCloneKey != 0) { clones[entry.NewCloneKey] = newId; }
-            result.NewElementId = newId.Value;
+            result.NewElementId = newId.Ext_Value();
             return Status(result, JournalStatus.APPLIED, phases.New == null ? "Placed" : $"Placed (new in {phases.New.Name})");
         }
 
@@ -240,7 +240,7 @@ namespace BimGo.Bridge
             try
             {
                 if (!string.IsNullOrWhiteSpace(entry.UniqueId)) { return doc.GetElement(entry.UniqueId); }
-                if (entry.ElementId > 0) { return doc.GetElement(new ElementId(entry.ElementId)); }
+                if (entry.ElementId > 0) { return doc.GetElement(ElementId_Ext.Ext_FromValue(entry.ElementId)); }
             }
             catch (Exception ex)
             {
@@ -256,7 +256,7 @@ namespace BimGo.Bridge
         {
             Ticket = entry.Seq,
             Op = op,
-            ElementId = element.Id.Value,
+            ElementId = element.Id.Ext_Value(),
             NewCloneKey = entry.NewCloneKey,
             Pivot = entry.Pivot,
             Translation = entry.Offset,

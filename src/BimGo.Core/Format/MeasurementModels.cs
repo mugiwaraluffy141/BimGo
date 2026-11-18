@@ -97,8 +97,8 @@ namespace BimGo.Format
                 _ => false
             };
             if (!countOk) { return false; }
-            foreach (double v in Points) { if (!double.IsFinite(v)) { return false; } }
-            return double.IsFinite(NormalX) && double.IsFinite(NormalY) && double.IsFinite(NormalZ) && double.IsFinite(Value) && double.IsFinite(Value2);
+            foreach (double v in Points) { if (!BimGo.NumericCompat.IsFinite(v)) { return false; } }
+            return BimGo.NumericCompat.IsFinite(NormalX) && BimGo.NumericCompat.IsFinite(NormalY) && BimGo.NumericCompat.IsFinite(NormalZ) && BimGo.NumericCompat.IsFinite(Value) && BimGo.NumericCompat.IsFinite(Value2);
         }
     }
 
@@ -156,7 +156,7 @@ namespace BimGo.Format
             }
             return csv.ToString();
 
-            string Number(double v) => double.IsFinite(v) ? v.ToString("0.###", inv) : string.Empty;
+            string Number(double v) => BimGo.NumericCompat.IsFinite(v) ? v.ToString("0.###", inv) : string.Empty;
         }
 
         private static string Quote(string value)

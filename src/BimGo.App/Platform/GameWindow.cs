@@ -60,12 +60,6 @@ namespace BimGo.Platform
         /// <summary>Set when the user (or Revit) asked the window to close.</summary>
         public bool CloseRequested { get; private set; }
 
-        /// <summary>
-        /// Round Z-C (kiosk mode): close requests (Alt+F4, the title bar's X, the taskbar) are ignored while set, so the only
-        /// way out is the kiosk exit key. Windows shutting down or signing out still ends the app.
-        /// </summary>
-        public bool BlockClose { get; set; }
-
         /// <summary>True when the mouse is captured for look.</summary>
         public bool IsCaptured => _captured;
 
@@ -204,17 +198,8 @@ namespace BimGo.Platform
                 Win32.DispatchMessageW(msg);
             }
 
-            // The gamepad (build B): polled once a frame with the messages, then the cursor it drives in menus
-            Gamepad.Poll(Input, IsActive);
-            Gamepad.DriveCursor(this, Input);
             return Handle != 0 && !CloseRequested;
         }
-
-        /// <summary>
-        /// What the gamepad does with the free cursor (build B): the walkthrough sets it every frame; the start screen
-        /// and progress screens keep <see cref="PadCursorMode.Menu"/>.
-        /// </summary>
-        public PadCursorMode PadCursor { get; set; } = PadCursorMode.Menu;
 
         /// <summary>
         /// Presents the back buffer.
@@ -420,9 +405,6 @@ namespace BimGo.Platform
             switch (msg)
             {
                 case Win32.WM_CLOSE:
-                    // Round Z-C: kiosk mode ignores it (handled: DefWindowProc would destroy the window)
-                    if (BlockClose) { return true; }
-
                     // The session loop sees this, releases GL resources, then disposes the window
                     SetCaptured(false);
                     CloseRequested = true;

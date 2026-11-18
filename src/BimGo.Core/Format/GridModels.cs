@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Text.Json.Serialization;
 using BimGo.Scene;
 
@@ -94,13 +94,13 @@ namespace BimGo.Format
                 for (int i = 0; i < count; i++)
                 {
                     var p = new Vector2(item.Points[i * 2], item.Points[i * 2 + 1]);
-                    if (!float.IsFinite(p.X) || !float.IsFinite(p.Y)) { continue; }
+                    if (!BimGo.NumericCompat.IsFinite(p.X) || !BimGo.NumericCompat.IsFinite(p.Y)) { continue; }
                     if (points.Count > 0 && Vector2.DistanceSquared(points[^1], p) < 1e-8f) { continue; }
                     points.Add(p);
                 }
                 if (points.Count < 2) { continue; }
 
-                bool extent = item.Bottom is float b && item.Top is float t && float.IsFinite(b) && float.IsFinite(t) && t >= b;
+                bool extent = item.Bottom is float b && item.Top is float t && BimGo.NumericCompat.IsFinite(b) && BimGo.NumericCompat.IsFinite(t) && t >= b;
                 int link = item.Link is int l && l > 0 && l <= linkCount ? l : 0;
                 grids.Add(new GridLine
                 {
@@ -243,9 +243,9 @@ namespace BimGo.Format
             DepthIndex = DepthIndex;
             DashDot = DashDot;
             Colour = LaunchSettings.TryParseColour(Colour, out uint rgb) ? "#" + rgb.ToString("X6", System.Globalization.CultureInfo.InvariantCulture) : DEFAULT_COLOUR;
-            Opacity = float.IsFinite(Opacity) ? MathF.Round(Math.Clamp(Opacity, MIN_OPACITY, 1f) * 20f) / 20f : 0.85f;
-            Width = float.IsFinite(Width) ? MathF.Round(Math.Clamp(Width, MIN_WIDTH, MAX_WIDTH) * 2f) / 2f : 2f;
-            LabelDistance = float.IsFinite(LabelDistance) ? MathF.Round(Math.Clamp(LabelDistance, MIN_LABEL_DISTANCE, MAX_LABEL_DISTANCE) / 10f) * 10f : 120f;
+            Opacity = BimGo.NumericCompat.IsFinite(Opacity) ? MathF.Round(BimGo.NumericCompat.Clamp(Opacity, MIN_OPACITY, 1f) * 20f) / 20f : 0.85f;
+            Width = BimGo.NumericCompat.IsFinite(Width) ? MathF.Round(BimGo.NumericCompat.Clamp(Width, MIN_WIDTH, MAX_WIDTH) * 2f) / 2f : 2f;
+            LabelDistance = BimGo.NumericCompat.IsFinite(LabelDistance) ? MathF.Round(BimGo.NumericCompat.Clamp(LabelDistance, MIN_LABEL_DISTANCE, MAX_LABEL_DISTANCE) / 10f) * 10f : 120f;
             return this;
         }
 

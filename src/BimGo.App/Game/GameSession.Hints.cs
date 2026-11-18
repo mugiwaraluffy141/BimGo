@@ -37,7 +37,7 @@ namespace BimGo.Game
             if (_guns == null) { return; }
             for (int i = 0; i < _guns.Length; i++)
             {
-                KeyChord chord = Hotkeys.Map.Primary(InputCatalog.GunAction(i));
+                KeyChord chord = Hotkeys.Map.Primary(InputCatalog.GunAction(i == 2 ? 3 : i));
                 _guns[i].Key = chord.IsEmpty ? string.Empty : Hotkeys.Map.Display(chord);
             }
             _gunKeysVersion = Hotkeys.Version;
@@ -76,7 +76,7 @@ namespace BimGo.Game
         private static readonly KeyHint HINT_BOOKMARKS_TOUR = new(() =>
             $"The tour plays the ticked bookmarks in list order · {KeyUpper(InputAction.TourPause)} pause · {KeyUpper(InputAction.TourPrevious)} {KeyUpper(InputAction.TourNext)} stops · ESC ends it");
         private static readonly KeyHint HINT_BOOKMARKS_KEYS = new(() =>
-            $"{KeyUpper(InputAction.AddBookmark)} saves where you stand · {Hotkeys.Map.DescribeRange(InputAction.Bookmark1, 9).ToUpperInvariant()} jump to the first nine · PLAY TOUR plays them all");
+            $"{KeyUpper(InputAction.AddBookmark)} saves where you stand · {Hotkeys.Map.DescribeRange(InputAction.Bookmark1, 9).ToUpperInvariant()} jump to the first nine");
         private static readonly KeyHint HINT_BOOKMARKS_EMPTY = new(() =>
             $"No bookmarks yet. Resume, stand where you want and press {Key(InputAction.AddBookmark)} (or use ADD THIS VIEW below).");
 
@@ -87,7 +87,7 @@ namespace BimGo.Game
         private static readonly KeyHint HINT_TOUR_EMPTY = new(() => $"No bookmarks yet: press {Key(InputAction.AddBookmark)} where you want a stop.");
 
         private static readonly KeyHint HINT_LIBRARY_PICK = new(() =>
-            $"Pick a card: it appears in front of you on the Place gun ({Key(InputAction.Gun9)}) · {Key(InputAction.GunSecondary)} commits · Esc discards");
+            $"Pick a card: it appears in front of you with Place selected ({Key(InputAction.Gun9)}) · {Key(InputAction.GunSecondary)} commits · Esc discards");
 
         private static readonly KeyHint HINT_TEXTURES_SAVE = new(() => $"Save ({Key(InputAction.Save)}) embeds the picked images in the file");
 

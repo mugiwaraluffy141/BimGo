@@ -8,7 +8,7 @@ namespace BimGo.Format
     public readonly record struct BcfVector(double X, double Y, double Z)
     {
         /// <summary>True when every component is a finite number.</summary>
-        public bool IsFinite => double.IsFinite(X) && double.IsFinite(Y) && double.IsFinite(Z);
+        public bool IsFinite => BimGo.NumericCompat.IsFinite(X) && BimGo.NumericCompat.IsFinite(Y) && BimGo.NumericCompat.IsFinite(Z);
 
         /// <summary>Length.</summary>
         public double Length => Math.Sqrt(X * X + Y * Y + Z * Z);

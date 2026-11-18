@@ -79,7 +79,7 @@ namespace BimGo.Extraction
 
                         candidates.Add(new LinkCandidate
                         {
-                            InstanceId = instance.Id.Value,
+                            InstanceId = instance.Id.Ext_Value(),
                             UniqueId = instance.UniqueId ?? string.Empty,
                             Name = string.IsNullOrWhiteSpace(instance.Name) ? fileName : instance.Name,
                             FileName = fileName,
@@ -90,7 +90,7 @@ namespace BimGo.Extraction
                     }
                     catch (Exception ex)
                     {
-                        Utilities.Log_Utils.Write($"Link instance {instance.Id.Value} skipped: {ex.Message}");
+                        Utilities.Log_Utils.Write($"Link instance {instance.Id.Ext_Value()} skipped: {ex.Message}");
                     }
                 }
             }

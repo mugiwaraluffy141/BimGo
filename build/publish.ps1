@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds a BimGo release: tests, the self-contained app, BimGo for Revit (2025 / 2026 / 2027) as an Autodesk bundle,
+    Builds a BimGo release: tests, the self-contained app, BimGo for Revit (2023 / 2024 / 2025 / 2026 / 2027) as an Autodesk bundle,
     and the installer artifacts\BimGo-Setup-<version>.exe.
 
 .DESCRIPTION
@@ -10,15 +10,15 @@
       1. Reads the version from src\Directory.Build.props (<BimGoVersion>).
       2. Runs the Core tests.
       3. Publishes BimGo.App self-contained for win-x64 (folder, not single-file, no trimming) to artifacts\app\.
-      4. Builds BimGo.Revit "Release R25 / R26 / R27" and lays out artifacts\bundle\BimGo.bundle\ (PackageContents.xml
-         with the version + Contents\<year>\BimGo.addin + Contents\<year>\BimGo\). Checks no package dll slipped in.
+      4. Builds BimGo.Revit "Release R23 / R24 / R25 / R26 / R27" and lays out artifacts\bundle\BimGo.bundle\ (PackageContents.xml
+         with the version + Contents\<year>\BimGo.addin + Contents\<year>\BimGo\). Checks Revit API dlls are not bundled.
       5. Optionally signs (-Sign; off for 1.0).
       6. Compiles installer\BimGo.iss with Inno Setup 6 into artifacts\.
-    Needs: the .NET 8 SDK, the .NET 10 SDK (Revit 2027), Revit 2025 / 2026 / 2027 installed (the API HintPaths), and
+    Needs: the .NET 8 SDK, the .NET 10 SDK (Revit 2027), Revit 2023 / 2024 / 2025 / 2026 / 2027 installed (the API HintPaths), and
     Inno Setup 6 (https://jrsoftware.org/isinfo.php). Leave a year out with -Years 2025,2026.
 
 .PARAMETER Years
-    Revit years to build (default 2025, 2026, 2027). Years left out are dropped from PackageContents.xml.
+    Revit years to build (default 2023, 2024, 2025, 2026, 2027). Years left out are dropped from PackageContents.xml.
 
 .PARAMETER SkipTests
     Skip the Core tests (not for real releases).
@@ -27,12 +27,16 @@
     Sign BimGo.exe, the add-in dlls and the setup with signtool (needs -CertThumbprint). Off for 1.0.
 #>
 param(
-    [int[]] $Years = @(2025, 2026, 2027),
+    [int[]] $Years = @(2023, 2024, 2025, 2026, 2027),
     [switch] $SkipTests,
     [switch] $Sign,
     [string] $CertThumbprint = '',
     [string] $InnoCompiler = ''
 )
+
+if ($Years.Count -eq 0 -or @($Years | Where-Object { $_ -notin 2023..2027 }).Count -gt 0 -or @($Years | Select-Object -Unique).Count -ne $Years.Count) {
+    throw 'Years must contain distinct Revit years from 2023 through 2027.'
+}
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -61,7 +65,7 @@ if (-not $SkipTests) {
 Step 'BimGo.App (self-contained win-x64)'
 $appOut = Join-Path $artifacts 'app'
 dotnet publish (Join-Path $root 'src\BimGo.App\BimGo.App.csproj') -c Release -r win-x64 --self-contained true `
-    -p:PublishTrimmed=false -p:PublishSingleFile=false -o $appOut --nologo
+    -p:PublishTrimmed=false -p:PublishSingleFile=false -p:DeployBimGoLocally=false -o $appOut --nologo
 Check-Exit 'Publishing BimGo.App'
 Get-ChildItem $appOut -Filter *.pdb -Recurse | Remove-Item -Force
 foreach ($needed in 'BimGo.exe', 'BimGo.ico', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt', 'Resources\places.tsv') {
@@ -74,7 +78,7 @@ New-Item -ItemType Directory -Path (Join-Path $bundle 'Contents') -Force | Out-N
 foreach ($year in $Years) {
     $short = "$year".Substring(2)
     Step "BimGo for Revit $year"
-    dotnet build (Join-Path $root 'src\BimGo.sln') -c "Release R$short" --nologo
+    dotnet build (Join-Path $root 'src\BimGo.sln') -c "Release R$short" -p:DeployBimGoLocally=false --nologo
     Check-Exit "Building Release R$short"
 
     $built = Join-Path $root "src\BimGo.Revit\bin\Release\$year"
@@ -85,9 +89,15 @@ foreach ($year in $Years) {
     Copy-Item (Join-Path $built 'BimGo') $target -Recurse
     Get-ChildItem $target -Filter *.pdb -Recurse | Remove-Item -Force
 
-    # The add-in loads inside Revit: no NuGet package may come with it
-    $packages = Get-ChildItem $target -Recurse -Filter *.dll | Where-Object { $_.Name -notmatch '^BimGo\.(Revit|Core)\.dll$' }
-    if ($packages) { throw "Unexpected dlls in the Revit $year add-in: $($packages.Name -join ', ')" }
+    # Only the Framework builds need NuGet runtime assemblies. Revit supplies its API assemblies.
+    $allowed = @('BimGo.Revit.dll', 'BimGo.Core.dll')
+    if ($year -le 2024) {
+        $allowed += @('Microsoft.Bcl.AsyncInterfaces.dll', 'System.Buffers.dll', 'System.Memory.dll',
+            'System.Numerics.Vectors.dll', 'System.Runtime.CompilerServices.Unsafe.dll', 'System.Text.Encodings.Web.dll',
+            'System.Text.Json.dll', 'System.Threading.Tasks.Extensions.dll', 'System.ValueTuple.dll')
+    }
+    $unexpected = Get-ChildItem $target -Recurse -Filter *.dll | Where-Object { $_.Name -notin $allowed }
+    if ($unexpected) { throw "Unexpected dlls in the Revit $year add-in: $($unexpected.Name -join ', ')" }
 }
 # PackageContents.xml: the version filled in, and only the years built (a listed year without files would make that
 # Revit report a missing add-in)

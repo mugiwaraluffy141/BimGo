@@ -179,8 +179,8 @@ namespace BimGo.Scene
             Vector2 size = max - min;
             float cell = MathF.Max(MIN_CELL, MathF.Max(size.X, size.Y) / (MAX_SIDE - 2));
             min -= new Vector2(cell);
-            int width = Math.Clamp((int)MathF.Ceiling(size.X / cell) + 2, 1, MAX_SIDE);
-            int height = Math.Clamp((int)MathF.Ceiling(size.Y / cell) + 2, 1, MAX_SIDE);
+            int width = BimGo.NumericCompat.Clamp((int)MathF.Ceiling(size.X / cell) + 2, 1, MAX_SIDE);
+            int height = BimGo.NumericCompat.Clamp((int)MathF.Ceiling(size.Y / cell) + 2, 1, MAX_SIDE);
 
             var field = new GrassField
             {
@@ -193,7 +193,7 @@ namespace BimGo.Scene
                 Colours = colours ?? Array.Empty<Vector3>(),
                 GrassTriangles = grass.Count
             };
-            Array.Fill(field.Heights, float.MinValue);
+            BimGo.NumericCompat.Fill(field.Heights, float.MinValue);
 
             // Grass: the highest grass surface per cell
             int n = 0;

@@ -63,7 +63,7 @@ namespace BimGo.Format
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(value, BimGoFormat.JSON_INDENTED));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 ModelFolders.MirrorAfterWrite(path);
                 return true;
             }

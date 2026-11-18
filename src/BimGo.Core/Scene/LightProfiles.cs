@@ -87,13 +87,13 @@ namespace BimGo.Scene
         {
             float[] a = TiltAngles, f = TiltFactors;
             if (a == null || f == null || a.Length == 0 || a.Length != f.Length) { return 1f; }
-            if (!float.IsFinite(degrees)) { return 1f; }
+            if (!BimGo.NumericCompat.IsFinite(degrees)) { return 1f; }
             if (degrees <= a[0]) { return f[0]; }
             if (degrees >= a[^1]) { return f[^1]; }
             int i = 0;
             while (i < a.Length - 2 && a[i + 1] < degrees) { i++; }
             float t = (degrees - a[i]) / MathF.Max(a[i + 1] - a[i], 1e-6f);
-            return f[i] + (f[i + 1] - f[i]) * Math.Clamp(t, 0f, 1f);
+            return f[i] + (f[i + 1] - f[i]) * BimGo.NumericCompat.Clamp(t, 0f, 1f);
         }
 
         #endregion
@@ -109,7 +109,7 @@ namespace BimGo.Scene
 
         internal static float SampleTable(byte[] table, float gammaDegrees, float cDegrees)
         {
-            float gv = Math.Clamp(gammaDegrees, 0f, 180f) / GAMMA_STEP;
+            float gv = BimGo.NumericCompat.Clamp(gammaDegrees, 0f, 180f) / GAMMA_STEP;
             int v0 = Math.Min((int)gv, VERTICAL - 2);
             float fv = gv - v0;
             float c = cDegrees % 360f;
@@ -141,7 +141,7 @@ namespace BimGo.Scene
                 for (int h = 0; h < HORIZONTAL; h++)
                 {
                     float value = MathF.Max(0f, intensity(v * GAMMA_STEP, h * C_STEP));
-                    if (!float.IsFinite(value)) { value = 0f; }
+                    if (!BimGo.NumericCompat.IsFinite(value)) { value = 0f; }
                     raw[v * HORIZONTAL + h] = value;
                     peak = MathF.Max(peak, value);
                 }
@@ -150,11 +150,11 @@ namespace BimGo.Scene
             if (peak <= 0f)
             {
                 // Nothing at all: an even light
-                Array.Fill(table, (byte)255);
+                BimGo.NumericCompat.Fill(table, (byte)255);
             }
             else
             {
-                for (int i = 0; i < TABLE_SIZE; i++) { table[i] = (byte)Math.Clamp((int)MathF.Round(raw[i] / peak * 255f), 0, 255); }
+                for (int i = 0; i < TABLE_SIZE; i++) { table[i] = (byte)BimGo.NumericCompat.Clamp((int)MathF.Round(raw[i] / peak * 255f), 0, 255); }
             }
             float integral = Integrate(table);
             return new LightProfile
@@ -310,7 +310,7 @@ namespace BimGo.Scene
                     line++;
                     break;
                 }
-                if (l.StartsWith('['))
+                if (l.StartsWith("[", StringComparison.Ordinal))
                 {
                     int close = l.IndexOf(']');
                     if (close > 1)
@@ -361,15 +361,15 @@ namespace BimGo.Scene
                 for (int i = 0; i < n; i++)
                 {
                     double factor = Next();
-                    factors[i] = double.IsFinite(factor) && factor >= 0 ? (float)Math.Min(factor, 10.0) : 1f;
+                    factors[i] = BimGo.NumericCompat.IsFinite(factor) && factor >= 0 ? (float)Math.Min(factor, 10.0) : 1f;
                 }
                 for (int i = 0; i < n; i++)
                 {
-                    if (!float.IsFinite(angles[i]) || (i > 0 && !(angles[i] > angles[i - 1]))) { usable = false; }
+                    if (!BimGo.NumericCompat.IsFinite(angles[i]) || (i > 0 && !(angles[i] > angles[i - 1]))) { usable = false; }
                 }
                 if (usable)
                 {
-                    data.TiltGeometry = double.IsFinite(geometry) ? (int)geometry : 0;
+                    data.TiltGeometry = BimGo.NumericCompat.IsFinite(geometry) ? (int)geometry : 0;
                     data.TiltAngles = angles;
                     data.TiltFactors = factors;
                 }
@@ -389,7 +389,7 @@ namespace BimGo.Scene
             }
             data.Lamps = (int)Math.Max(1, lamps);
             data.LumensPerLamp = (float)lumens;
-            data.Multiplier = multiplier > 0 && double.IsFinite(multiplier) ? (float)multiplier : 1f;
+            data.Multiplier = multiplier > 0 && BimGo.NumericCompat.IsFinite(multiplier) ? (float)multiplier : 1f;
             data.PhotometricType = (int)type;
             if (data.PhotometricType != 1)
             {
@@ -416,7 +416,7 @@ namespace BimGo.Scene
                 for (int i = 0; i < v; i++)
                 {
                     double cd = Next() * data.Multiplier;
-                    data.Values[j][i] = double.IsFinite(cd) && cd > 0 ? (float)cd : 0f;
+                    data.Values[j][i] = BimGo.NumericCompat.IsFinite(cd) && cd > 0 ? (float)cd : 0f;
                 }
             }
             if (!Increasing(data.Vertical) || !Increasing(data.Horizontal) || data.Vertical[0] < -0.01f || data.Vertical[^1] > 180.01f
@@ -478,10 +478,10 @@ namespace BimGo.Scene
             {
                 float span = first + 360f - last;
                 if (span < 1e-3f) { return Along(Values[^1], g); }
-                float tw = Math.Clamp((c - last) / span, 0f, 1f);
+                float tw = BimGo.NumericCompat.Clamp((c - last) / span, 0f, 1f);
                 return Lerp(Along(Values[^1], g), Along(Values[0], g), tw);
             }
-            float t = Math.Clamp((c - Horizontal[j]) / (Horizontal[j + 1] - Horizontal[j]), 0f, 1f);
+            float t = BimGo.NumericCompat.Clamp((c - Horizontal[j]) / (Horizontal[j + 1] - Horizontal[j]), 0f, 1f);
             return Lerp(Along(Values[j], g), Along(Values[j + 1], g), t);
         }
 
@@ -492,7 +492,7 @@ namespace BimGo.Scene
             int i = 0;
             while (i < Vertical.Length - 2 && Vertical[i + 1] < g) { i++; }
             float t = (g - Vertical[i]) / (Vertical[i + 1] - Vertical[i]);
-            return Lerp(plane[i], plane[i + 1], Math.Clamp(t, 0f, 1f));
+            return Lerp(plane[i], plane[i + 1], BimGo.NumericCompat.Clamp(t, 0f, 1f));
         }
 
         private static float Lerp(float a, float b, float t) => a + (b - a) * t;
@@ -552,8 +552,9 @@ namespace BimGo.Scene
         public static string KeyOf(string text)
         {
             string normalised = (text ?? string.Empty).Replace("\r\n", "\n");
-            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalised));
-            return FILE_PREFIX + Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
+            byte[] hash;
+            using (var sha = SHA256.Create()) { hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalised)); }
+            return FILE_PREFIX + BitConverter.ToString(hash, 0, 8).Replace("-", "").ToLowerInvariant();
         }
 
         /// <summary>The hash part of a file key (null if it isn't one).</summary>
@@ -642,10 +643,10 @@ namespace BimGo.Scene
         /// <returns>The key, or null when the angles aren't usable.</returns>
         public static string SpotKey(double beamDegrees, double fieldDegrees)
         {
-            if (!double.IsFinite(beamDegrees) || !double.IsFinite(fieldDegrees) || fieldDegrees <= 0) { return null; }
-            int field = (int)Math.Clamp(Math.Round(fieldDegrees), 1, 179);
-            int beam = (int)Math.Clamp(Math.Round(beamDegrees), 1, field);
-            return string.Create(CultureInfo.InvariantCulture, $"{SPOT_PREFIX}{beam}:{field}");
+            if (!BimGo.NumericCompat.IsFinite(beamDegrees) || !BimGo.NumericCompat.IsFinite(fieldDegrees) || fieldDegrees <= 0) { return null; }
+            int field = (int)BimGo.NumericCompat.Clamp(Math.Round(fieldDegrees), 1, 179);
+            int beam = (int)BimGo.NumericCompat.Clamp(Math.Round(beamDegrees), 1, field);
+            return FormattableString.Invariant($"{SPOT_PREFIX}{beam}:{field}");
         }
 
         /// <summary>True when a key is a generated profile this version can make.</summary>
@@ -679,8 +680,8 @@ namespace BimGo.Scene
             if (!TryParseSpot(key, out int beam, out int field)) { return null; }
             float inner = beam * 0.5f, outer = MathF.Max(field * 0.5f, inner + 2f);
             string name = beam == field
-                ? string.Create(CultureInfo.InvariantCulture, $"Revit spot ({beam}°)")
-                : string.Create(CultureInfo.InvariantCulture, $"Revit spot ({beam}° beam, {field}° field)");
+                ? FormattableString.Invariant($"Revit spot ({beam}°)")
+                : FormattableString.Invariant($"Revit spot ({beam}° beam, {field}° field)");
             return LightProfile.FromFunction(key, name, (g, c) =>
             {
                 if (g <= inner) { return 1f; }
@@ -692,7 +693,7 @@ namespace BimGo.Scene
 
         private static float Rad(float degrees) => degrees * MathF.PI / 180f;
         private static float Down(float g, float power) => g < 90f ? MathF.Pow(MathF.Cos(Rad(g)), power) : 0f;
-        private static float Fade(float g, float end) => Math.Clamp((end - g) / 10f, 0f, 1f);
+        private static float Fade(float g, float end) => BimGo.NumericCompat.Clamp((end - g) / 10f, 0f, 1f);
 
         #endregion
 
@@ -712,16 +713,16 @@ namespace BimGo.Scene
         /// <param name="across">C 0°, world (any length; projected across the aim).</param>
         public static float Encode(int slot, Vector3 aim, Vector3 across)
         {
-            slot = Math.Clamp(slot, 0, 31);
-            if (!(aim.LengthSquared() > 1e-10f) || !float.IsFinite(aim.X + aim.Y + aim.Z)) { aim = -Vector3.UnitZ; }
+            slot = BimGo.NumericCompat.Clamp(slot, 0, 31);
+            if (!(aim.LengthSquared() > 1e-10f) || !BimGo.NumericCompat.IsFinite(aim.X + aim.Y + aim.Z)) { aim = -Vector3.UnitZ; }
             aim = Vector3.Normalize(aim);
             Vector2 o = OctEncode(aim);
-            int u = Math.Clamp((int)MathF.Round((o.X * 0.5f + 0.5f) * 63f), 0, 63);
-            int v = Math.Clamp((int)MathF.Round((o.Y * 0.5f + 0.5f) * 63f), 0, 63);
+            int u = BimGo.NumericCompat.Clamp((int)MathF.Round((o.X * 0.5f + 0.5f) * 63f), 0, 63);
+            int v = BimGo.NumericCompat.Clamp((int)MathF.Round((o.Y * 0.5f + 0.5f) * 63f), 0, 63);
             Vector3 n = OctDecode(new Vector2(u / 63f * 2f - 1f, v / 63f * 2f - 1f));
             Frame(n, out Vector3 x0, out Vector3 y0);
             float turn = MathF.Atan2(Vector3.Dot(across, y0), Vector3.Dot(across, x0));
-            if (!float.IsFinite(turn)) { turn = 0f; }
+            if (!BimGo.NumericCompat.IsFinite(turn)) { turn = 0f; }
             if (turn < 0f) { turn += 2f * MathF.PI; }
             int t = (int)MathF.Round(turn / (2f * MathF.PI) * 128f) & 127;
             int code = (slot << 19) | (u << 13) | (v << 7) | t;
@@ -754,7 +755,7 @@ namespace BimGo.Scene
         {
             Vector3 d = Vector3.Normalize(direction);
             Vector3 c90 = Vector3.Cross(across, aim);
-            float gamma = MathF.Acos(Math.Clamp(Vector3.Dot(d, aim), -1f, 1f)) * 180f / MathF.PI;
+            float gamma = MathF.Acos(BimGo.NumericCompat.Clamp(Vector3.Dot(d, aim), -1f, 1f)) * 180f / MathF.PI;
             float c = MathF.Atan2(Vector3.Dot(d, c90), Vector3.Dot(d, across)) * 180f / MathF.PI;
             return (gamma, c < 0f ? c + 360f : c);
         }

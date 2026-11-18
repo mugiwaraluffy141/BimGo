@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Visual = Autodesk.Revit.DB.Visual;
 
 // The class belongs to the Extraction namespace
@@ -315,7 +315,7 @@ namespace BimGo.Extraction
             info.Strength = WATER_STRENGTH;
             info.Roughness = WATER_ROUGHNESS;
             info.Mapped = true;
-            if (FindDouble(asset, "water_bump_amount") is double bump) { info.WaterBump = (float)Math.Clamp(bump, 0.0, 1.0); }
+            if (FindDouble(asset, "water_bump_amount") is double bump) { info.WaterBump = (float)NumericCompat.Clamp(bump, 0.0, 1.0); }
             info.WaterType = EnumText(asset, "water_type") ?? string.Empty;
             info.Source = "Water schema" + (info.WaterType.Length > 0 ? $", water_type={info.WaterType}" : "");
             return info;
@@ -338,8 +338,8 @@ namespace BimGo.Extraction
             }
             else { source += ", default 0.06"; }
 
-            info.Strength = (float)Math.Clamp(value ?? 0.06, 0.02, 0.6);
-            info.Roughness = (float)Math.Clamp(FindDouble(asset, "surface_roughness") ?? 0.0, 0.0, 1.0);
+            info.Strength = (float)NumericCompat.Clamp(value ?? 0.06, 0.02, 0.6);
+            info.Roughness = (float)NumericCompat.Clamp(FindDouble(asset, "surface_roughness") ?? 0.0, 0.0, 1.0);
             info.Source = source;
             return info;
         }
@@ -347,7 +347,7 @@ namespace BimGo.Extraction
         private static ReflectivityInfo Prism(Visual.Asset asset, string schema, ReflectivityInfo info, Func<Visual.Asset, double?> mapAverage)
         {
             string roughName = FirstPresent(asset, "surface_roughness", "layered_roughness") ?? FirstEndingWith(asset, "_roughness");
-            float roughness = (float)Math.Clamp((roughName == null ? null : FindDouble(asset, roughName)) ?? 0.5, 0.0, 1.0);
+            float roughness = (float)NumericCompat.Clamp((roughName == null ? null : FindDouble(asset, roughName)) ?? 0.5, 0.0, 1.0);
             string roughText = roughName == null ? "no roughness (0.5)" : $"{roughName} {roughness:0.##}";
             info.MapConnected = roughName != null && HasConnectedAsset(asset, roughName);
             if (info.MapConnected)
@@ -358,7 +358,7 @@ namespace BimGo.Extraction
                 if (average is double value)
                 {
                     if (FindBool(bitmap, "unifiedbitmap_Invert") == true) { value = 1.0 - value; }
-                    roughness = (float)Math.Clamp(value, 0.0, 1.0);
+                    roughness = (float)NumericCompat.Clamp(value, 0.0, 1.0);
                     roughText = $"{roughName} map average {roughness:0.##}";
                 }
                 else
@@ -375,12 +375,12 @@ namespace BimGo.Extraction
                 // A metal's F0 is its colour; brighter metals reflect more, rougher ones a little less
                 double f0 = MaxComponent(asset, "metal_f0") ?? 0.8;
                 info.Metallic = true;
-                info.Strength = (float)Math.Clamp(f0 * (1.0 - 0.5 * roughness), 0.0, 1.0);
+                info.Strength = (float)NumericCompat.Clamp(f0 * (1.0 - 0.5 * roughness), 0.0, 1.0);
                 info.Source = $"Prism metal, metal_f0 max {f0:0.##}, {roughText}";
             }
             else
             {
-                info.Strength = Math.Clamp(PRISM_DIELECTRIC_MAX * MathF.Pow(1f - roughness, PRISM_CURVE_POWER), 0f, 1f);
+                info.Strength = NumericCompat.Clamp(PRISM_DIELECTRIC_MAX * MathF.Pow(1f - roughness, PRISM_CURVE_POWER), 0f, 1f);
                 info.Source = $"Prism dielectric, {roughText}";
             }
             return info;
@@ -390,8 +390,8 @@ namespace BimGo.Extraction
         {
             double reflect = FindDouble(asset, "generic_reflectivity_at_0deg") ?? 0.0;
             double gloss = FindDouble(asset, "generic_glossiness") ?? 0.0;
-            info.Strength = (float)Math.Clamp(reflect, 0.0, 1.0);
-            info.Roughness = (float)Math.Clamp(1.0 - gloss, 0.0, 1.0);
+            info.Strength = (float)NumericCompat.Clamp(reflect, 0.0, 1.0);
+            info.Roughness = (float)NumericCompat.Clamp(1.0 - gloss, 0.0, 1.0);
             info.Metallic = FindBool(asset, "generic_is_metal") == true;
             info.MapConnected = HasConnectedAsset(asset, "generic_reflectivity_at_0deg") || HasConnectedAsset(asset, "generic_glossiness");
             info.Mapped = true;
@@ -426,8 +426,8 @@ namespace BimGo.Extraction
                     source += $", concrete_sealant={sealant}";
                 }
 
-                info.Strength = Math.Clamp(strength, 0f, 1f);
-                info.Roughness = Math.Clamp(roughness, 0f, 1f);
+                info.Strength = NumericCompat.Clamp(strength, 0f, 1f);
+                info.Roughness = NumericCompat.Clamp(roughness, 0f, 1f);
                 info.Metallic = property.StartsWith("metal_", StringComparison.OrdinalIgnoreCase)
                     || (property.StartsWith("metallicpaint", StringComparison.OrdinalIgnoreCase) && member == "chrome")
                     || schema.Equals("MetalSchema", StringComparison.OrdinalIgnoreCase);
@@ -449,7 +449,7 @@ namespace BimGo.Extraction
             catch { return false; }
             if (shininess <= DEFAULT_SHININESS) { return false; }
 
-            float t = Math.Clamp((shininess - DEFAULT_SHININESS) / (128f - DEFAULT_SHININESS), 0f, 1f);
+            float t = NumericCompat.Clamp((shininess - DEFAULT_SHININESS) / (128f - DEFAULT_SHININESS), 0f, 1f);
             info.Strength = 0.25f + 0.6f * t;
             info.Roughness = 1f - shininess / 128f;
             info.Metallic = schema.StartsWith("Metal", StringComparison.OrdinalIgnoreCase) && !schema.StartsWith("MetallicPaint", StringComparison.OrdinalIgnoreCase);
@@ -463,7 +463,7 @@ namespace BimGo.Extraction
         #region Tiers
 
         /// <summary>The strength rounded to the nearest quarter: 0 (&lt; 12.5 %), 1 (25 %), 2 (50 %), 3 (75 % +, from 62.5 %).</summary>
-        public static int TierOf(float strength) => Math.Clamp((int)Math.Floor(strength * 4f + 0.5f), 0, 3);
+        public static int TierOf(float strength) => NumericCompat.Clamp((int)Math.Floor(strength * 4f + 0.5f), 0, 3);
 
         /// <summary>A tier as text: "0", "25 %", "50 %", "75 % +".</summary>
         public static string TierText(int tier) => tier switch { 1 => "25 %", 2 => "50 %", 3 => "75 % +", _ => "0" };

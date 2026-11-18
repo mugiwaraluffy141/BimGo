@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 // The class belongs to the Scene namespace
 namespace BimGo.Scene
@@ -29,7 +29,7 @@ namespace BimGo.Scene
         public bool Curved { get; init; }
 
         /// <summary>True when the vertical extent is known (both ends finite, top at or above bottom).</summary>
-        public bool HasExtent => float.IsFinite(Bottom) && float.IsFinite(Top) && Top >= Bottom;
+        public bool HasExtent => BimGo.NumericCompat.IsFinite(Bottom) && BimGo.NumericCompat.IsFinite(Top) && Top >= Bottom;
 
         /// <summary>True when the line can be drawn (two or more points).</summary>
         public bool IsValid => Points != null && Points.Length >= 2;
@@ -119,7 +119,7 @@ namespace BimGo.Scene
         {
             into.Clear();
             if (levels == null || levels.Count == 0 || mode == GridLevelMode.Off) { return; }
-            int here = Math.Clamp(underfoot, 0, levels.Count - 1);
+            int here = BimGo.NumericCompat.Clamp(underfoot, 0, levels.Count - 1);
             bool anyStorey = false;
             for (int i = 0; i < levels.Count && !anyStorey; i++) { anyStorey = levels[i].IsStorey; }
             bool filter = storeysOnly && anyStorey;

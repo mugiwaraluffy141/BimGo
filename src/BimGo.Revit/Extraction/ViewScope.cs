@@ -64,10 +64,10 @@ namespace BimGo.Extraction
 
             if (ShowsModel(active))
             {
-                LAST_VIEW[key] = active.Id.Value;
+                LAST_VIEW[key] = active.Id.Ext_Value();
                 return active;
             }
-            if (LAST_VIEW.TryGetValue(key, out long id) && doc.GetElement(new ElementId(id)) is DB.View remembered && ShowsModel(remembered))
+            if (LAST_VIEW.TryGetValue(key, out long id) && doc.GetElement(ElementId_Ext.Ext_FromValue(id)) is DB.View remembered && ShowsModel(remembered))
             {
                 return remembered;
             }
@@ -97,7 +97,7 @@ namespace BimGo.Extraction
         {
             try
             {
-                return new FilteredElementCollector(hostDoc, view.Id, new ElementId(linkInstanceId)).WhereElementIsNotElementType();
+                return new FilteredElementCollector(hostDoc, view.Id, ElementId_Ext.Ext_FromValue(linkInstanceId)).WhereElementIsNotElementType();
             }
             catch (Exception ex)
             {
@@ -114,7 +114,7 @@ namespace BimGo.Extraction
             try
             {
                 if (view.GetCategoryHidden(new ElementId(BuiltInCategory.OST_RvtLinks))) { return true; }
-                return view.Document.GetElement(new ElementId(linkInstanceId)) is Element instance && instance.IsHidden(view);
+                return view.Document.GetElement(ElementId_Ext.Ext_FromValue(linkInstanceId)) is Element instance && instance.IsHidden(view);
             }
             catch
             {
@@ -144,7 +144,7 @@ namespace BimGo.Extraction
                 Category category = element.Category;
                 if (category == null || category.CategoryType != CategoryType.Model) { return null; }
 
-                long id = category.Id.Value;
+                long id = category.Id.Ext_Value();
                 if (EXCLUDED.Contains(id)) { return null; }
 
                 // Component stairs: runs, landings and supports are listed on their own

@@ -144,17 +144,17 @@ namespace BimGo.Scene
             int seconds, int fps, out string problem)
         {
             problem = null;
-            year = Math.Clamp(year, 1, 9998);
+            year = BimGo.NumericCompat.Clamp(year, 1, 9998);
             SunTime clean = (date ?? new SunTime()).Clamped(year);
-            fps = Math.Clamp(fps, 1, 240);
-            seconds = Math.Clamp(seconds, MIN_SECONDS, MAX_SECONDS);
+            fps = BimGo.NumericCompat.Clamp(fps, 1, 240);
+            seconds = BimGo.NumericCompat.Clamp(seconds, MIN_SECONDS, MAX_SECONDS);
             int frames = Math.Max(2, seconds * fps);
 
             double start, end, sunrise = double.NaN, sunset = double.NaN;
             if (custom)
             {
-                start = Math.Clamp(fromMinutes, 0, 1439);
-                end = Math.Clamp(toMinutes, 0, 1439);
+                start = BimGo.NumericCompat.Clamp(fromMinutes, 0, 1439);
+                end = BimGo.NumericCompat.Clamp(toMinutes, 0, 1439);
                 if (end <= start) { end += 1440.0; } // overnight
             }
             else
@@ -167,7 +167,7 @@ namespace BimGo.Scene
                         : "The sun doesn't rise on this date here (polar night): pick Custom for the range";
                     return null;
                 }
-                int margin = Math.Clamp(marginMinutes, 0, MAX_MARGIN);
+                int margin = BimGo.NumericCompat.Clamp(marginMinutes, 0, MAX_MARGIN);
                 start = Math.Max(0.0, sunrise - margin);
                 end = Math.Min(1439.99, sunset + margin);
             }
@@ -191,7 +191,7 @@ namespace BimGo.Scene
         /// <summary>A frame's clock time from the start date's midnight (fractional; frames outside the clip are clamped).</summary>
         public double MinutesAt(int frame)
         {
-            frame = Math.Clamp(frame, 0, Frames - 1);
+            frame = BimGo.NumericCompat.Clamp(frame, 0, Frames - 1);
             return StartMinutes + (EndMinutes - StartMinutes) * frame / (Frames - 1);
         }
 
@@ -207,14 +207,14 @@ namespace BimGo.Scene
             if (minutes >= 1440.0)
             {
                 minutes -= 1440.0;
-                DateTime next = new DateTime(Year, Month, Math.Clamp(Day, 1, DateTime.DaysInMonth(Year, Month))).AddDays(1);
+                DateTime next = new DateTime(Year, Month, BimGo.NumericCompat.Clamp(Day, 1, DateTime.DaysInMonth(Year, Month))).AddDays(1);
                 month = next.Month;
                 day = next.Day;
             }
-            minutes = Math.Clamp(minutes, 0.0, 1439.99);
+            minutes = BimGo.NumericCompat.Clamp(minutes, 0.0, 1439.99);
             into.Month = month;
             into.Day = day;
-            into.Minutes = Math.Clamp((int)minutes, 0, 1439);
+            into.Minutes = BimGo.NumericCompat.Clamp((int)minutes, 0, 1439);
             into.DaylightSaving = DaylightSaving;
             return minutes;
         }
@@ -234,7 +234,7 @@ namespace BimGo.Scene
         public FixedViewTimeline(TourStop stop, float seconds)
         {
             _stop = stop;
-            Duration = float.IsFinite(seconds) ? MathF.Max(0f, seconds) : 0f;
+            Duration = BimGo.NumericCompat.IsFinite(seconds) ? MathF.Max(0f, seconds) : 0f;
         }
 
         /// <inheritdoc/>
@@ -373,7 +373,7 @@ namespace BimGo.Scene
         /// <param name="viewNumber">1-based.</param>
         /// <param name="viewName">The view's name (already safe for a file name).</param>
         public static string ShotName(int viewNumber, string viewName, int month, int day, int minutes) =>
-            $"{viewNumber:00} {viewName} {day} {MONTHS[Math.Clamp(month, 1, 12) - 1]} {Clock(minutes, colon: false)}";
+            $"{viewNumber:00} {viewName} {day} {MONTHS[BimGo.NumericCompat.Clamp(month, 1, 12) - 1]} {Clock(minutes, colon: false)}";
 
         /// <summary>The CSV index's header line.</summary>
         public const string CSV_HEADER = "File,View,Date,Time,Daylight saving,Sun altitude (deg),Sun azimuth (deg from true north)";
@@ -383,7 +383,7 @@ namespace BimGo.Scene
             string.Join(",",
                 Csv(file),
                 Csv(view),
-                Csv($"{day} {MONTHS[Math.Clamp(month, 1, 12) - 1]}"),
+                Csv($"{day} {MONTHS[BimGo.NumericCompat.Clamp(month, 1, 12) - 1]}"),
                 Clock(minutes, colon: true, pad: true),
                 daylightSaving ? "yes" : "no",
                 altitude.ToString("0.0", CultureInfo.InvariantCulture),
@@ -400,7 +400,7 @@ namespace BimGo.Scene
         /// <summary>"9:05" / "09:05" (pad) / "0905" (no colon).</summary>
         public static string Clock(int minutes, bool colon, bool pad = false)
         {
-            minutes = Math.Clamp(minutes, 0, 1439);
+            minutes = BimGo.NumericCompat.Clamp(minutes, 0, 1439);
             int h = minutes / 60, m = minutes % 60;
             string hours = colon && !pad ? h.ToString(CultureInfo.InvariantCulture) : h.ToString("00", CultureInfo.InvariantCulture);
             return hours + (colon ? ":" : string.Empty) + m.ToString("00", CultureInfo.InvariantCulture);
@@ -423,7 +423,7 @@ namespace BimGo.Scene
             if (!int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out month)) { return false; }
             if (parts.Length == 3 && !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out _)) { return false; }
             if (month < 1 || month > 12) { return false; }
-            year = Math.Clamp(year, 1, 9999);
+            year = BimGo.NumericCompat.Clamp(year, 1, 9999);
             return day >= 1 && day <= DateTime.DaysInMonth(year, month);
         }
 

@@ -98,7 +98,7 @@ namespace BimGo.Game
             _fixtureElement = -1;
             _fixtureDynamicId = 0;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive && !CursorModeOpen) { _window.SetCaptured(true); }
+            _window.SetCaptured(false);
         }
 
         /// <summary>True while the dock has the keys (walking).</summary>

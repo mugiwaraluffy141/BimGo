@@ -83,11 +83,11 @@ namespace BimGo.Game.Guns
                 Session.Sound.Play(SoundId.UiClick);
                 if (Session.EditsGoToRevit)
                 {
-                    Session.Toast(_deleteMode ? "Demolish gun: DELETE mode (removes elements from the Revit model)" : $"Demolish gun: demolish in phase {PhaseLabel}");
+                    Session.Toast(_deleteMode ? "Demolish: DELETE mode (removes elements from the Revit model)" : $"Demolish: demolish in phase {PhaseLabel}");
                 }
                 else
                 {
-                    Session.Toast(_deleteMode ? "Demolish gun: DELETE mode (recorded in the file)" : $"Demolish gun: demolish in phase {PhaseLabel} (recorded in the file)");
+                    Session.Toast(_deleteMode ? "Demolish: DELETE mode (recorded in the file)" : $"Demolish: demolish in phase {PhaseLabel} (recorded in the file)");
                 }
             }
             return true;

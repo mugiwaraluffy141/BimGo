@@ -177,7 +177,7 @@ namespace BimGo.Game
             if (size == PanelSize.Side)
             {
                 // The model shows on the left (lightly dimmed)
-                _ui.Rect(0, 0, width, height, Rgba.Hex(0x101318, 0.25f));
+                _ui.Rect(0, 0, width, height, Rgba.WithAlpha(UiTheme.MENU_BACKGROUND, 0.25f));
                 _ui.Panel(x, y, w, h, Rgba.Hex(0x181C22, 0.97f), UiTheme.CARD_BORDER);
             }
             else
@@ -404,7 +404,6 @@ namespace BimGo.Game
             float h = MathF.Round(MathF.Min(room, chrome + content));
 
             _ui.Panel(x, top, width, h, UiTheme.PANEL_STRONG, border);
-            RegisterFocusArea(x, top, width, h);
 
             var d = new DockFrame
             {
@@ -491,19 +490,20 @@ namespace BimGo.Game
 
         /// <summary>True while one of the panels that replace the pause menu is open.</summary>
         private bool AnyBigPanelOpen => IsCommentsPanelOpen || IsBookmarksPanelOpen || IsTexturesPanelOpen || IsLibraryPanelOpen || IsRoomsPanelOpen
-            || IsClashesPanelOpen || IsColourProfilesPanelOpen || IsGeometryPanelOpen || IsControlsPanelOpen || IsPushPanelOpen || IsMediaPanelOpen || IsEntouragePanelOpen || IsMarkupOpen;
+            || IsClashesPanelOpen || IsColourProfilesPanelOpen || IsGeometryPanelOpen || IsControlsPanelOpen || IsPushPanelOpen || IsMediaPanelOpen || IsEntouragePanelOpen || IsMarkupOpen || _menuPreview;
 
         /// <summary>
         /// One level back (Esc, the gamepad's B, ← BACK): an open dropdown or confirm, then the markup editor (Y-B: it
-        /// sits over the comment it came from), then the panel's sub-view, then the panel (to the pause menu, or to clash mode for the clash panel opened there).
+        /// sits over the comment it came from), then the panel's sub-view, then the panel.
         /// </summary>
-        /// <returns>True when something closed (false: nothing open, so Esc resumes).</returns>
+        /// <returns>True when something closed.</returns>
         private bool PanelBack()
         {
-            if (!_paused) { return false; }
             if (AnyBigPanelOpen && CloseOverlay()) { return true; }
-            return CancelMarkupPanel() || CloseMenuPreview() || ClosePush() || CloseComments() || CloseBookmarks() || CloseTextures() || CloseLibrary() || CloseRooms()
+            bool closed = CancelMarkupPanel() || CloseMenuPreview() || ClosePush() || CloseComments() || CloseBookmarks() || CloseTextures() || CloseLibrary() || CloseRooms()
                 || CloseClashes() || CloseColourProfiles() || CloseGeometry() || CloseControls() || CloseMedia() || CloseEntourage();
+            if (closed && !AnyBigPanelOpen && _paused) { SetPaused(false); }
+            return closed;
         }
 
         /// <summary>
@@ -540,8 +540,8 @@ namespace BimGo.Game
             uint text;
             if (style == ShellStyle.Primary)
             {
-                _ui.Rect(x, y, w, h, Fade(hover ? UiTheme.FOCUS : UiTheme.ACCENT, alpha));
-                text = Rgba.Hex(0x06232A);
+                _ui.RoundedRect(x, y, w, h, S(UiTheme.ACTION_RADIUS), Fade(hover ? UiTheme.ACTION_HOVER : UiTheme.ACCENT, alpha));
+                text = UiTheme.ACTION_INK;
             }
             else
             {
@@ -600,7 +600,7 @@ namespace BimGo.Game
             contentW = w - S(UiTheme.SCROLL_GUTTER);
 
             float max = region.MaxScroll;
-            if (wheel && input.Wheel != 0 && Hover(input, x, y, w, h, focus: false))
+            if (wheel && input.Wheel != 0 && Hover(input, x, y, w, h))
             {
                 region.Target -= input.Wheel * S(UiTheme.WHEEL_STEP);
                 region.PinEnd = false;
@@ -619,7 +619,6 @@ namespace BimGo.Game
 
             _ui.PushClip(x, y, w, h);
             region.Top = MathF.Round(y - region.Offset);
-            _focusRegion = region; // P-A2: gamepad focus targets drawn now belong to this list
             return region.Top;
         }
 
@@ -633,7 +632,6 @@ namespace BimGo.Game
         private void EndScroll(ScrollRegion region, InputState input, float contentBottom)
         {
             _ui.PopClip();
-            _focusRegion = null;
             region.Content = MathF.Max(0f, contentBottom - region.Top);
             if (region.PinEnd)
             {
@@ -655,7 +653,7 @@ namespace BimGo.Game
             float thumbY = trackY + (trackH - thumbH) * (region.Offset / max);
 
             // A wider hit area than the bar itself
-            bool overTrack = Hover(input, trackX - S(5), trackY, barW + S(9), trackH, focus: false);
+            bool overTrack = Hover(input, trackX - S(5), trackY, barW + S(9), trackH);
             bool overThumb = overTrack && input.MousePosition.Y >= thumbY && input.MousePosition.Y < thumbY + thumbH;
             if (overTrack && input.LeftPressed)
             {

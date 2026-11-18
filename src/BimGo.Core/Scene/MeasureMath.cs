@@ -31,7 +31,7 @@ namespace BimGo.Scene
             float denominator = Vector3.Dot(direction, planeNormal);
             if (MathF.Abs(denominator) < 1e-6f) { return false; }
             float t = Vector3.Dot(planePoint - origin, planeNormal) / denominator;
-            if (t < 0f || !float.IsFinite(t)) { return false; }
+            if (t < 0f || !BimGo.NumericCompat.IsFinite(t)) { return false; }
             point = origin + direction * t;
             return true;
         }
@@ -85,7 +85,7 @@ namespace BimGo.Scene
             Vector3 p = a - vertex, q = b - vertex;
             double lp = p.Length(), lq = q.Length();
             if (lp < 1e-6 || lq < 1e-6) { return double.NaN; }
-            double cos = Math.Clamp(Vector3.Dot(p, q) / (lp * lq), -1.0, 1.0);
+            double cos = BimGo.NumericCompat.Clamp(Vector3.Dot(p, q) / (lp * lq), -1.0, 1.0);
             return Math.Acos(cos) * 180.0 / Math.PI;
         }
 

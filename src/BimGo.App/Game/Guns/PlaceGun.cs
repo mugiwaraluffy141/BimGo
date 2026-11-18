@@ -76,8 +76,8 @@ namespace BimGo.Game.Guns
             SetEntourageMode(!EntourageMode);
             Session.Sound.Play(SoundId.UiClick);
             Session.Toast(EntourageMode
-                ? $"Place gun: ENTOURAGE ({Session.EntourageTypeName}; {Platform.Hotkeys.Label(InputAction.GunPrimary)} away from billboards picks another)"
-                : Session.HasLibrary ? "Place gun: FAMILIES from the family library" : "Place gun: FAMILIES (this snapshot has no family library)", 2.6f);
+                ? $"Place: ENTOURAGE ({Session.EntourageTypeName}; click away from billboards to pick another)"
+                : Session.HasLibrary ? "Place: FAMILIES from the family library" : "Place: FAMILIES (this snapshot has no family library)", 2.6f);
             return true;
         }
         /// <summary>

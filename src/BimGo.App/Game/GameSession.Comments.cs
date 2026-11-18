@@ -266,7 +266,7 @@ namespace BimGo.Game
             if (total == 0)
             {
                 _ui.TextWrapped(f.Body, x, y + S(8), w, Comments.Comments.Count == 0
-                    ? "No comments yet. Use the Comment gun (4): LMB places a marker and opens a text box."
+                    ? "No comments yet. Select Comment (4), then click the model to place a marker and open a text box."
                     : "No comments match. Use ← → for another level, or pick All.", UiTheme.TEXT_MUTED, maxLines: 2);
                 return;
             }

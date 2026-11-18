@@ -160,7 +160,6 @@ namespace BimGo.Game
         private void DrawOverlays(FontAtlas f, InputState input, float bx, float by, float bw, float bh)
         {
             // Round Y-B: the controls drawn now are overlay focus targets (the gamepad's ring stays among them)
-            _focusInOverlay = true;
             _dropdownSelectedRect = default;
             try
             {
@@ -169,7 +168,6 @@ namespace BimGo.Game
             }
             finally
             {
-                _focusInOverlay = false;
             }
             _overlayClick = false;
             _overlayWheel = 0;
@@ -234,7 +232,7 @@ namespace BimGo.Game
                 d.Fresh = false;
                 d.Scroll = d.Selected >= 0 ? d.Selected - visible / 2 : 0;
             }
-            bool overList = Hover(input, lx, ly, listW, listH, focus: false);
+            bool overList = Hover(input, lx, ly, listW, listH);
             if (_overlayWheel != 0 && overList) { d.Scroll -= _overlayWheel * (count > 30 ? 3 : 1); }
             d.Scroll = Math.Clamp(d.Scroll, 0, maxScroll);
 
@@ -337,7 +335,7 @@ namespace BimGo.Game
                 _confirm = null;
                 c.AltConfirmed?.Invoke(c.Skip);
             }
-            else if (cancel || (_overlayClick && !Hover(input, x, y, w, h, focus: false)))
+            else if (cancel || (_overlayClick && !Hover(input, x, y, w, h)))
             {
                 _confirm = null;
             }

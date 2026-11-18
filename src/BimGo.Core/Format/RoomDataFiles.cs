@@ -81,7 +81,7 @@ namespace BimGo.Format
                     if ((uint)n >= (uint)_dto.Names.Length || (uint)v >= (uint)_dto.Values.Length) { continue; }
                     string name = _dto.Names[n];
                     if (string.IsNullOrWhiteSpace(name) || !seen.Add(name)) { continue; }
-                    double number = (uint)v < (uint)_dto.Numbers.Length && _dto.Numbers[v] is double d && double.IsFinite(d) ? d : double.NaN;
+                    double number = (uint)v < (uint)_dto.Numbers.Length && _dto.Numbers[v] is double d && BimGo.NumericCompat.IsFinite(d) ? d : double.NaN;
                     list.Add(new RoomParameter(name, _dto.Values[v], number));
                 }
                 return list.ToArray();

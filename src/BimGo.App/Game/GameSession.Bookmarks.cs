@@ -59,7 +59,7 @@ namespace BimGo.Game
         /// </summary>
         private void StampBookmark(BookmarkRecord record)
         {
-            record.Crouched = _player != null && !_player.Flying && _player.Controller.Crouching;
+            record.Crouched = _player != null && !_player.Flying && (_player.Controller.Crouching || _player.Controller.HoldCrouch);
             record.ColourProfile = ProfileShowing ? _appearance.Active : string.Empty;
         }
 
@@ -228,15 +228,7 @@ namespace BimGo.Game
             BuildBookmarkRows(f, input, frame.Ix, frame.BodyTop, frame.Iw, frame.BodyBottom);
             if (!_bookmarksOpen) { return; } // GO / RENAME left the panel
 
-            int settings = FooterAction("TOUR SETTINGS"); // Round K-A: MEDIA → TOUR
-            int play = FooterAction("PLAY TOUR", ShellStyle.Primary);
-            int pressed = EndPanel(frame, _bookmarksNotice, HINT_BOOKMARKS_KEYS.Text);
-            if (pressed == settings)
-            {
-                CloseBookmarksPanel();
-                OpenMedia(MEDIA_TOUR);
-            }
-            else if (pressed == play) { StartTour(); }
+            EndPanel(frame, _bookmarksNotice, HINT_BOOKMARKS_KEYS.Text);
         }
 
         /// <summary>

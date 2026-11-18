@@ -236,7 +236,7 @@ namespace BimGo.Clashes
             if (a <= TINY)
             {
                 s = 0f;
-                t = Math.Clamp(f / e, 0f, 1f);
+                t = BimGo.NumericCompat.Clamp(f / e, 0f, 1f);
             }
             else
             {
@@ -244,23 +244,23 @@ namespace BimGo.Clashes
                 if (e <= TINY)
                 {
                     t = 0f;
-                    s = Math.Clamp(-c / a, 0f, 1f);
+                    s = BimGo.NumericCompat.Clamp(-c / a, 0f, 1f);
                 }
                 else
                 {
                     float b = Vector3.Dot(d1, d2);
                     float denom = a * e - b * b;
-                    s = denom > TINY ? Math.Clamp((b * f - c * e) / denom, 0f, 1f) : 0f;
+                    s = denom > TINY ? BimGo.NumericCompat.Clamp((b * f - c * e) / denom, 0f, 1f) : 0f;
                     t = (b * s + f) / e;
                     if (t < 0f)
                     {
                         t = 0f;
-                        s = Math.Clamp(-c / a, 0f, 1f);
+                        s = BimGo.NumericCompat.Clamp(-c / a, 0f, 1f);
                     }
                     else if (t > 1f)
                     {
                         t = 1f;
-                        s = Math.Clamp((b - c) / a, 0f, 1f);
+                        s = BimGo.NumericCompat.Clamp((b - c) / a, 0f, 1f);
                     }
                 }
             }

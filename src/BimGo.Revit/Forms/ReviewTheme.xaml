@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="ReviewBackground" Color="#EFF7FC"/>
+    <SolidColorBrush x:Key="ReviewInk" Color="#10283E"/>
+    <SolidColorBrush x:Key="Accent" Color="#1F4E79"/>
+    <SolidColorBrush x:Key="Muted" Color="#48647C"/>
+    <SolidColorBrush x:Key="CardBorder" Color="#AED6F1"/>
+    <SolidColorBrush x:Key="ReviewFieldBorder" Color="#85C1E9"/>
+    <SolidColorBrush x:Key="ReviewTint" Color="#D6EAF8"/>
+    <SolidColorBrush x:Key="ReviewAction" Color="#5DADE2"/>
+    <SolidColorBrush x:Key="ReviewHover" Color="#F5B7B1"/>
+    <SolidColorBrush x:Key="ReviewPressed" Color="#3498DB"/>
+
+    <Style x:Key="ReviewButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource ReviewInk}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Surface" CornerRadius="4" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource ReviewHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="{StaticResource ReviewPressed}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            <Setter TargetName="Surface" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Surface" Property="Background" Value="#F4F4F4"/>
+                            <Setter Property="Foreground" Value="#595959"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

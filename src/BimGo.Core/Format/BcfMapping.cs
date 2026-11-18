@@ -257,14 +257,14 @@ namespace BimGo.Format
         {
             double cy = Math.Cos(view.Yaw), sy = Math.Sin(view.Yaw);
             double cp = Math.Cos(view.Pitch), sp = Math.Sin(view.Pitch);
-            double h = Math.Clamp(horizontalFovDegrees, 30, 150) * Math.PI / 180.0;
+            double h = BimGo.NumericCompat.Clamp(horizontalFovDegrees, 30, 150) * Math.PI / 180.0;
             double vertical = 2.0 * Math.Atan(Math.Tan(h * 0.5) * 9.0 / 16.0) * 180.0 / Math.PI;
             return new BcfViewpoint
             {
                 Position = frame.PointToBcf(view.X, view.Y, view.Z + eyeHeight),
                 Direction = frame.DirectionToBcf(cp * cy, cp * sy, sp),
                 Up = frame.DirectionToBcf(-sp * cy, -sp * sy, cp),
-                FieldOfView = Math.Round(Math.Clamp(vertical, MIN_FOV, MAX_FOV), 3)
+                FieldOfView = Math.Round(BimGo.NumericCompat.Clamp(vertical, MIN_FOV, MAX_FOV), 3)
             };
         }
 
@@ -290,9 +290,9 @@ namespace BimGo.Format
                 Y = Math.Round(y, 4),
                 Z = Math.Round(z - eyeHeight, 4),
                 Yaw = flat < 1e-6 ? 0f : (float)Math.Atan2(dy, dx),
-                Pitch = (float)Math.Clamp(Math.Atan2(dz, flat), -1.5, 1.5)
+                Pitch = (float)BimGo.NumericCompat.Clamp(Math.Atan2(dz, flat), -1.5, 1.5)
             };
-            return double.IsFinite(view.X) && double.IsFinite(view.Y) && double.IsFinite(view.Z);
+            return BimGo.NumericCompat.IsFinite(view.X) && BimGo.NumericCompat.IsFinite(view.Y) && BimGo.NumericCompat.IsFinite(view.Z);
         }
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace BimGo.Format
         /// </summary>
         public static Guid DeterministicGuid(string text)
         {
-            byte[] hash = MD5.HashData(Encoding.UTF8.GetBytes(text ?? string.Empty));
+            byte[] hash = MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(text ?? string.Empty));
             return new Guid(hash);
         }
 

@@ -49,10 +49,10 @@ namespace BimGo.Scene
         public static void Compute(GeoLocation location, int year, int month, int day, double minutes, bool daylightSaving,
             out double altitude, out double azimuth)
         {
-            year = Math.Clamp(year, 1, 9999);
-            month = Math.Clamp(month, 1, 12);
-            day = Math.Clamp(day, 1, DateTime.DaysInMonth(year, month));
-            minutes = Math.Clamp(minutes, 0.0, 1440.0);
+            year = BimGo.NumericCompat.Clamp(year, 1, 9999);
+            month = BimGo.NumericCompat.Clamp(month, 1, 12);
+            day = BimGo.NumericCompat.Clamp(day, 1, DateTime.DaysInMonth(year, month));
+            minutes = BimGo.NumericCompat.Clamp(minutes, 0.0, 1440.0);
             daylightSaving = IsDaylightSaving(location, year, month, day, daylightSaving);
 
             int dayOfYear = new DateTime(year, month, day).DayOfYear;
@@ -75,7 +75,7 @@ namespace BimGo.Scene
 
             double lat = location.Latitude * DEG;
             double sinAlt = Math.Sin(lat) * Math.Sin(decl) + Math.Cos(lat) * Math.Cos(decl) * Math.Cos(hourAngle);
-            sinAlt = Math.Clamp(sinAlt, -1.0, 1.0);
+            sinAlt = BimGo.NumericCompat.Clamp(sinAlt, -1.0, 1.0);
             altitude = Math.Asin(sinAlt);
 
             double cosAlt = Math.Cos(altitude);
@@ -101,9 +101,9 @@ namespace BimGo.Scene
         public static bool IsDaylightSaving(GeoLocation location, int year, int month, int day, bool manual)
         {
             if (!location.AutoDaylightSaving || !TimeZones.TryFind(location.ZoneId, out TimeZoneInfo zone)) { return manual; }
-            year = Math.Clamp(year, 1, 9999);
-            month = Math.Clamp(month, 1, 12);
-            day = Math.Clamp(day, 1, DateTime.DaysInMonth(year, month));
+            year = BimGo.NumericCompat.Clamp(year, 1, 9999);
+            month = BimGo.NumericCompat.Clamp(month, 1, 12);
+            day = BimGo.NumericCompat.Clamp(day, 1, DateTime.DaysInMonth(year, month));
             try { return zone.IsDaylightSavingTime(new DateTime(year, month, day, 12, 0, 0, DateTimeKind.Unspecified)); }
             catch (ArgumentException) { return manual; }
         }
@@ -163,11 +163,11 @@ namespace BimGo.Scene
         /// <param name="known">False when the fallback was used.</param>
         public static GeoLocation LocationOf(SiteInfo site, out bool known)
         {
-            known = site != null && site.HasLocation && double.IsFinite(site.Latitude) && double.IsFinite(site.Longitude)
+            known = site != null && site.HasLocation && BimGo.NumericCompat.IsFinite(site.Latitude) && BimGo.NumericCompat.IsFinite(site.Longitude)
                 && Math.Abs(site.Latitude) <= 90.0 && Math.Abs(site.Longitude) <= 180.0;
             if (!known) { return GeoLocation.Fallback; }
             string name = string.IsNullOrWhiteSpace(site.PlaceName) ? $"{site.Latitude:0.###}°, {site.Longitude:0.###}°" : site.PlaceName.Trim();
-            return new GeoLocation(site.Latitude, site.Longitude, Math.Clamp(site.TimeZone, -14.0, 14.0), name)
+            return new GeoLocation(site.Latitude, site.Longitude, BimGo.NumericCompat.Clamp(site.TimeZone, -14.0, 14.0), name)
             {
                 ZoneId = site.ZoneId,
                 AutoDaylightSaving = site.AutoDaylightSaving && site.ZoneId != null

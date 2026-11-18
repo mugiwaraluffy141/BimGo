@@ -32,8 +32,8 @@ namespace BimGo.Bridge
         /// </summary>
         public void SetPhases(long existingPhaseId, long newPhaseId)
         {
-            _existingPhaseId = existingPhaseId > 0 ? new ElementId(existingPhaseId) : ElementId.InvalidElementId;
-            _newPhaseId = newPhaseId > 0 ? new ElementId(newPhaseId) : ElementId.InvalidElementId;
+            _existingPhaseId = existingPhaseId > 0 ? ElementId_Ext.Ext_FromValue(existingPhaseId) : ElementId.InvalidElementId;
+            _newPhaseId = newPhaseId > 0 ? ElementId_Ext.Ext_FromValue(newPhaseId) : ElementId.InvalidElementId;
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace BimGo.Bridge
                 }
                 else
                 {
-                    id = new ElementId(request.ElementId);
+                    id = ElementId_Ext.Ext_FromValue(request.ElementId);
                 }
 
                 Element element = doc.GetElement(id);
@@ -153,7 +153,7 @@ namespace BimGo.Bridge
             if (error != null) { return Fail(request, error); }
 
             // The element plus anything that went with it (e.g. doors in a demolished wall)
-            var affected = new List<long> { element.Id.Value };
+            var affected = new List<long> { element.Id.Ext_Value() };
             try
             {
                 foreach (ElementId dependentId in element.GetDependentElements(null))
@@ -161,7 +161,7 @@ namespace BimGo.Bridge
                     if (dependentId == element.Id) { continue; }
                     if (doc.GetElement(dependentId) is Element dependent && dependent.DemolishedPhaseId == phaseId)
                     {
-                        affected.Add(dependentId.Value);
+                        affected.Add(dependentId.Ext_Value());
                     }
                 }
             }
@@ -183,7 +183,7 @@ namespace BimGo.Bridge
             string error = RunTransaction(doc, request.Label, () => deleted = doc.Delete(id));
             if (error != null) { return Fail(request, error); }
 
-            long[] affected = deleted?.Select(d => d.Value).ToArray() ?? new[] { id.Value };
+            long[] affected = deleted?.Select(d => d.Ext_Value()).ToArray() ?? new[] { id.Ext_Value() };
             return new EditResult { Ticket = request.Ticket, Op = request.Op, Success = true, AffectedIds = affected };
         }
 
@@ -233,7 +233,7 @@ namespace BimGo.Bridge
                 Ticket = request.Ticket,
                 Op = request.Op,
                 Success = true,
-                NewElementId = newId.Value,
+                NewElementId = newId.Ext_Value(),
                 CloneKey = request.NewCloneKey
             };
         }
@@ -291,7 +291,7 @@ namespace BimGo.Bridge
                 Ticket = request.Ticket,
                 Op = request.Op,
                 Success = true,
-                NewElementId = newId.Value,
+                NewElementId = newId.Ext_Value(),
                 CloneKey = request.NewCloneKey
             };
         }
@@ -304,7 +304,7 @@ namespace BimGo.Bridge
             try
             {
                 if (!string.IsNullOrWhiteSpace(uniqueId) && doc.GetElement(uniqueId) is FamilySymbol byUniqueId) { return byUniqueId; }
-                if (id > 0 && doc.GetElement(new ElementId(id)) is FamilySymbol byId) { return byId; }
+                if (id > 0 && doc.GetElement(ElementId_Ext.Ext_FromValue(id)) is FamilySymbol byId) { return byId; }
             }
             catch (Exception ex)
             {
@@ -348,7 +348,7 @@ namespace BimGo.Bridge
             }
             catch (Exception ex)
             {
-                Utilities.Log_Utils.Write($"Copy {copy.Id.Value} kept its source's phase: {ex.Message}");
+                Utilities.Log_Utils.Write($"Copy {copy.Id.Ext_Value()} kept its source's phase: {ex.Message}");
             }
         }
 

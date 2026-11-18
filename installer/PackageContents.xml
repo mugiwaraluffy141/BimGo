@@ -10,6 +10,14 @@
     ProductCode="{DF913CCB-B774-4182-B3D3-81B947CC5AFF}" UpgradeCode="{CACC322A-3639-4232-8F3B-C18291333820}"
     OnlineDocumentation="https://github.com/aussieBIMguru/BimGo/tree/main/docs">
   <CompanyDetails Name="Aussie BIM Guru" Url="https://github.com/aussieBIMguru/BimGo" />
+  <Components Description="Revit 2023">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2023" SeriesMax="R2023" />
+    <ComponentEntry AppName="BimGo" Version="@VERSION@" ModuleName="./Contents/2023/BimGo.addin" AppDescription="BimGo for Revit 2023" />
+  </Components>
+  <Components Description="Revit 2024">
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2024" SeriesMax="R2024" />
+    <ComponentEntry AppName="BimGo" Version="@VERSION@" ModuleName="./Contents/2024/BimGo.addin" AppDescription="BimGo for Revit 2024" />
+  </Components>
   <Components Description="Revit 2025">
     <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2025" SeriesMax="R2025" />
     <ComponentEntry AppName="BimGo" Version="@VERSION@" ModuleName="./Contents/2025/BimGo.addin" AppDescription="BimGo for Revit 2025" />

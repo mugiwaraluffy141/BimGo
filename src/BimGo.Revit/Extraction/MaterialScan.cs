@@ -197,7 +197,7 @@ namespace BimGo.Extraction
 
             _progress.Begin($"Reading materials: {doc.Title}", mid, end);
             List<Material> materials = new FilteredElementCollector(doc).OfClass(typeof(Material)).Cast<Material>()
-                .OrderByDescending(m => usage.TryGetValue(m.Id.Value, out int n) ? n : 0)
+                .OrderByDescending(m => usage.TryGetValue(m.Id.Ext_Value(), out int n) ? n : 0)
                 .ThenBy(m => m.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
@@ -208,7 +208,7 @@ namespace BimGo.Extraction
             {
                 _progress.Step(i, materials.Count);
                 _progress.ThrowIfCancelled();
-                int uses = usage.TryGetValue(materials[i].Id.Value, out int n) ? n : 0;
+                int uses = usage.TryGetValue(materials[i].Id.Ext_Value(), out int n) ? n : 0;
                 DumpMaterial(doc, materials[i], uses);
             }
         }
@@ -241,8 +241,8 @@ namespace BimGo.Extraction
                     Category category = element.Category;
                     if (category == null || category.CategoryType != CategoryType.Model) { continue; }
                     ids.Clear();
-                    foreach (ElementId id in element.GetMaterialIds(false)) { ids.Add(id.Value); }
-                    foreach (ElementId id in element.GetMaterialIds(true)) { ids.Add(id.Value); }
+                    foreach (ElementId id in element.GetMaterialIds(false)) { ids.Add(id.Ext_Value()); }
+                    foreach (ElementId id in element.GetMaterialIds(true)) { ids.Add(id.Ext_Value()); }
                     foreach (long id in ids) { usage[id] = usage.TryGetValue(id, out int n) ? n + 1 : 1; }
                     _elementsScanned++;
                 }
@@ -263,7 +263,7 @@ namespace BimGo.Extraction
 
             StringBuilder sb = _materials;
             sb.AppendLine();
-            sb.AppendLine($"=== {material.Name}  (id {material.Id.Value}, used by {uses} element{(uses == 1 ? "" : "s")})");
+            sb.AppendLine($"=== {material.Name}  (id {material.Id.Ext_Value()}, used by {uses} element{(uses == 1 ? "" : "s")})");
 
             try
             {

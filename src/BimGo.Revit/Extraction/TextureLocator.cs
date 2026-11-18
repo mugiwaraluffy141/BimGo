@@ -144,7 +144,7 @@ namespace BimGo.Extraction
         /// </summary>
         private void ProbeRegistry()
         {
-            if (!OperatingSystem.IsWindows()) { return; }
+            if (!true) { return; }
             foreach (RegistryHive hive in new[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser })
             {
                 foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
@@ -378,7 +378,7 @@ namespace BimGo.Extraction
 
         private static bool IsRooted(string path)
         {
-            try { return Path.IsPathFullyQualified(path); }
+            try { return Path.IsPathRooted(path); }
             catch { return false; }
         }
 

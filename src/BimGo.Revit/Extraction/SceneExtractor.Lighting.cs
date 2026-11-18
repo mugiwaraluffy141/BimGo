@@ -141,7 +141,7 @@ namespace BimGo.Extraction
             _fixtureMirrored = _fixtureHandFlipped = _fixtureFacingFlipped = false;
             try
             {
-                _fixture = element.Category?.Id.Value == (long)BuiltInCategory.OST_LightingFixtures;
+                _fixture = element.Category?.Id.Ext_Value() == (long)BuiltInCategory.OST_LightingFixtures;
                 if (!_fixture) { return; }
                 _fixtureTypeId = element.GetTypeId();
                 Element type = _src.Doc.GetElement(_fixtureTypeId);
@@ -152,7 +152,7 @@ namespace BimGo.Extraction
             }
             catch (Exception ex)
             {
-                Utilities.Log_Utils.Write($"{_src.Describe()}: fixture {element.Id.Value} parameters unreadable: {ex.Message}");
+                Utilities.Log_Utils.Write($"{_src.Describe()}: fixture {element.Id.Ext_Value()} parameters unreadable: {ex.Message}");
             }
         }
 
@@ -300,7 +300,7 @@ namespace BimGo.Extraction
                 Element = elementIndex,
                 Position = position,
                 // Revit's lumens; without them the photometric file's own output (X-D1), else a guess
-                Lumens = _fixtureLumens ?? (_fixtureIesLumens >= 10f ? Math.Clamp(_fixtureIesLumens, 50f, 50000f) : DEFAULT_LUMENS),
+                Lumens = _fixtureLumens ?? (_fixtureIesLumens >= 10f ? NumericCompat.Clamp(_fixtureIesLumens, 50f, 50000f) : DEFAULT_LUMENS),
                 Kelvin = _fixtureKelvin ?? DEFAULT_KELVIN,
                 Downward = downward,
                 Estimated = estimated,
@@ -435,7 +435,7 @@ namespace BimGo.Extraction
                 }
                 if (symbolId == null || symbolId == ElementId.InvalidElementId || symbolId == _fixtureTypeId) { return; }
                 if (_src.Doc.GetElement(symbolId) is not FamilySymbol symbol) { return; }
-                if (symbol.Category?.Id.Value != (long)BuiltInCategory.OST_LightingFixtures) { return; }
+                if (symbol.Category?.Id.Ext_Value() != (long)BuiltInCategory.OST_LightingFixtures) { return; }
                 _fixturePlacements.Add(($"{symbol.FamilyName}: {symbol.Name}", world));
             }
             catch (Exception)
@@ -475,7 +475,7 @@ namespace BimGo.Extraction
             double tilt = double.NaN; // unknown: no turn
             if (type != null)
             {
-                var key = (_src.Doc, type.Id.Value);
+                var key = (_src.Doc, type.Id.Ext_Value());
                 if (!_iesOfType.TryGetValue(key, out (string Hash, double Tilt, float Lumens, string Shape) found))
                 {
                     found = ReadTypeIes(_src.Doc, element, type, FamilyTypeOf(element));
@@ -510,7 +510,7 @@ namespace BimGo.Extraction
         private static (Vector3 Aim, Vector3 Across)? Orient(Transform t, double tilt)
         {
             XYZ aim = -t.BasisZ, across = t.BasisX;
-            double turnBy = double.IsFinite(tilt) ? Math.PI / 2.0 - tilt : 0.0;
+            double turnBy = NumericCompat.IsFinite(tilt) ? Math.PI / 2.0 - tilt : 0.0;
             if (Math.Abs(turnBy) > 1e-4)
             {
                 Transform turn = Transform.CreateRotation(t.BasisY, turnBy);
@@ -532,7 +532,7 @@ namespace BimGo.Extraction
         private void ReadNestedLights(Element element, Element type)
         {
             if (element is not FamilyInstance instance || type == null || _libraryPass) { return; }
-            var key = (_src.Doc, type.Id.Value);
+            var key = (_src.Doc, type.Id.Ext_Value());
             if (!_ownLightOfType.TryGetValue(key, out bool own))
             {
                 own = false;
@@ -546,7 +546,7 @@ namespace BimGo.Extraction
             // Shared nested lights: separate elements, extracted with their own light
             foreach (ElementId id in instance.GetSubComponentIds())
             {
-                if (_src.Doc.GetElement(id) is FamilyInstance sub && sub.Category?.Id.Value == (long)BuiltInCategory.OST_LightingFixtures)
+                if (_src.Doc.GetElement(id) is FamilyInstance sub && sub.Category?.Id.Ext_Value() == (long)BuiltInCategory.OST_LightingFixtures)
                 {
                     _fixtureSharedLights = true;
                     return;
@@ -555,7 +555,7 @@ namespace BimGo.Extraction
 
             Family family = instance.Symbol?.Family;
             if (family == null || family.IsInPlace) { return; }
-            var familyKey = (_src.Doc, family.Id.Value);
+            var familyKey = (_src.Doc, family.Id.Ext_Value());
             if (!_nestedOfFamily.TryGetValue(familyKey, out NestedLight[] nested))
             {
                 nested = ReadFamilyLights(family, FamilyTypeOf(element));
@@ -578,7 +578,7 @@ namespace BimGo.Extraction
                 var lights = new List<NestedLight>();
                 foreach (FamilyInstance nested in new FilteredElementCollector(familyDoc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>())
                 {
-                    if (nested.Category?.Id.Value != (long)BuiltInCategory.OST_LightingFixtures) { continue; }
+                    if (nested.Category?.Id.Ext_Value() != (long)BuiltInCategory.OST_LightingFixtures) { continue; }
                     Element nestedType = familyDoc.GetElement(nested.GetTypeId());
                     if (nestedType == null) { continue; }
                     bool hasLight;
@@ -649,7 +649,7 @@ namespace BimGo.Extraction
                     _nestedByTransform++;
                 }
                 (Vector3 Aim, Vector3 Across) orient = Orient(t, n.Tilt) ?? (-Vector3.UnitZ, Vector3.UnitX);
-                float lumens = n.Lumens ?? (n.IesLumens >= 10f ? Math.Clamp(n.IesLumens, 50f, 50000f) : (_fixtureLumens ?? DEFAULT_LUMENS) / count);
+                float lumens = n.Lumens ?? (n.IesLumens >= 10f ? NumericCompat.Clamp(n.IesLumens, 50f, 50000f) : (_fixtureLumens ?? DEFAULT_LUMENS) / count);
                 bool estimated = n.Lumens == null && n.IesLumens < 10f && _fixtureLumens == null;
                 _lights.Add(new SceneLight
                 {
@@ -783,7 +783,7 @@ namespace BimGo.Extraction
             try
             {
                 if (new FileInfo(path).Length > LightProfile.MAX_IES_BYTES) { return (null, tilt, 0f, null); }
-                string text = File.ReadAllText(path, System.Text.Encoding.Latin1);
+                string text = File.ReadAllText(path, System.Text.Encoding.GetEncoding(28591));
                 IesData data = IesData.Parse(text, out string error);
                 if (data == null)
                 {
@@ -797,7 +797,7 @@ namespace BimGo.Extraction
                     Utilities.Log_Utils.Write($"{_src.Describe()}: photometric file {path} → ies/{hash}.ies.");
                 }
                 Utilities.Log_Utils.Write($"{_src.Describe()}: “{label}” uses {Path.GetFileName(path)}, tilt " +
-                    (double.IsFinite(tilt) ? $"{tilt * 180.0 / Math.PI:0.#}° (90° = down)" : "unknown (aimed down the family's −Z)") + ".");
+                    (NumericCompat.IsFinite(tilt) ? $"{tilt * 180.0 / Math.PI:0.#}° (90° = down)" : "unknown (aimed down the family's −Z)") + ".");
                 return (hash, tilt, data.TotalLumens(), null);
             }
             catch (Exception ex)
@@ -805,6 +805,23 @@ namespace BimGo.Extraction
                 Utilities.Log_Utils.Write($"{_src.Describe()}: photometric file {path} unreadable: {ex.Message}");
                 return (null, tilt, 0f, null);
             }
+        }
+
+        private static string FindIesInFolder(string folder, string name, int depth)
+        {
+            try
+            {
+                string match = Directory.EnumerateFiles(folder).FirstOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase));
+                if (match != null || depth == 0) { return match; }
+                foreach (string child in Directory.EnumerateDirectories(folder))
+                {
+                    match = FindIesInFolder(child, name, depth - 1);
+                    if (match != null) { return match; }
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
+            return null;
         }
 
         /// <summary>
@@ -848,14 +865,13 @@ namespace BimGo.Extraction
                 Utilities.Log_Utils.Write($"Photometric file search folders unreadable: {ex.Message}");
             }
 
-            var options = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive };
             string result = null;
             foreach (string root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {
                     if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) { continue; }
-                    result = Directory.EnumerateFiles(root, name, options).FirstOrDefault();
+                    result = FindIesInFolder(root, name, 3);
                     if (result != null) { break; }
                 }
                 catch (Exception ex)
@@ -897,7 +913,7 @@ namespace BimGo.Extraction
                 _ => double.NaN                       // illuminance or unknown: can't convert
             };
             if (double.IsNaN(lumens)) { return null; }
-            return (float)Math.Clamp(lumens, 50.0, 50000.0);
+            return (float)NumericCompat.Clamp(lumens, 50.0, 50000.0);
 
             static double Efficacy(MatchCollection all)
             {

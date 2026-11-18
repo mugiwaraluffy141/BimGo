@@ -149,7 +149,7 @@ namespace BimGo.Game
             _clashMenuLook = false;
             CloseOverlay();
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive) { _window.SetCaptured(true); }
+            _window.SetCaptured(false);
             bool boxCleared = false;
             if (_clashBoxOn && _section.IsActive)
             {
@@ -172,6 +172,8 @@ namespace BimGo.Game
         /// </summary>
         private void UpdateClashMode(InputState input, float dt)
         {
+            if (!_window.IsActive) { return; }
+
             // The search box has the keys while it is focused (Enter / Esc / a click elsewhere end it)
             if (_clashSearchFocused)
             {
@@ -193,6 +195,7 @@ namespace BimGo.Game
             // C-C2: a grouping tool (box, pick points, cluster) has the keys and the mouse
             if (_clashTool != CLASH_TOOL_NONE)
             {
+                UpdateDesktopReviewNavigation(input, dt, pointerNavigation: false);
                 UpdateClashTool(input, dt);
                 return;
             }
@@ -224,14 +227,14 @@ namespace BimGo.Game
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
             // C-C1: RMB pressed over the dock opens a row menu, so it doesn't look until it is released
-            if (input.RightPressed && _clashDockW > 0f && Hover(input, _clashDockX, _clashDockY, _clashDockW, _clashDockH, focus: false)) { _clashMenuLook = true; }
+            if (input.RightPressed && _clashDockW > 0f && Hover(input, _clashDockX, _clashDockY, _clashDockW, _clashDockH)) { _clashMenuLook = true; }
             if (!input.RightDown) { _clashMenuLook = false; }
-            if (input.Down(InputAction.DragLook) && !_clashFlying && !_clashMenuLook) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
+            UpdateDesktopReviewNavigation(input, dt);
             UpdateRoom();
 
             // C-C3: the dots take clicks as list rows do: a click goes to that clash, Ctrl adds / removes, Shift a run
             bool overDock = OverClashDock(input.MousePosition);
-            UpdateClashToolHover(input.MousePosition, overDock || OverlayOpen || input.Down(InputAction.DragLook) || _clashFlying);
+            UpdateClashToolHover(input.MousePosition, overDock || OverlayOpen || (input.Down(InputAction.DragLook) && ReviewLookDragging) || _clashFlying);
             if (input.LeftPressed && _clashToolHover != null && !overDock && !OverlayOpen)
             {
                 ClashRecord hit = _clashToolHover;
@@ -284,7 +287,7 @@ namespace BimGo.Game
             Vector3 eye = Vector3.Lerp(_clashFlyFrom, _clashFlyTo, e) + Vector3.UnitZ * (_clashFlyLift * MathF.Sin(MathF.PI * e));
             float yaw = _clashFlyFromYaw + ClashFraming.AngleBetween(_clashFlyToYaw, _clashFlyFromYaw) * e;
             float pitch = _clashFlyFromPitch + (_clashFlyToPitch - _clashFlyFromPitch) * e;
-            _player.TeleportTo(eye - Vector3.UnitZ * _player.Controller.StandEye, yaw, pitch);
+            SetReviewCameraPose(eye, yaw, pitch);
             if (t >= 1f) { _clashFlying = false; }
         }
 
@@ -321,12 +324,12 @@ namespace BimGo.Game
         /// <summary>Flies (or jumps) the camera to a clash view.</summary>
         private void FlyToClashView(ClashView view, bool animate)
         {
-            Vector3 from = _player.Feet + Vector3.UnitZ * _player.Controller.StandEye;
+            Vector3 from = PlayerEye;
             float distance = Vector3.Distance(from, view.Eye);
             if (!animate || distance < 0.05f)
             {
                 _clashFlying = false;
-                _player.TeleportTo(view.Eye - Vector3.UnitZ * _player.Controller.StandEye, view.Yaw, view.Pitch);
+                SetReviewCameraPose(view.Eye, view.Yaw, view.Pitch);
                 return;
             }
             _clashFlying = true;

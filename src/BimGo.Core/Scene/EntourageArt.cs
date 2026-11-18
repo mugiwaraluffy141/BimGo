@@ -120,7 +120,7 @@ namespace BimGo.Scene
             MinY = minY;
             MaxX = maxX + 1;
             MaxY = maxY + 1;
-            MeanLuminance = (float)Math.Clamp(lum / Math.Max(weight, 1e-6), 0.05, 1.0);
+            MeanLuminance = (float)BimGo.NumericCompat.Clamp(lum / Math.Max(weight, 1e-6), 0.05, 1.0);
         }
 
         /// <summary>
@@ -211,11 +211,11 @@ namespace BimGo.Scene
                     int o = ((oy + y) * size + ox + x) * 4;
                     if (a > 0)
                     {
-                        output[o] = (byte)Math.Clamp(r / a + 0.5, 0, 255);
-                        output[o + 1] = (byte)Math.Clamp(g / a + 0.5, 0, 255);
-                        output[o + 2] = (byte)Math.Clamp(b / a + 0.5, 0, 255);
+                        output[o] = (byte)BimGo.NumericCompat.Clamp(r / a + 0.5, 0, 255);
+                        output[o + 1] = (byte)BimGo.NumericCompat.Clamp(g / a + 0.5, 0, 255);
+                        output[o + 2] = (byte)BimGo.NumericCompat.Clamp(b / a + 0.5, 0, 255);
                     }
-                    output[o + 3] = (byte)Math.Clamp(a / Math.Max(count, 1) + 0.5, 0, 255);
+                    output[o + 3] = (byte)BimGo.NumericCompat.Clamp(a / Math.Max(count, 1) + 0.5, 0, 255);
                 }
             }
             return new EntourageImage(size, size, output);
@@ -342,7 +342,7 @@ namespace BimGo.Scene
         {
             var c = new Canvas(1f, (float)Math.Max(shape.Width, 0.05));
             var rings = new double[shape.Rings.Length][];
-            int smooth = Math.Clamp(shape.Smooth, 0, 3);
+            int smooth = BimGo.NumericCompat.Clamp(shape.Smooth, 0, 3);
             for (int i = 0; i < rings.Length; i++) { rings[i] = Chaikin(shape.Rings[i], smooth); }
             c.Rings(rings, Hex(EntourageShapes.FillOf(shape.Category)));
             return c;
@@ -523,7 +523,7 @@ namespace BimGo.Scene
                     for (int x = x0; x < x1; x++)
                     {
                         float px = x + 0.5f, py = y + 0.5f;
-                        float t = Math.Clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0f, 1f);
+                        float t = BimGo.NumericCompat.Clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0f, 1f);
                         float qx = ax + t * dx - px, qy = ay + t * dy - py;
                         float r = ra + (rb - ra) * t;
                         Blend(x, y, r - MathF.Sqrt(qx * qx + qy * qy) + 0.5f, c);
@@ -609,10 +609,10 @@ namespace BimGo.Scene
                 {
                     // The layers build up premultiplied ("over"): back to straight alpha, so edges keep their colour
                     float a = _a[i], k = a > 1e-4f ? 1f / a : 0f;
-                    rgba[i * 4] = (byte)Math.Clamp((int)(_r[i] * k * 255f + 0.5f), 0, 255);
-                    rgba[i * 4 + 1] = (byte)Math.Clamp((int)(_g[i] * k * 255f + 0.5f), 0, 255);
-                    rgba[i * 4 + 2] = (byte)Math.Clamp((int)(_b[i] * k * 255f + 0.5f), 0, 255);
-                    rgba[i * 4 + 3] = (byte)Math.Clamp((int)(a * 255f + 0.5f), 0, 255);
+                    rgba[i * 4] = (byte)BimGo.NumericCompat.Clamp((int)(_r[i] * k * 255f + 0.5f), 0, 255);
+                    rgba[i * 4 + 1] = (byte)BimGo.NumericCompat.Clamp((int)(_g[i] * k * 255f + 0.5f), 0, 255);
+                    rgba[i * 4 + 2] = (byte)BimGo.NumericCompat.Clamp((int)(_b[i] * k * 255f + 0.5f), 0, 255);
+                    rgba[i * 4 + 3] = (byte)BimGo.NumericCompat.Clamp((int)(a * 255f + 0.5f), 0, 255);
                 }
                 return rgba;
             }
@@ -639,7 +639,7 @@ namespace BimGo.Scene
         /// <summary>The palette from dark (0) through mid (0.5) to light (1).</summary>
         private static Rgb Tone(Palette p, double t)
         {
-            t = Math.Clamp(t, 0.0, 1.0);
+            t = BimGo.NumericCompat.Clamp(t, 0.0, 1.0);
             return t < 0.5 ? Mix(p.Dark, p.Mid, t * 2.0) : Mix(p.Mid, p.Light, (t - 0.5) * 2.0);
         }
 
@@ -927,7 +927,7 @@ namespace BimGo.Scene
             for (int i = 0; i < 160; i++)
             {
                 double u = rng.Range(-1.2, 1.2), v = rng.Range(0.1, 0.82), r = rng.Range(0.07, 0.13);
-                c.Circle(u, v, r, Mix(G_DARK, G_LIGHT, Math.Clamp(v * 0.9 + rng.Range(-0.25, 0.15), 0, 1)));
+                c.Circle(u, v, r, Mix(G_DARK, G_LIGHT, BimGo.NumericCompat.Clamp(v * 0.9 + rng.Range(-0.25, 0.15), 0, 1)));
             }
             return c;
         }

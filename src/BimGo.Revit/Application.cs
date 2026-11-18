@@ -15,7 +15,7 @@ namespace BimGo
         /// - Name the log, register global variables
         /// - Register General utilities to Revit events
         /// - Hook up live sessions (document events, ribbon status)
-        /// - Add the BimGo tab, panel and buttons (Go, Export .bimgo, Live status, New / Update view from BimGo, Comment markers)
+        /// - Add the BimGo tab, panel and buttons (Go, Export .bimgo, Live status, Comment markers)
         /// </summary>
         public Result OnStartup(UIControlledApplication uiCtlApp)
         {
@@ -31,13 +31,11 @@ namespace BimGo
             uiCtlApp.Ext_AddRibbonTab(Globals.ADDIN_NAME);
             RibbonPanel panelWalkthrough = uiCtlApp.Ext_AddRibbonPanelToTab(Globals.ADDIN_NAME, "Walkthrough");
 
-            // Go: walk the open model in the BimGo app with edits coming back to Revit (live session).
+            // Go: walk the open model in the BimGo app as a live review session.
             // Export: write a standalone .bimgo. Live: the session's status (text updates as the app attaches).
             panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_Launch>(buttonName: "Go", availability: AVNA.Project);
             panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_Export>(buttonName: "Export\n.bimgo", availability: AVNA.Project);
             Live.LiveDispatcher.StatusButton = panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_Status>(buttonName: "Live\noff", availability: AVNA.Project);
-            panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_NewView>(buttonName: "New view\nfrom BimGo", availability: AVNA.Project); // Round X-E
-            panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_UpdateView>(buttonName: "Update view\nfrom BimGo", availability: AVNA.Project);
             panelWalkthrough.Ext_AddPushButton<Commands.Cmds_BimGo.Cmd_Markers>(buttonName: "Comment\nmarkers", availability: AVNA.Project); // Round Z-B
             Live.LiveDispatcher.Initialise(uiCtlApp);
 

@@ -268,29 +268,6 @@ namespace BimGo.Game
                 : finished ? "Tour finished: back where you were" : "Tour stopped: back where you were", 2.4f);
         }
 
-        /// <summary>
-        /// Round Z-C (kiosk mode): a visitor takes over the idle tour right where it is: the pose, and the stop's sun, cut,
-        /// visibility, eye height and colour profile, stay (flying when the stop's bookmark was flown). What the tour
-        /// remembered of the walkthrough is kept, so the next idle tour (or leaving kiosk mode) can put it back.
-        /// </summary>
-        private void ReleaseTourHere()
-        {
-            if (!_tourActive) { return; }
-            EndTourSunBlend(); // the stop's own sun (while the tour is still active)
-            int stop = _tourAppliedStop;
-            bool fly = _tourRecords != null && stop >= 0 && stop < _tourRecords.Length && _tourRecords[stop].Flying;
-
-            _tourActive = false;
-            _tourPaused = false;
-            if (fly != _player.Flying) { _player.ToggleFly(); }
-            _player.TeleportTo(_tourPose.Feet, _tourPose.Yaw, _tourPose.Pitch);
-
-            _tour = null;
-            _tourRecords = null;
-            _tourPath = null;
-            Utilities.Log_Utils.Write($"Kiosk: a visitor took over the tour at stop {stop + 1}.");
-        }
-
         #endregion
 
         #region Playback

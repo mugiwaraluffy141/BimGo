@@ -176,18 +176,18 @@ namespace BimGo.Scene
             Palette = AppearanceProfiler.NormalisePalette(Palette);
             Unmatched = UnmatchedLook.Normalise(Unmatched);
             UnmatchedColour = AppearanceProfiler.CleanColour(UnmatchedColour, "#D6DADF");
-            Detail = float.IsFinite(Detail) ? Math.Clamp(Detail, 0f, 1f) : AppearanceProfiler.DEFAULT_DETAIL;
+            Detail = BimGo.NumericCompat.IsFinite(Detail) ? BimGo.NumericCompat.Clamp(Detail, 0f, 1f) : AppearanceProfiler.DEFAULT_DETAIL;
             if (IsBySet) { Ranges = false; }
-            Bins = Math.Clamp(Bins, AppearanceProfiler.MIN_BINS, AppearanceProfiler.MAX_BINS);
+            Bins = BimGo.NumericCompat.Clamp(Bins, AppearanceProfiler.MIN_BINS, AppearanceProfiler.MAX_BINS);
             Binning = BinMethod.Normalise(Binning);
             Breaks = AppearanceProfiler.CleanBreaks(Breaks);
             Ramp = AppearanceProfiler.NormaliseRamp(Ramp);
             Rules = (Rules ?? new List<ProfileRule>()).Where(r => r != null && (IsBySet ? !string.IsNullOrEmpty(r.SetId)
-                : Ranges ? r.IsRange && double.IsFinite(r.From.Value) && double.IsFinite(r.To.Value) : r.Value != null)).ToList();
+                : Ranges ? r.IsRange && BimGo.NumericCompat.IsFinite(r.From.Value) && BimGo.NumericCompat.IsFinite(r.To.Value) : r.Value != null)).ToList();
             foreach (ProfileRule rule in Rules)
             {
                 rule.Colour = AppearanceProfiler.CleanColour(rule.Colour, "#9CA3AF");
-                rule.Transparency = float.IsFinite(rule.Transparency) ? Math.Clamp(rule.Transparency, 0f, AppearanceProfiler.MAX_TRANSPARENCY) : 0f;
+                rule.Transparency = BimGo.NumericCompat.IsFinite(rule.Transparency) ? BimGo.NumericCompat.Clamp(rule.Transparency, 0f, AppearanceProfiler.MAX_TRANSPARENCY) : 0f;
                 if (IsBySet) { rule.Value = rule.Label = null; }
                 else { rule.SetId = null; }
                 if (!Ranges) { rule.From = rule.To = null; }
@@ -394,11 +394,11 @@ namespace BimGo.Scene
         public static string RampColour(string ramp, float t)
         {
             uint[] stops = RAMP_STOPS[Math.Max(0, Array.IndexOf(RAMPS, NormaliseRamp(ramp)))];
-            t = Math.Clamp(float.IsFinite(t) ? t : 0f, 0f, 1f) * (stops.Length - 1);
+            t = BimGo.NumericCompat.Clamp(BimGo.NumericCompat.IsFinite(t) ? t : 0f, 0f, 1f) * (stops.Length - 1);
             int i = Math.Min((int)t, stops.Length - 2);
             float f = t - i;
             uint a = stops[i], b = stops[i + 1];
-            uint Mix(int shift) => (uint)Math.Clamp(MathF.Round(((a >> shift) & 0xFF) * (1f - f) + ((b >> shift) & 0xFF) * f), 0f, 255f);
+            uint Mix(int shift) => (uint)BimGo.NumericCompat.Clamp(MathF.Round(((a >> shift) & 0xFF) * (1f - f) + ((b >> shift) & 0xFF) * f), 0f, 255f);
             return Hex((Mix(16) << 16) | (Mix(8) << 8) | Mix(0));
         }
 
@@ -406,7 +406,7 @@ namespace BimGo.Scene
         public static uint RuleCode(ProfileRule rule)
         {
             if (rule.Hidden) { return (uint)CODE_HIDDEN << 24; }
-            float opacity = 1f - Math.Clamp(rule.Transparency, 0f, MAX_TRANSPARENCY);
+            float opacity = 1f - BimGo.NumericCompat.Clamp(rule.Transparency, 0f, MAX_TRANSPARENCY);
             if (opacity >= 0.995f) { return Pack(rule.Rgb, CODE_COLOUR); }
             return Pack(rule.Rgb, (byte)(CODE_SEE_THROUGH + (int)MathF.Round(opacity * 126f)));
         }
@@ -488,8 +488,8 @@ namespace BimGo.Scene
                 4 => (x, 0f, c),
                 _ => (c, 0f, x)
             };
-            uint R = (uint)Math.Clamp(MathF.Round((r + m) * 255f), 0f, 255f), G = (uint)Math.Clamp(MathF.Round((g + m) * 255f), 0f, 255f),
-                B = (uint)Math.Clamp(MathF.Round((b + m) * 255f), 0f, 255f);
+            uint R = (uint)BimGo.NumericCompat.Clamp(MathF.Round((r + m) * 255f), 0f, 255f), G = (uint)BimGo.NumericCompat.Clamp(MathF.Round((g + m) * 255f), 0f, 255f),
+                B = (uint)BimGo.NumericCompat.Clamp(MathF.Round((b + m) * 255f), 0f, 255f);
             return (R << 16) | (G << 8) | B;
         }
 
@@ -591,7 +591,7 @@ namespace BimGo.Scene
         {
             if (profile == null || profile.IsBySet || scene?.Elements == null) { return 0; }
             profile.Ranges = true;
-            profile.Bins = Math.Clamp(profile.Bins, MIN_BINS, MAX_BINS);
+            profile.Bins = BimGo.NumericCompat.Clamp(profile.Bins, MIN_BINS, MAX_BINS);
             profile.Binning = BinMethod.Normalise(profile.Binning);
             profile.Rules.Clear();
 
@@ -647,7 +647,7 @@ namespace BimGo.Scene
                 edges.Add(max);
                 return edges;
             }
-            bins = Math.Clamp(bins, MIN_BINS, MAX_BINS);
+            bins = BimGo.NumericCompat.Clamp(bins, MIN_BINS, MAX_BINS);
             edges.Add(min);
             switch (BinMethod.Normalise(method))
             {
@@ -685,7 +685,7 @@ namespace BimGo.Scene
         public static List<double> CleanBreaks(List<double> breaks)
         {
             if (breaks == null) { return null; }
-            List<double> clean = breaks.Where(double.IsFinite).Distinct().OrderBy(v => v).Take(MAX_BREAKS).ToList();
+            List<double> clean = breaks.Where(BimGo.NumericCompat.IsFinite).Distinct().OrderBy(v => v).Take(MAX_BREAKS).ToList();
             return clean.Count == 0 ? null : clean;
         }
 
@@ -1086,7 +1086,7 @@ namespace BimGo.Scene
             {
                 string temp = path + ".tmp";
                 File.WriteAllBytes(temp, Serialize(file));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)

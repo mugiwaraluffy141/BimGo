@@ -49,15 +49,15 @@ namespace BimGo.Scene
             float swivel = 0f)
         {
             Eye = eye;
-            Yaw = float.IsFinite(yaw) ? yaw : 0f;
-            Pitch = float.IsFinite(pitch) ? Math.Clamp(pitch, -1.5f, 1.5f) : 0f;
+            Yaw = BimGo.NumericCompat.IsFinite(yaw) ? yaw : 0f;
+            Pitch = BimGo.NumericCompat.IsFinite(pitch) ? BimGo.NumericCompat.Clamp(pitch, -1.5f, 1.5f) : 0f;
             Heading = heading;
             Target = target;
-            Smoothness = float.IsFinite(smoothness) ? Math.Clamp(smoothness, 0f, 1f) : 1f;
-            Speed = float.IsFinite(speed) ? Math.Clamp(speed, CameraPath.MIN_SPEED, CameraPath.MAX_SPEED) : 1.5f;
-            HoldSeconds = float.IsFinite(holdSeconds) ? Math.Clamp(holdSeconds, 0f, CameraKey.MAX_HOLD) : 0f;
+            Smoothness = BimGo.NumericCompat.IsFinite(smoothness) ? BimGo.NumericCompat.Clamp(smoothness, 0f, 1f) : 1f;
+            Speed = BimGo.NumericCompat.IsFinite(speed) ? BimGo.NumericCompat.Clamp(speed, CameraPath.MIN_SPEED, CameraPath.MAX_SPEED) : 1.5f;
+            HoldSeconds = BimGo.NumericCompat.IsFinite(holdSeconds) ? BimGo.NumericCompat.Clamp(holdSeconds, 0f, CameraKey.MAX_HOLD) : 0f;
             Ease = ease || HoldSeconds > 0f;
-            Swivel = heading == CameraHeading.Key && HoldSeconds > 0f && float.IsFinite(swivel) ? Math.Clamp(swivel, -MathF.PI, MathF.PI) : 0f;
+            Swivel = heading == CameraHeading.Key && HoldSeconds > 0f && BimGo.NumericCompat.IsFinite(swivel) ? BimGo.NumericCompat.Clamp(swivel, -MathF.PI, MathF.PI) : 0f;
         }
 
         /// <summary>Eye position (scene-local metres).</summary>
@@ -108,8 +108,8 @@ namespace BimGo.Scene
         public CameraPathSettings(bool loop, float fadeSeconds, float lookAhead, bool level, bool followBetween = false)
         {
             Loop = loop;
-            FadeSeconds = float.IsFinite(fadeSeconds) ? Math.Clamp(fadeSeconds, 0f, CameraPath.MAX_FADE) : 0f;
-            LookAhead = float.IsFinite(lookAhead) ? Math.Clamp(lookAhead, CameraPath.MIN_LOOK_AHEAD, CameraPath.MAX_LOOK_AHEAD) : 3f;
+            FadeSeconds = BimGo.NumericCompat.IsFinite(fadeSeconds) ? BimGo.NumericCompat.Clamp(fadeSeconds, 0f, CameraPath.MAX_FADE) : 0f;
+            LookAhead = BimGo.NumericCompat.IsFinite(lookAhead) ? BimGo.NumericCompat.Clamp(lookAhead, CameraPath.MIN_LOOK_AHEAD, CameraPath.MAX_LOOK_AHEAD) : 3f;
             Level = level;
             FollowBetween = followBetween;
         }
@@ -256,7 +256,7 @@ namespace BimGo.Scene
         {
             _keys = keys?.ToArray() ?? Array.Empty<CameraPathPoint>();
             _settings = settings;
-            EyeHeight = float.IsFinite(eyeHeight) ? Math.Clamp(eyeHeight, 0.1f, 5f) : 1.6f;
+            EyeHeight = BimGo.NumericCompat.IsFinite(eyeHeight) ? BimGo.NumericCompat.Clamp(eyeHeight, 0.1f, 5f) : 1.6f;
             int n = _keys.Length;
             bool loop = settings.Loop && n >= 2;
             _segments = n < 2 ? 0 : loop ? n : n - 1;
@@ -394,7 +394,7 @@ namespace BimGo.Scene
                 return;
             }
 
-            float ramp = Math.Clamp(speed / EASE_ACCELERATION, MIN_RAMP_SECONDS, MAX_RAMP_SECONDS);
+            float ramp = BimGo.NumericCompat.Clamp(speed / EASE_ACCELERATION, MIN_RAMP_SECONDS, MAX_RAMP_SECONDS);
             float rampDistance = speed * ramp * 0.5f; // the smoothstep ramp covers half of ramp × speed
             if (ramps > 0 && rampDistance * ramps > length)
             {
@@ -447,7 +447,7 @@ namespace BimGo.Scene
             if (rb > 0f)
             {
                 float left = MathF.Max(0f, _time[s] - tau);
-                return Math.Clamp(length - v * rb * Ramp(left / rb), 0f, length);
+                return BimGo.NumericCompat.Clamp(length - v * rb * Ramp(left / rb), 0f, length);
             }
             return length;
         }
@@ -455,7 +455,7 @@ namespace BimGo.Scene
         /// <summary>Distance covered over a smoothstep velocity ramp, as a fraction of ramp time × speed (0 → 0.5).</summary>
         private static float Ramp(float x)
         {
-            x = Math.Clamp(x, 0f, 1f);
+            x = BimGo.NumericCompat.Clamp(x, 0f, 1f);
             float x3 = x * x * x;
             return x3 - 0.5f * x3 * x;
         }
@@ -469,7 +469,7 @@ namespace BimGo.Scene
             int baseIndex = s * (SAMPLES + 1);
             float length = _length[s];
             if (length < EPSILON) { return _p0[s]; }
-            distance = Math.Clamp(distance, 0f, length);
+            distance = BimGo.NumericCompat.Clamp(distance, 0f, length);
 
             // Binary search for the sample span holding the distance
             int lo = 0, hi = SAMPLES;
@@ -487,7 +487,7 @@ namespace BimGo.Scene
             {
                 float rate = HermiteSlope(s, u).Length();
                 if (rate < 1e-5f) { break; }
-                u = Math.Clamp(u - (a + SpanLength(s, uLow, u) - distance) / rate, uLow, uHigh);
+                u = BimGo.NumericCompat.Clamp(u - (a + SpanLength(s, uLow, u) - distance) / rate, uLow, uHigh);
             }
             return Hermite(s, u);
         }
@@ -565,7 +565,7 @@ namespace BimGo.Scene
                     Vector3 next = Hermite(s, k / (float)SAMPLES);
                     Vector3 chord = next - previous;
                     float lengthSquared = chord.LengthSquared();
-                    float t = lengthSquared > 1e-10f ? Math.Clamp(Vector3.Dot(point - previous, chord) / lengthSquared, 0f, 1f) : 0f;
+                    float t = lengthSquared > 1e-10f ? BimGo.NumericCompat.Clamp(Vector3.Dot(point - previous, chord) / lengthSquared, 0f, 1f) : 0f;
                     float distance = Vector3.Distance(point, previous + chord * t);
                     if (distance < best)
                     {
@@ -587,7 +587,7 @@ namespace BimGo.Scene
         {
             int s = SegmentAt(distance);
             if (s < 0) { return 0f; }
-            float local = Math.Clamp(distance - _offset[s], 0f, _length[s]);
+            float local = BimGo.NumericCompat.Clamp(distance - _offset[s], 0f, _length[s]);
             float lo = 0f, hi = _time[s];
             for (int i = 0; i < 32; i++)
             {
@@ -603,7 +603,7 @@ namespace BimGo.Scene
         #region Queries
 
         /// <summary>When a key is reached (s): the start of its hold (the first key: the start, before the fade in).</summary>
-        public float StartOf(int stop) => _keys.Length == 0 ? 0f : _arrive[Math.Clamp(stop, 0, _keys.Length - 1)];
+        public float StartOf(int stop) => _keys.Length == 0 ? 0f : _arrive[BimGo.NumericCompat.Clamp(stop, 0, _keys.Length - 1)];
 
         /// <summary>The key last reached at a time.</summary>
         public int StopAt(float time)
@@ -637,7 +637,7 @@ namespace BimGo.Scene
             var pose = new CameraPathPose { Key = -1, Finished = true, BlendFrom = -1, BlendTo = -1, BlendT = 1f };
             int n = _keys.Length;
             if (n == 0) { return pose; }
-            if (!float.IsFinite(time) || time < 0f) { time = 0f; }
+            if (!BimGo.NumericCompat.IsFinite(time) || time < 0f) { time = 0f; }
 
             int key;
             float distance;
@@ -661,7 +661,7 @@ namespace BimGo.Scene
                 if (time < holdStart)
                 {
                     // The fade in (key 0)
-                    pose.Black = _fade > 0f ? Math.Clamp(1f - time / _fade, 0f, 1f) : 0f;
+                    pose.Black = _fade > 0f ? BimGo.NumericCompat.Clamp(1f - time / _fade, 0f, 1f) : 0f;
                     held = 0f;
                 }
                 else if (time < holdEnd)
@@ -673,7 +673,7 @@ namespace BimGo.Scene
                     // Moving along the segment leaving this key
                     segment = key;
                     float tau = time - _segmentStart[segment];
-                    u = _time[segment] > 0f ? Math.Clamp(tau / _time[segment], 0f, 1f) : 1f;
+                    u = _time[segment] > 0f ? BimGo.NumericCompat.Clamp(tau / _time[segment], 0f, 1f) : 1f;
                     distance = _offset[segment] + DistanceIn(segment, tau);
                     pose.Moving = true;
                     pose.BlendFrom = key;
@@ -683,7 +683,7 @@ namespace BimGo.Scene
                 else if (time >= holdEnd && _fade > 0f)
                 {
                     // The fade out (after the last key's hold)
-                    pose.Black = Math.Clamp((time - holdEnd) / _fade, 0f, 1f);
+                    pose.Black = BimGo.NumericCompat.Clamp((time - holdEnd) / _fade, 0f, 1f);
                 }
             }
 
@@ -710,7 +710,7 @@ namespace BimGo.Scene
             {
                 ahead = Vector3.Normalize(ahead);
                 followYaw = MathF.Atan2(ahead.Y, ahead.X);
-                followPitch = _settings.Level ? 0f : MathF.Asin(Math.Clamp(ahead.Z, -1f, 1f));
+                followPitch = _settings.Level ? 0f : MathF.Asin(BimGo.NumericCompat.Clamp(ahead.Z, -1f, 1f));
             }
             else
             {
@@ -779,7 +779,7 @@ namespace BimGo.Scene
             if (yaw > MathF.PI) { yaw -= MathF.Tau; }
             else if (yaw <= -MathF.PI) { yaw += MathF.Tau; }
             pose.Yaw = yaw;
-            pose.Pitch = Math.Clamp(pitch, -1.5f, 1.5f);
+            pose.Pitch = BimGo.NumericCompat.Clamp(pitch, -1.5f, 1.5f);
         }
 
         /// <summary>A key's own heading from an eye position: its view (K-C: panned by its swivel), or towards its target.</summary>

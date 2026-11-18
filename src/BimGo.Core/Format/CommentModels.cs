@@ -119,7 +119,7 @@ namespace BimGo.Format
             AssignedTo = string.IsNullOrWhiteSpace(AssignedTo) ? null : AssignedTo.Trim();
             Replies = Replies?.Where(r => r != null && !string.IsNullOrWhiteSpace(r.Text)).ToList();
             if (Replies != null && Replies.Count == 0) { Replies = null; }
-            if (View != null && !(double.IsFinite(View.X) && double.IsFinite(View.Y) && double.IsFinite(View.Z) && float.IsFinite(View.Yaw) && float.IsFinite(View.Pitch)))
+            if (View != null && !(BimGo.NumericCompat.IsFinite(View.X) && BimGo.NumericCompat.IsFinite(View.Y) && BimGo.NumericCompat.IsFinite(View.Z) && BimGo.NumericCompat.IsFinite(View.Yaw) && BimGo.NumericCompat.IsFinite(View.Pitch)))
             {
                 View = null;
             }

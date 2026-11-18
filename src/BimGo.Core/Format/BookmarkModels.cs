@@ -140,10 +140,10 @@ namespace BimGo.Format
         public BookmarkDocument Clean()
         {
             Bookmarks ??= new List<BookmarkRecord>();
-            Bookmarks.RemoveAll(b => b == null || !double.IsFinite(b.X) || !double.IsFinite(b.Y) || !double.IsFinite(b.Z)
-                || !float.IsFinite(b.Yaw) || !float.IsFinite(b.Pitch));
-            if (Home != null && (!double.IsFinite(Home.X) || !double.IsFinite(Home.Y) || !double.IsFinite(Home.Z)
-                || !float.IsFinite(Home.Yaw) || !float.IsFinite(Home.Pitch)))
+            Bookmarks.RemoveAll(b => b == null || !BimGo.NumericCompat.IsFinite(b.X) || !BimGo.NumericCompat.IsFinite(b.Y) || !BimGo.NumericCompat.IsFinite(b.Z)
+                || !BimGo.NumericCompat.IsFinite(b.Yaw) || !BimGo.NumericCompat.IsFinite(b.Pitch));
+            if (Home != null && (!BimGo.NumericCompat.IsFinite(Home.X) || !BimGo.NumericCompat.IsFinite(Home.Y) || !BimGo.NumericCompat.IsFinite(Home.Z)
+                || !BimGo.NumericCompat.IsFinite(Home.Yaw) || !BimGo.NumericCompat.IsFinite(Home.Pitch)))
             {
                 Home = null;
             }
@@ -172,15 +172,15 @@ namespace BimGo.Format
             }
             if (bookmark.EyeHeight is float eye)
             {
-                bookmark.EyeHeight = float.IsFinite(eye) ? Math.Clamp(eye, TourSettings.MIN_EYE_HEIGHT, TourSettings.MAX_EYE_HEIGHT) : null;
+                bookmark.EyeHeight = BimGo.NumericCompat.IsFinite(eye) ? BimGo.NumericCompat.Clamp(eye, TourSettings.MIN_EYE_HEIGHT, TourSettings.MAX_EYE_HEIGHT) : null;
             }
             if (bookmark.TourHold is float hold)
             {
-                bookmark.TourHold = float.IsFinite(hold) ? Math.Clamp(hold, TourSettings.MIN_HOLD, TourSettings.MAX_HOLD) : null;
+                bookmark.TourHold = BimGo.NumericCompat.IsFinite(hold) ? BimGo.NumericCompat.Clamp(hold, TourSettings.MIN_HOLD, TourSettings.MAX_HOLD) : null;
             }
             if (bookmark.TourSwivel is float swivel)
             {
-                bookmark.TourSwivel = float.IsFinite(swivel) ? Math.Clamp(swivel, -TourSettings.MAX_SWIVEL, TourSettings.MAX_SWIVEL) : null;
+                bookmark.TourSwivel = BimGo.NumericCompat.IsFinite(swivel) ? BimGo.NumericCompat.Clamp(swivel, -TourSettings.MAX_SWIVEL, TourSettings.MAX_SWIVEL) : null;
             }
         }
     }
@@ -294,13 +294,13 @@ namespace BimGo.Format
         /// </summary>
         public TourSettings Clean()
         {
-            if (!Enum.IsDefined(Transition)) { Transition = TourTransition.Fade; }
-            if (!Enum.IsDefined(SwivelDirection)) { SwivelDirection = TourSwivelDirection.Left; }
-            HoldSeconds = float.IsFinite(HoldSeconds) ? Math.Clamp(HoldSeconds, MIN_HOLD, MAX_HOLD) : 4f;
-            FadeSeconds = float.IsFinite(FadeSeconds) ? Math.Clamp(FadeSeconds, 0f, MAX_FADE) : 0.6f;
-            GlideSeconds = float.IsFinite(GlideSeconds) ? Math.Clamp(GlideSeconds, MIN_GLIDE, MAX_GLIDE) : 3f;
-            SwivelDegrees = float.IsFinite(SwivelDegrees) ? Math.Clamp(SwivelDegrees, 0f, MAX_SWIVEL) : 30f;
-            SmoothSpeed = float.IsFinite(SmoothSpeed) ? Math.Clamp(SmoothSpeed, MIN_SMOOTH_SPEED, MAX_SMOOTH_SPEED) : 1.5f;
+            if (!Enum.IsDefined(Transition.GetType(), Transition)) { Transition = TourTransition.Fade; }
+            if (!Enum.IsDefined(SwivelDirection.GetType(), SwivelDirection)) { SwivelDirection = TourSwivelDirection.Left; }
+            HoldSeconds = BimGo.NumericCompat.IsFinite(HoldSeconds) ? BimGo.NumericCompat.Clamp(HoldSeconds, MIN_HOLD, MAX_HOLD) : 4f;
+            FadeSeconds = BimGo.NumericCompat.IsFinite(FadeSeconds) ? BimGo.NumericCompat.Clamp(FadeSeconds, 0f, MAX_FADE) : 0.6f;
+            GlideSeconds = BimGo.NumericCompat.IsFinite(GlideSeconds) ? BimGo.NumericCompat.Clamp(GlideSeconds, MIN_GLIDE, MAX_GLIDE) : 3f;
+            SwivelDegrees = BimGo.NumericCompat.IsFinite(SwivelDegrees) ? BimGo.NumericCompat.Clamp(SwivelDegrees, 0f, MAX_SWIVEL) : 30f;
+            SmoothSpeed = BimGo.NumericCompat.IsFinite(SmoothSpeed) ? BimGo.NumericCompat.Clamp(SmoothSpeed, MIN_SMOOTH_SPEED, MAX_SMOOTH_SPEED) : 1.5f;
             return this;
         }
 

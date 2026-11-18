@@ -58,13 +58,13 @@ namespace BimGo.Scene
         public bool Clean(int elementCount)
         {
             if (string.IsNullOrWhiteSpace(UniqueId)) { return false; }
-            if (!float.IsFinite(Base.X) || !float.IsFinite(Base.Y) || !float.IsFinite(Base.Z) || !float.IsFinite(Height) || !float.IsFinite(Width)) { return false; }
+            if (!BimGo.NumericCompat.IsFinite(Base.X) || !BimGo.NumericCompat.IsFinite(Base.Y) || !BimGo.NumericCompat.IsFinite(Base.Z) || !BimGo.NumericCompat.IsFinite(Height) || !BimGo.NumericCompat.IsFinite(Width)) { return false; }
             Category = Category == EntourageSlots.ENTOURAGE ? EntourageSlots.ENTOURAGE : EntourageSlots.PLANTING;
             Family ??= string.Empty;
             Type ??= string.Empty;
             LinkKey ??= string.Empty;
-            Height = Math.Clamp(Height, 0f, 200f);
-            Width = Math.Clamp(Width, 0f, 200f);
+            Height = BimGo.NumericCompat.Clamp(Height, 0f, 200f);
+            Width = BimGo.NumericCompat.Clamp(Width, 0f, 200f);
             if (Element < -1 || Element >= elementCount) { Element = -1; }
             _familyType = _instanceKey = null;
             return true;

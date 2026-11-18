@@ -118,6 +118,23 @@ namespace BimGo.Rendering
             Push(x, y + h, _wu, _wv, colour);
         }
 
+        /// <summary>A filled rectangle with rounded corners.</summary>
+        public void RoundedRect(float x, float y, float w, float h, float radius, uint colour)
+        {
+            if (w <= 0f || h <= 0f) { return; }
+            float r = Math.Clamp(radius, 0f, MathF.Min(w, h) * 0.5f);
+            Rect(x + r, y, w - 2f * r, h, colour);
+            Rect(x, y + r, r, h - 2f * r, colour);
+            Rect(x + w - r, y + r, r, h - 2f * r, colour);
+            if (r == 0f) { return; }
+
+            float quarter = MathF.PI * 0.5f;
+            Wedge(x + r, y + r, r, 2f * quarter, 3f * quarter, colour, segments: 4);
+            Wedge(x + w - r, y + r, r, 3f * quarter, 4f * quarter, colour, segments: 4);
+            Wedge(x + w - r, y + h - r, r, 0f, quarter, colour, segments: 4);
+            Wedge(x + r, y + h - r, r, quarter, 2f * quarter, colour, segments: 4);
+        }
+
         /// <summary>A rectangle outline.</summary>
         public void Outline(float x, float y, float w, float h, float t, uint colour)
         {

@@ -66,7 +66,7 @@ namespace BimGo.Format
             HiddenElements = (HiddenElements ?? new List<HiddenElement>()).Where(e => e != null && (!string.IsNullOrEmpty(e.UniqueId) || e.Id > 0)).ToList();
             if (GroundOffset is float ground)
             {
-                GroundOffset = float.IsFinite(ground) && MathF.Abs(ground) > 1e-4f ? Math.Clamp(ground, -MAX_GROUND_OFFSET, MAX_GROUND_OFFSET) : null;
+                GroundOffset = BimGo.NumericCompat.IsFinite(ground) && MathF.Abs(ground) > 1e-4f ? BimGo.NumericCompat.Clamp(ground, -MAX_GROUND_OFFSET, MAX_GROUND_OFFSET) : null;
             }
             Section = Section?.IsActive == true ? Section.Clean() : null;
             Grids = Grids?.Clean();

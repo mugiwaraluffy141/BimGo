@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using BimGo.Scene;
 using Media = System.Windows.Media;
 using Win = System.Windows;
@@ -207,8 +207,8 @@ namespace BimGo.Forms
             CheckVSync.IsChecked = _settings.VSync;
             CheckComments.IsChecked = _settings.LoadComments;
             LoadSnap();
-            ComboShadowQuality.SelectedIndex = Math.Clamp((int)_settings.ShadowQuality, 0, 2);
-            ComboArtificialLights.SelectedIndex = Math.Clamp((int)_settings.ArtificialLights, 0, 2);
+            ComboShadowQuality.SelectedIndex = NumericCompat.Clamp((int)_settings.ShadowQuality, 0, 2);
+            ComboArtificialLights.SelectedIndex = NumericCompat.Clamp((int)_settings.ArtificialLights, 0, 2);
             CheckViewOnly.IsChecked = _settings.ActiveViewOnly && _view.Available;
             CheckViewOnly.IsEnabled = _view.Available;
             CheckSkipHelpers.IsChecked = _settings.SkipHelperGeometry;
@@ -220,7 +220,7 @@ namespace BimGo.Forms
             CheckMarkersLive.IsChecked = _settings.CommentMarkersLive; // Round Z-B
             CheckMarkersRemoveClosed.IsChecked = _settings.CommentMarkersRemoveClosed;
             TextMarkerFamily.Text = _settings.CommentMarkerFamily ?? string.Empty;
-            Tabs.SelectedIndex = Math.Clamp(_settings.LastOptionsTab, 0, Tabs.Items.Count - 1);
+            Tabs.SelectedIndex = NumericCompat.Clamp(_settings.LastOptionsTab, 0, Tabs.Items.Count - 1);
 
             foreach (string name in _settings.ExtraParameters ?? new List<string>())
             {
@@ -304,7 +304,7 @@ namespace BimGo.Forms
             CheckGrassBlades.IsChecked = _settings.GrassBlades;
             ComboGrassDensity.Items.Clear();
             foreach (string density in new[] { "Low", "Medium", "High" }) { ComboGrassDensity.Items.Add(density); }
-            ComboGrassDensity.SelectedIndex = Math.Clamp(_settings.GrassDensity, 0, 2);
+            ComboGrassDensity.SelectedIndex = NumericCompat.Clamp(_settings.GrassDensity, 0, 2);
             ButtonReviewTextures.Visibility = _textureServices?.Review != null ? Win.Visibility.Visible : Win.Visibility.Collapsed;
             UpdateOverrideSummary();
             ComboTextureSize.Items.Clear();
@@ -483,7 +483,7 @@ namespace BimGo.Forms
             _settings.FamilyLibrary = CheckFamilyLibrary.IsChecked == true;
             if (int.TryParse(TextFamilyLibraryMax.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int libraryMax))
             {
-                _settings.FamilyLibraryMax = Math.Clamp(libraryMax, 10, LaunchSettings.MAX_FAMILY_LIBRARY);
+                _settings.FamilyLibraryMax = NumericCompat.Clamp(libraryMax, 10, LaunchSettings.MAX_FAMILY_LIBRARY);
             }
             _settings.HelperSubcategoryKeywords = (TextHelperKeywords.Text ?? string.Empty)
                 .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -509,8 +509,8 @@ namespace BimGo.Forms
             _settings.GrassSway = LaunchSettings.CleanLookScale((float)(SliderGrassSway.Value / 100.0));
             _settings.WaterWaveScale = LaunchSettings.CleanWaveScale((float)(SliderWaterWaveScale.Value / 100.0));
             _settings.GrassBlades = CheckGrassBlades.IsChecked == true;
-            _settings.GrassDensity = Math.Clamp(ComboGrassDensity.SelectedIndex, 0, 2);
-            _settings.TextureMaxSize = MaterialData.TEXTURE_SIZES[Math.Clamp(ComboTextureSize.SelectedIndex, 0, MaterialData.TEXTURE_SIZES.Length - 1)];
+            _settings.GrassDensity = NumericCompat.Clamp(ComboGrassDensity.SelectedIndex, 0, 2);
+            _settings.TextureMaxSize = MaterialData.TEXTURE_SIZES[NumericCompat.Clamp(ComboTextureSize.SelectedIndex, 0, MaterialData.TEXTURE_SIZES.Length - 1)];
             _settings.MaxStepHeightMm = step;
             _settings.SetEyeHeight(EyePreset.Standing, eyeStanding);
             _settings.SetEyeHeight(EyePreset.Seated, eyeSeated);
@@ -526,8 +526,8 @@ namespace BimGo.Forms
             _settings.GizmoSnap = CheckSnap.IsChecked == true;
             _settings.SnapMoveMm = LaunchSettings.SNAP_MOVE_STEPS_MM[Math.Max(ComboSnapMove.SelectedIndex, 0)];
             _settings.SnapAngleDeg = LaunchSettings.SNAP_ANGLE_STEPS_DEG[Math.Max(ComboSnapAngle.SelectedIndex, 0)];
-            _settings.ShadowQuality = (BimGo.Scene.ShadowQuality)Math.Clamp(ComboShadowQuality.SelectedIndex, 0, 2);
-            _settings.ArtificialLights = (BimGo.Scene.ArtificialLightMode)Math.Clamp(ComboArtificialLights.SelectedIndex, 0, 2);
+            _settings.ShadowQuality = (BimGo.Scene.ShadowQuality)NumericCompat.Clamp(ComboShadowQuality.SelectedIndex, 0, 2);
+            _settings.ArtificialLights = (BimGo.Scene.ArtificialLightMode)NumericCompat.Clamp(ComboArtificialLights.SelectedIndex, 0, 2);
             _settings.ExistingPhase = existingPhase;
             _settings.NewPhase = newPhase;
             _settings.ExtraParameters = _knownParameters.Where(_pickedParameters.Contains).ToList();
@@ -687,8 +687,8 @@ namespace BimGo.Forms
                 : RadioMaterial.IsChecked == true ? ColourMode.Material
                 : ColourMode.Whitecard;
             target.Msaa = ComboMsaa.SelectedIndex switch { 2 => 4, 1 => 2, _ => 0 };
-            target.ShadowQuality = (BimGo.Scene.ShadowQuality)Math.Clamp(ComboShadowQuality.SelectedIndex, 0, 2);
-            target.ArtificialLights = (BimGo.Scene.ArtificialLightMode)Math.Clamp(ComboArtificialLights.SelectedIndex, 0, 2);
+            target.ShadowQuality = (BimGo.Scene.ShadowQuality)NumericCompat.Clamp(ComboShadowQuality.SelectedIndex, 0, 2);
+            target.ArtificialLights = (BimGo.Scene.ArtificialLightMode)NumericCompat.Clamp(ComboArtificialLights.SelectedIndex, 0, 2);
         }
 
         /// <summary>
@@ -720,7 +720,7 @@ namespace BimGo.Forms
         private void ComboProfile_SelectionChanged(object sender, Wpf.SelectionChangedEventArgs e)
         {
             if (_updating || _display == null) { return; }
-            var profile = (QualityProfile)Math.Clamp(ComboProfile.SelectedIndex, 0, 3);
+            var profile = (QualityProfile)NumericCompat.Clamp(ComboProfile.SelectedIndex, 0, 3);
             if (profile == QualityProfile.Custom)
             {
                 RefreshProfile(); // Custom is shown, not picked
@@ -735,8 +735,8 @@ namespace BimGo.Forms
             RadioMaterial.IsChecked = _display.Colour == ColourMode.Material;
             RadioRealistic.IsChecked = _display.Colour == ColourMode.Realistic;
             ComboMsaa.SelectedIndex = _display.Msaa >= 4 ? 2 : _display.Msaa >= 2 ? 1 : 0;
-            ComboShadowQuality.SelectedIndex = Math.Clamp((int)_display.ShadowQuality, 0, 2);
-            ComboArtificialLights.SelectedIndex = Math.Clamp((int)_display.ArtificialLights, 0, 2);
+            ComboShadowQuality.SelectedIndex = NumericCompat.Clamp((int)_display.ShadowQuality, 0, 2);
+            ComboArtificialLights.SelectedIndex = NumericCompat.Clamp((int)_display.ArtificialLights, 0, 2);
             if (profile == QualityProfile.Realistic) { CheckTextures.IsChecked = true; }
             _updating = false;
 
@@ -806,7 +806,7 @@ namespace BimGo.Forms
             {
                 ComboExistingPhase.IsEnabled = false;
                 ComboNewPhase.IsEnabled = false;
-                TextPhaseHint.Text = "This model has no phases: the Demolish gun can only delete.";
+                TextPhaseHint.Text = "This model has no phases.";
                 return;
             }
 

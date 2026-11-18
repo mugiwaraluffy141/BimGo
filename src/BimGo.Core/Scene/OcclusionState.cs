@@ -76,7 +76,7 @@ namespace BimGo.Scene
             _epoch = new int[chunkCount];
             _queryEpoch = new int[chunkCount];
             _inViewFrame = new int[chunkCount];
-            Array.Fill(_inViewFrame, -1);
+            BimGo.NumericCompat.Fill(_inViewFrame, -1);
         }
 
         #region Properties

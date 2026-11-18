@@ -248,7 +248,6 @@ namespace BimGo.Game
             {
                 float tabsX = TakeHeaderSlot(ref frame, tabsW, S(UiTheme.GAP));
                 int tab = Segmented(f, input, tabsX, frame.HeaderControlY, tabsW, CLASH_TABS, _clashTab);
-                if (tab == _clashTab) { tab = TakePadTabStep(tab, CLASH_TABS.Length); } // P-A2: LB / RB tapped alone
                 if (tab != _clashTab)
                 {
                     _clashTab = tab;

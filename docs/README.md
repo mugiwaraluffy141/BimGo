@@ -1,30 +1,13 @@
 # BimGo guide
 
-BimGo turns a Revit model into a first-person walkthrough you can explore, review and present. These pages are the
-user guide; the [project README](../README.md) has the overview and [DEVELOPING.md](../DEVELOPING.md) the technical
-detail.
+BimGo supports clash review in live Revit sessions and in standalone `.bimgo` snapshots.
 
-![BimGo walkthrough](images/home-hero.gif)
+- [Getting started](getting-started.md): installation and opening a model
+- [Clash detection](clash-detection.md): sets, tests, results and reports
+- [Comments, markup and BCF](comments-and-bcf.md): issues and exchange
+- [Live sessions and Revit](live-sessions.md): refresh, selection and comment markers
+- [Review tools](review-tools.md): section box, rooms and grids
+- [Settings and files](settings-and-files.md) and [Troubleshooting](troubleshooting.md)
+- [Releasing BimGo](releasing.md) (maintainers)
 
-## Start here
-- [Getting started](getting-started.md): install, BimGo for Revit, your first walkthrough
-- [Moving around](moving-around.md): walking, flying, levels, bookmarks, the menu
-- [Controls](controls.md): every default key, the guns, the gamepad
-
-## Using BimGo
-- [The tool guns](guns.md): scan, measure, portal, comment, teleport, demolish, gizmo, clone, place
-- [Live sessions and Revit](live-sessions.md): Go, edits into Revit, push, Revit views, comment markers
-- [Comments, markup and BCF](comments-and-bcf.md)
-- [Review tools](review-tools.md): section box, colour profiles, room data, grids, hiding
-- [Lighting, sun and studies](studies.md): sun and shadows, sun hours, daylight
-- [Photos, tours, paths and video](media.md)
-- [Clash detection](clash-detection.md)
-- [Kiosk mode](kiosk-mode.md): a model on a screen for visitors
-
-## Reference
-- [Settings and files](settings-and-files.md): where things are kept, quality profiles, units
-- [Troubleshooting](troubleshooting.md): safe start, logs, graphics, Revit loading
-- [Releasing BimGo](releasing.md) (for maintainers): version, build, tag, GitHub release
-
-Pictures on these pages are placeholders until the real screenshots and GIFs are added (see
-[images/README.md](images/README.md)).
+The Revit 2023–2027 release is under validation; see the [plan](plans/clash-review.md) for outstanding acceptance checks.

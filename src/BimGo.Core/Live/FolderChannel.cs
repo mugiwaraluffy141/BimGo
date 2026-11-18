@@ -101,7 +101,7 @@ namespace BimGo.Live
                 string baseName = $"{envelope.SentUtc:yyyyMMddHHmmssfff}-{envelope.Seq:D6}-{SafeType(type)}";
                 string temp = Path.Combine(_outbox, baseName + ".tmp");
                 File.WriteAllText(temp, JsonSerializer.Serialize(envelope, LiveProtocol.JSON));
-                File.Move(temp, Path.Combine(_outbox, baseName + ".json"), overwrite: true);
+                FileCompat.MoveOverwrite(temp, Path.Combine(_outbox, baseName + ".json"));
                 return envelope;
             }
             catch (Exception ex)

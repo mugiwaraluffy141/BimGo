@@ -59,7 +59,7 @@ namespace BimGo.Scene
 
             // Phase: the elongation from the sun
             double cosElongation = Math.Cos(lat * DEG) * Math.Cos((lon - sunLongitude) * DEG);
-            illuminated = Math.Clamp((1.0 - cosElongation) * 0.5, 0.0, 1.0);
+            illuminated = BimGo.NumericCompat.Clamp((1.0 - cosElongation) * 0.5, 0.0, 1.0);
             waxing = Rev(lon - sunLongitude) < 180.0;
 
             // Ecliptic → equatorial
@@ -73,7 +73,7 @@ namespace BimGo.Scene
             // Horizontal, then the parallax (the moon is close: up to a degree lower)
             double lst = SiderealFromDay(ls, ut, location.Longitude);
             Horizontal(location.Latitude * DEG, lst - ra, dec, out altitude, out azimuth);
-            altitude -= Math.Asin(Math.Clamp(1.0 / Math.Max(r, 50.0), -1.0, 1.0)) * Math.Cos(altitude);
+            altitude -= Math.Asin(BimGo.NumericCompat.Clamp(1.0 / Math.Max(r, 50.0), -1.0, 1.0)) * Math.Cos(altitude);
         }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace BimGo.Scene
         private static Vector3 EquatorialToLocal(Vector3 equatorial, double lst, double lat)
         {
             double ra = Math.Atan2(equatorial.Y, equatorial.X);
-            double dec = Math.Asin(Math.Clamp(equatorial.Z, -1f, 1f));
+            double dec = Math.Asin(BimGo.NumericCompat.Clamp(equatorial.Z, -1f, 1f));
             double ha = lst - ra;
             double east = -Math.Cos(dec) * Math.Sin(ha);
             double north = Math.Cos(lat) * Math.Sin(dec) - Math.Sin(lat) * Math.Cos(dec) * Math.Cos(ha);
@@ -121,7 +121,7 @@ namespace BimGo.Scene
             double east = -Math.Cos(dec) * Math.Sin(hourAngle);
             double north = Math.Cos(lat) * Math.Sin(dec) - Math.Sin(lat) * Math.Cos(dec) * Math.Cos(hourAngle);
             double up = Math.Sin(lat) * Math.Sin(dec) + Math.Cos(lat) * Math.Cos(dec) * Math.Cos(hourAngle);
-            altitude = Math.Asin(Math.Clamp(up, -1.0, 1.0));
+            altitude = Math.Asin(BimGo.NumericCompat.Clamp(up, -1.0, 1.0));
             azimuth = Math.Atan2(east, north);
             if (azimuth < 0.0) { azimuth += 2.0 * Math.PI; }
         }
@@ -132,10 +132,10 @@ namespace BimGo.Scene
         /// </summary>
         private static double DayNumber(GeoLocation location, int year, int month, int day, double minutes, bool daylightSaving, out double ut)
         {
-            year = Math.Clamp(year, 1, 9999);
-            month = Math.Clamp(month, 1, 12);
-            day = Math.Clamp(day, 1, DateTime.DaysInMonth(year, month));
-            minutes = Math.Clamp(minutes, 0.0, 1440.0);
+            year = BimGo.NumericCompat.Clamp(year, 1, 9999);
+            month = BimGo.NumericCompat.Clamp(month, 1, 12);
+            day = BimGo.NumericCompat.Clamp(day, 1, DateTime.DaysInMonth(year, month));
+            minutes = BimGo.NumericCompat.Clamp(minutes, 0.0, 1440.0);
             bool dst = SolarPosition.IsDaylightSaving(location, year, month, day, daylightSaving);
             double zone = location.TimeZone + (dst ? 1.0 : 0.0);
             ut = minutes / 60.0 - zone;

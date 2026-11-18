@@ -528,7 +528,6 @@ namespace BimGo.Game
 
             while (_window.TryTakeDroppedFile(out string dropped))
             {
-                if (_kiosk) { continue; } // Round Z-C: kiosk visitors can't open files (drops are dropped)
                 if (_options.OnOpenRequest != null)
                 {
                     string message = _options.OnOpenRequest(dropped);
@@ -541,8 +540,7 @@ namespace BimGo.Game
             }
 
             _noticeTimer += dt;
-            // Round Z-C: kiosk mode leaves other launches' requests in the inbox (they open after leaving kiosk mode)
-            if (_noticeTimer < 1f || _options.PollNotices == null || _kiosk) { return; }
+            if (_noticeTimer < 1f || _options.PollNotices == null) { return; }
             _noticeTimer = 0f;
             string notice = _options.PollNotices();
             if (notice != null) { Toast(notice, 4f); }

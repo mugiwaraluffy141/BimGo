@@ -143,7 +143,7 @@ namespace BimGo.Clashes
         }
 
         /// <summary>The stored value of a phase role.</summary>
-        public static string PhaseValue(BimGo.Scene.PhaseRole role) => PhaseValues[Math.Clamp((int)role, 0, PhaseValues.Length - 1)];
+        public static string PhaseValue(BimGo.Scene.PhaseRole role) => PhaseValues[BimGo.NumericCompat.Clamp((int)role, 0, PhaseValues.Length - 1)];
 
         /// <summary>The label of a stored phase value (the value itself when unknown).</summary>
         public static string PhaseLabel(string value)
@@ -497,7 +497,7 @@ namespace BimGo.Clashes
             if (digits.Length == 0 || digits[0] == '.' && digits.Length == 1) { return false; }
             if (!double.TryParse(digits.ToString(), System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out value)) { return false; }
             if (negative) { value = -value; }
-            return double.IsFinite(value);
+            return BimGo.NumericCompat.IsFinite(value);
         }
 
         /// <summary>True when exactly three digits follow (then not a digit): a thousands group.</summary>
@@ -910,7 +910,7 @@ namespace BimGo.Clashes
                 test.Name = string.IsNullOrWhiteSpace(test.Name) ? "Test" : test.Name.Trim();
                 test.Kind = ClashKind.Normalise(test.Kind);
                 if (double.IsNaN(test.Tolerance) || double.IsInfinity(test.Tolerance)) { test.Tolerance = ClashDefaults.ToleranceFor(test.Kind); }
-                test.Tolerance = Math.Clamp(test.Tolerance, 0.0, ClashDefaults.MAX_TOLERANCE);
+                test.Tolerance = BimGo.NumericCompat.Clamp(test.Tolerance, 0.0, ClashDefaults.MAX_TOLERANCE);
             }
 
             var clashIds = new HashSet<string>(StringComparer.Ordinal);

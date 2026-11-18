@@ -51,7 +51,7 @@ namespace BimGo.Format
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string temp = path + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(document, OPTIONS));
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 CommentSnapshots.WriteBeside(path, document);
                 ModelFolders.MirrorAfterWrite(path);
                 return true;
@@ -88,7 +88,7 @@ namespace BimGo.Format
             builder.Append(FOLDER);
             foreach (char c in commentId ?? string.Empty)
             {
-                builder.Append(char.IsAsciiLetterOrDigit(c) || c == '-' ? c : '_');
+                builder.Append(((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) || c == '-' ? c : '_');
             }
             if (builder.Length == FOLDER.Length) { builder.Append(Guid.NewGuid().ToString("N")); }
             return builder.Append(".jpg").ToString();
@@ -111,7 +111,7 @@ namespace BimGo.Format
             if (file.Length == 0 || file.Length > 80) { return false; }
             foreach (char c in file)
             {
-                if (!(char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_')) { return false; }
+                if (!(((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) || c == '-' || c == '_')) { return false; }
             }
             return true;
         }
@@ -205,7 +205,7 @@ namespace BimGo.Format
             Directory.CreateDirectory(folder);
             string temp = file + ".tmp";
             File.WriteAllBytes(temp, data);
-            File.Move(temp, file, overwrite: true);
+            FileCompat.MoveOverwrite(temp, file);
         }
     }
 }

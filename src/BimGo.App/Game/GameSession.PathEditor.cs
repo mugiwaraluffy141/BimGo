@@ -165,7 +165,7 @@ namespace BimGo.Game
             _pathSnapped = null;
             _pathPickTarget = false;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive) { _window.SetCaptured(true); }
+            _window.SetCaptured(false);
             Toast($"Path editor closed · still flying ({Key(InputAction.Fly)} walks)", 2.5f);
         }
 
@@ -205,7 +205,6 @@ namespace BimGo.Game
             if (input.Pressed(InputAction.HideUi)) { ToggleUiHidden(); }
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
-            if (input.Down(InputAction.DragLook) && !_pathPreviewPlaying && !_pathScrubDrag) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
             UpdateRoom();
 
             // The preview plays the camera along the path
@@ -230,6 +229,8 @@ namespace BimGo.Game
             // The mouse in the scene (not over the dock or the scrubber)
             Vector2 mouse = input.MousePosition;
             bool overUi = Inside(_pathDockRect, mouse) || Inside(_pathBarRect, mouse) || OverlayOpen;
+            bool looking = ReviewLookDragging && input.Down(InputAction.DragLook) && !overUi && !_pathPreviewPlaying && !_pathScrubDrag;
+            if (looking) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
             if (_pathHandleDrag >= 0)
             {
                 if (!input.LeftDown) { EndPathDrag(); }
@@ -238,7 +239,6 @@ namespace BimGo.Game
                 return;
             }
 
-            bool looking = input.Down(InputAction.DragLook);
             _pathHandleHover = overUi || looking || _pathPickTarget ? -1 : PathHandleUnder(mouse);
             _pathKeyHover = overUi || looking || _pathHandleHover >= 0 ? -1 : PathKeyUnder(mouse);
             _pathTargetHover = overUi || looking || _pathHandleHover >= 0 || _pathKeyHover >= 0 ? -1 : PathTargetUnder(mouse);
@@ -1047,7 +1047,6 @@ namespace BimGo.Game
             float x = left, y = height - S(16) - h;
             _pathBarRect = new Vector4(x, y, w, h);
             _ui.Panel(x, y, w, h, UiTheme.PANEL_STRONG, UiTheme.PANEL_BORDER);
-            RegisterFocusArea(x, y, w, h);
 
             CameraPathTimeline timeline = _pathEditTimeline;
             float playW = S(70);
@@ -1090,7 +1089,7 @@ namespace BimGo.Game
             _ui.Circle(tx + tw * fraction, trackY, S(7), _pathScrubDrag ? Rgba.Hex(0xFFFFFF) : UiTheme.ACCENT, 16);
 
             // Drag along the track: the camera follows
-            bool overTrack = Hover(input, tx - S(8), trackY - S(14), tw + S(16), S(28), focus: false);
+            bool overTrack = Hover(input, tx - S(8), trackY - S(14), tw + S(16), S(28));
             if (overTrack && input.LeftPressed)
             {
                 input.ConsumeClicks();

@@ -43,7 +43,7 @@ namespace BimGo.Format
             Name = string.IsNullOrWhiteSpace(Name) ? "Picture" : Name.Trim();
             if (Name.Length > MAX_NAME) { Name = Name[..MAX_NAME]; }
             Category = EntourageCategories.Normalise(Category);
-            Height = float.IsFinite(Height) ? Math.Clamp(Height, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT) : 1.7f;
+            Height = BimGo.NumericCompat.IsFinite(Height) ? BimGo.NumericCompat.Clamp(Height, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT) : 1.7f;
             return EntourageDocument.IsSafeImageName(Image);
         }
     }
@@ -91,10 +91,10 @@ namespace BimGo.Format
         /// <summary>Clamps; false when the item is unusable (no type, bad numbers).</summary>
         public bool Clean()
         {
-            if (!double.IsFinite(X) || !double.IsFinite(Y) || !double.IsFinite(Z) || string.IsNullOrWhiteSpace(Type)) { return false; }
+            if (!BimGo.NumericCompat.IsFinite(X) || !BimGo.NumericCompat.IsFinite(Y) || !BimGo.NumericCompat.IsFinite(Z) || string.IsNullOrWhiteSpace(Type)) { return false; }
             if (string.IsNullOrWhiteSpace(Id)) { Id = Guid.NewGuid().ToString("N"); }
             Type = Type.Trim();
-            Height = float.IsFinite(Height) ? Math.Clamp(Height, MIN_HEIGHT, MAX_HEIGHT) : 1.7f;
+            Height = BimGo.NumericCompat.IsFinite(Height) ? BimGo.NumericCompat.Clamp(Height, MIN_HEIGHT, MAX_HEIGHT) : 1.7f;
             return true;
         }
     }
@@ -183,7 +183,7 @@ namespace BimGo.Format
 
             float height = instance?.Height ?? (slot.Height >= 0.2f ? slot.Height : DefaultHeight(document, chosen));
             bool flip = instance?.Flip ?? ((StableHash(slot.InstanceKey) & 1) == 1);
-            return new Result(chosen, Math.Clamp(height, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT), flip, rule);
+            return new Result(chosen, BimGo.NumericCompat.Clamp(height, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT), flip, rule);
         }
 
         /// <summary>A type's planting height (built-in or imported; 1.7 m otherwise).</summary>
@@ -317,7 +317,7 @@ namespace BimGo.Format
                 if (swap == null || string.IsNullOrWhiteSpace(swap.Key) || (swap.Scope != EntourageSwaps.INSTANCE && swap.Scope != EntourageSwaps.TYPE)) { continue; }
                 if (swap.Type != EntourageSwaps.KEEP && swap.Type != EntourageSwaps.NONE && !known.Contains(swap.Type ?? string.Empty)) { continue; }
                 if (swap.Scope == EntourageSwaps.TYPE) { swap.Height = null; swap.Flip = null; }
-                if (swap.Height is float h) { swap.Height = float.IsFinite(h) ? Math.Clamp(h, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT) : null; }
+                if (swap.Height is float h) { swap.Height = BimGo.NumericCompat.IsFinite(h) ? BimGo.NumericCompat.Clamp(h, EntourageItem.MIN_HEIGHT, EntourageItem.MAX_HEIGHT) : null; }
                 swaps.Remove((swap.Scope, swap.Key));
                 swaps[(swap.Scope, swap.Key)] = swap;
             }
@@ -392,7 +392,7 @@ namespace BimGo.Format
                 Directory.CreateDirectory(folder);
                 string path = Path.Combine(folder, name), temp = path + ".tmp";
                 File.WriteAllBytes(temp, bytes);
-                File.Move(temp, path, overwrite: true);
+                FileCompat.MoveOverwrite(temp, path);
                 return true;
             }
             catch (Exception ex)

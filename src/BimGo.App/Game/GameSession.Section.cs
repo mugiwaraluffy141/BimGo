@@ -224,7 +224,7 @@ namespace BimGo.Game
             _sectionOpen = false;
             _sectionDrag = -1;
             _window.Input.ReleaseAll();
-            if (!_paused && _window.IsActive && !_clashModeOn) { _window.SetCaptured(true); } // clash mode keeps its cursor
+            _window.SetCaptured(false);
         }
 
         /// <summary>
@@ -240,12 +240,15 @@ namespace BimGo.Game
             }
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
-            if (input.Down(InputAction.DragLook)) { _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY); }
-            PadEditorLook(input);
+            KeyboardEditorLook(input);
 
             Vector2 mouse = input.MousePosition;
             bool overPanel = mouse.X >= _sectionPanelRect.X && mouse.X < _sectionPanelRect.X + _sectionPanelRect.Z
                 && mouse.Y >= _sectionPanelRect.Y && mouse.Y < _sectionPanelRect.Y + _sectionPanelRect.W;
+            if (ReviewLookDragging && input.Down(InputAction.DragLook) && !overPanel)
+            {
+                _player.Look(input.MouseDeltaX, input.MouseDeltaY, _sensitivity, _invertY);
+            }
 
             if (_sectionDrag >= 0)
             {

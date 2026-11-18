@@ -61,7 +61,7 @@ namespace BimGo.Extraction
             var inUse = new Dictionary<long, int>();
             foreach (FamilyInstance instance in new FilteredElementCollector(_doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>())
             {
-                long typeId = instance.GetTypeId().Value;
+                long typeId = instance.GetTypeId().Ext_Value();
                 inUse[typeId] = inUse.TryGetValue(typeId, out int n) ? n + 1 : 1;
             }
 
@@ -71,26 +71,26 @@ namespace BimGo.Extraction
                 try
                 {
                     Category category = symbol.Category;
-                    if (category == null || !categories.TryGetValue((BuiltInCategory)category.Id.Value, out CategoryDef def)) { continue; }
+                    if (category == null || !categories.TryGetValue((BuiltInCategory)category.Id.Ext_Value(), out CategoryDef def)) { continue; }
                     Family family = symbol.Family;
                     if (family == null || family.IsInPlace) { continue; }
 
                     var entry = new LibraryEntry
                     {
-                        TypeId = symbol.Id.Value,
+                        TypeId = symbol.Id.Ext_Value(),
                         TypeUniqueId = symbol.UniqueId ?? string.Empty,
                         Family = family.Name ?? string.Empty,
                         Type = symbol.Name ?? string.Empty,
                         Category = def.Key,
                         CategoryIndex = def.Index,
-                        Placed = inUse.TryGetValue(symbol.Id.Value, out int placed) ? placed : 0
+                        Placed = inUse.TryGetValue(symbol.Id.Ext_Value(), out int placed) ? placed : 0
                     };
                     ClassifyPlacement(family, entry);
                     candidates.Add((symbol, entry));
                 }
                 catch (Exception ex)
                 {
-                    Utilities.Log_Utils.Write($"Family library: type {symbol.Id.Value} skipped: {ex.Message}");
+                    Utilities.Log_Utils.Write($"Family library: type {symbol.Id.Ext_Value()} skipped: {ex.Message}");
                 }
             }
             if (candidates.Count == 0)
@@ -100,7 +100,7 @@ namespace BimGo.Extraction
             }
 
             // The cap keeps types already used in the model first, then placeable ones, then by name
-            int max = Math.Clamp(_settings.FamilyLibraryMax, 10, LaunchSettings.MAX_FAMILY_LIBRARY);
+            int max = NumericCompat.Clamp(_settings.FamilyLibraryMax, 10, LaunchSettings.MAX_FAMILY_LIBRARY);
             List<(FamilySymbol Symbol, LibraryEntry Entry)> kept = candidates
                 .OrderByDescending(c => c.Entry.Placed > 0)
                 .ThenByDescending(c => c.Entry.Placeable)
@@ -213,7 +213,7 @@ namespace BimGo.Extraction
             }
             catch (Exception ex)
             {
-                Utilities.Log_Utils.Write($"Family library: no preview for {symbol.Id.Value}: {ex.Message}");
+                Utilities.Log_Utils.Write($"Family library: no preview for {symbol.Id.Ext_Value()}: {ex.Message}");
                 return null;
             }
         }

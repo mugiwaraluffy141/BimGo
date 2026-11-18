@@ -94,7 +94,7 @@ namespace BimGo.Bridge
                     // Removed first (their ids are free again), then changes, then new markers
                     foreach (ExistingMarker marker in plan.Remove)
                     {
-                        var id = new ElementId(marker.ElementId);
+                        var id = ElementId_Ext.Ext_FromValue(marker.ElementId);
                         if (OwnedByOther(doc, id)) { result.Skipped++; continue; }
                         try
                         {
@@ -110,7 +110,7 @@ namespace BimGo.Bridge
 
                     foreach ((ExistingMarker marker, MarkerRecord wanted, bool move, bool values) in plan.Change)
                     {
-                        var id = new ElementId(marker.ElementId);
+                        var id = ElementId_Ext.Ext_FromValue(marker.ElementId);
                         if (OwnedByOther(doc, id) || doc.GetElement(id) is not FamilyInstance instance) { result.Skipped++; continue; }
                         try
                         {
@@ -144,7 +144,7 @@ namespace BimGo.Bridge
                             if (!doc.LoadFamily(familyPath, out family) || family == null)
                             {
                                 family = FindFamily(doc);
-                                if (family == null) { throw new InvalidOperationException($"Revit couldn't load {Path.GetFileName(familyPath)}"); }
+                                if (family == null) { throw new InvalidOperationException($"Revit couldn't load {Path.GetFileName(familyPath)}. Check that it is a compatible BimGo Comment Marker family saved in this Revit version or earlier; select it in Options → Player."); }
                             }
                             Utilities.Log_Utils.Write($"Comment markers: loaded {familyPath}.");
                         }
@@ -180,7 +180,7 @@ namespace BimGo.Bridge
                             if (TagOf(instance) != wanted.Id)
                             {
                                 idProblem = "the marker couldn't be tagged with its comment id (see the log)";
-                                Utilities.Log_Utils.Write($"Comment markers: tag on {instance.Id.Value} reads “{TagOf(instance)}”, wanted {wanted.Id}.");
+                                Utilities.Log_Utils.Write($"Comment markers: tag on {instance.Id.Ext_Value()} reads “{TagOf(instance)}”, wanted {wanted.Id}.");
                                 break;
                             }
                             firstPlaced ??= (instance, wanted.Id);
@@ -280,6 +280,11 @@ namespace BimGo.Bridge
                 why = $"The marker family set in Options isn't there: {custom}";
                 return null;
             }
+#if REVIT2023 || REVIT2024
+            // The bundled family was authored in a newer Revit and cannot be downgraded.
+            why = "Revit 2023/2024 requires a compatible comment marker family. Author it in Revit 2023 using docs/marker-family-2023.md, then set its path in Options → Player.";
+            return null;
+#else
             try
             {
                 string name = Globals.ADDIN_ASSEMBLY.GetManifestResourceNames()
@@ -314,6 +319,7 @@ namespace BimGo.Bridge
                 why = $"The marker family couldn't be prepared: {ex.Message}";
                 return null;
             }
+#endif
         }
 
         #endregion
@@ -331,7 +337,7 @@ namespace BimGo.Bridge
                     XYZ point = GetPoint(doc, instance);
                     markers.Add(new ExistingMarker
                     {
-                        ElementId = instance.Id.Value,
+                        ElementId = instance.Id.Ext_Value(),
                         Values = new MarkerRecord
                         {
                             Id = TagOf(instance) is { Length: > 0 } tagged ? tagged : GetText(instance, MarkerFamily.ID),
@@ -481,7 +487,7 @@ namespace BimGo.Bridge
         private static string DescribeIdProblem(FamilyInstance instance, string id)
         {
             var log = new System.Text.StringBuilder();
-            log.AppendLine($"Comment markers: BimGo_Id didn't take on {instance.Id.Value} ({instance.Symbol?.Family?.Name} : {instance.Symbol?.Name}). Shared parameters on it:");
+            log.AppendLine($"Comment markers: BimGo_Id didn't take on {instance.Id.Ext_Value()} ({instance.Symbol?.Family?.Name} : {instance.Symbol?.Name}). Shared parameters on it:");
             foreach (Parameter q in instance.Parameters)
             {
                 if (q?.Definition == null || !q.IsShared) { continue; }
@@ -562,7 +568,7 @@ namespace BimGo.Bridge
             string message = ex.Message ?? "unknown error";
             if (message.Contains("newer", StringComparison.OrdinalIgnoreCase))
             {
-                return $"the marker family couldn't be loaded ({message}). Save it in the oldest Revit you use (2025).";
+                return $"The marker family couldn't be loaded ({message}). Select a compatible BimGo Comment Marker family authored in this Revit version or earlier in Options → Player.";
             }
             return message;
         }

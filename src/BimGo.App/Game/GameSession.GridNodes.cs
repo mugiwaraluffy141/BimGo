@@ -216,7 +216,7 @@ namespace BimGo.Game
         #region Hover and acting
 
         /// <summary>
-        /// Once a frame (with the aim): the node nearest the crosshair (cursor captured) or the mouse (cursor free),
+        /// Once a frame (with the aim): the node nearest the pointer,
         /// within a few pixels, on the shown levels and within the bubble distance. Then the Measure gun's snap. Nothing
         /// while the UI is hidden, paused or in photo mode, or over a panel.
         /// </summary>
@@ -228,8 +228,8 @@ namespace BimGo.Game
             if (_gridNodes.Length == 0) { return; }
 
             InputState input = _window.Input;
-            Vector2 target = _window.IsCaptured ? new Vector2(Camera.ViewportWidth * 0.5f, Camera.ViewportHeight * 0.5f) : input.MousePosition;
-            if (!_window.IsCaptured && (OverGridsPanel(target) || (_clashModeOn && OverClashDock(target)))) { return; }
+            Vector2 target = input.MousePosition;
+            if (OverGridsPanel(target) || (_clashModeOn && OverClashDock(target))) { return; }
             if (_clashModeOn && _clashToolHover != null) { return; } // a clash dot wins
 
             float reach = S(GRID_HOVER_PIXELS), best = reach * reach;

@@ -365,7 +365,7 @@ namespace BimGo.Game
         private void UpdateMarkupMouse(InputState input)
         {
             Vector2 mouse = input.MousePosition;
-            bool over = Hover(input, _markupX, _markupY, _markupW, _markupH, focus: false);
+            bool over = Hover(input, _markupX, _markupY, _markupW, _markupH);
 
             if (input.LeftPressed && over)
             {

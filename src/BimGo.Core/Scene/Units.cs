@@ -64,7 +64,7 @@ namespace BimGo.Scene
             inches = 0;
             numerator = 0;
             denominator = 1;
-            if (!double.IsFinite(metres)) { return false; }
+            if (!BimGo.NumericCompat.IsFinite(metres)) { return false; }
 
             long steps = (long)Math.Round(Math.Abs(metres) / METRES_PER_INCH * INCH_DIVISIONS, MidpointRounding.AwayFromZero);
             negative = metres < 0 && steps > 0;
@@ -95,7 +95,7 @@ namespace BimGo.Scene
         /// </summary>
         public static string Length(double metres, UnitSystem system, bool decimalFeet = false, int metricDecimals = 3)
         {
-            if (!double.IsFinite(metres)) { return "—"; }
+            if (!BimGo.NumericCompat.IsFinite(metres)) { return "—"; }
             if (system == UnitSystem.Metric) { return Signed(metres, metricDecimals) + " m"; }
             if (decimalFeet) { return Signed(ToFeet(metres), Math.Max(2, metricDecimals)) + "'"; }
 
@@ -116,7 +116,7 @@ namespace BimGo.Scene
         /// </summary>
         public static string Area(double squareMetres, UnitSystem system, int decimals = 1)
         {
-            if (!double.IsFinite(squareMetres)) { return "—"; }
+            if (!BimGo.NumericCompat.IsFinite(squareMetres)) { return "—"; }
             return system == UnitSystem.Metric
                 ? Signed(squareMetres, decimals) + " m²"
                 : Signed(ToSquareFeet(squareMetres), decimals) + " ft²";
@@ -125,7 +125,7 @@ namespace BimGo.Scene
         /// <summary>Fixed decimals, invariant culture, true minus sign.</summary>
         private static string Signed(double value, int decimals)
         {
-            decimals = Math.Clamp(decimals, 0, 6);
+            decimals = BimGo.NumericCompat.Clamp(decimals, 0, 6);
             string text = Math.Abs(value).ToString("F" + decimals.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
             bool zero = Math.Abs(value) < 0.5 * Math.Pow(10, -decimals);
             return value < 0 && !zero ? "−" + text : text;

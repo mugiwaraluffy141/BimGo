@@ -7,7 +7,7 @@ using BimGo.Scene;
 namespace BimGo.Game
 {
     /// <summary>
-    /// Pause menu → CONTROLS (input round B2): every action with up to three keys each, grouped like the catalogue
+    /// Pause menu → CONTROLS: every action with up to three keyboard / mouse bindings, grouped like the catalogue
     /// (<see cref="InputCatalog"/>). Click a key slot, then press the new key, mouse button or wheel notch (Esc cancels;
     /// a modifier on its own binds when released); right-click a slot to clear it; RESET puts one action back; RESET ALL
     /// every action. A key that another action live at the same time already uses asks first: SWAP gives that action
@@ -105,11 +105,6 @@ namespace BimGo.Game
         {
             if (!_controlsOpen) { return false; }
             EndKeyCapture();
-            if (IsMappingPad)
-            {
-                EndPadMapping(save: false);
-                return true;
-            }
             if (_pendingAction != InputAction.None || _resetAllAsk)
             {
                 _pendingAction = InputAction.None;
@@ -172,19 +167,11 @@ namespace BimGo.Game
 
             // LMB: on the waiting slot it is the binding; anywhere else it cancels (so a stray click doesn't bind it)
             if (input.IsPressed(KeyCodes.LEFT_MOUSE)
-                && !Hover(input, _captureRect.X, _captureRect.Y, _captureRect.Z, _captureRect.W, focus: false))
+                && !Hover(input, _captureRect.X, _captureRect.Y, _captureRect.Z, _captureRect.W))
             {
                 EndKeyCapture();
                 SetControlsNotice("Not changed", error: false);
                 input.ConsumeFrame();
-                return;
-            }
-
-            // The gamepad column takes gamepad buttons, triggers and stick directions (LB / RB on their own bind when
-            // released, or combine with what is pressed while they are held); keys are ignored there except Esc
-            if (_captureSlot == KeyMap.PAD_SLOT)
-            {
-                UpdatePadCapture(input);
                 return;
             }
 
@@ -221,36 +208,6 @@ namespace BimGo.Game
         }
 
         private static readonly ushort[] MODIFIER_KEYS = { KeyCodes.SHIFT, KeyCodes.CTRL, KeyCodes.ALT };
-        private static readonly ushort[] PAD_SHOULDERS = { KeyCodes.PAD_LB, KeyCodes.PAD_RB };
-
-        /// <summary>Key capture for the gamepad column (build B).</summary>
-        private void UpdatePadCapture(InputState input)
-        {
-            IKeyState keys = input;
-            KeyModifiers held = (keys.IsKeyDown(KeyCodes.PAD_LB) ? KeyModifiers.PadLB : KeyModifiers.None)
-                | (keys.IsKeyDown(KeyCodes.PAD_RB) ? KeyModifiers.PadRB : KeyModifiers.None);
-            for (int i = 0; i < KeyCodes.PAD_COUNT; i++)
-            {
-                ushort code = (ushort)(KeyCodes.GAMEPAD_FIRST + i);
-                if (!keys.IsKeyPressed(code) || KeyCodes.IsModifier(code)) { continue; }
-                FinishKeyCapture(new KeyChord(code, held));
-                input.ConsumeFrame();
-                return;
-            }
-            foreach (ushort shoulder in PAD_SHOULDERS)
-            {
-                if (keys.IsKeyPressed(shoulder))
-                {
-                    _captureModifier = shoulder;
-                    _captureModifierWith = held & ~KeyCodes.ModifierOf(shoulder);
-                }
-            }
-            if (_captureModifier != KeyCodes.NONE && !keys.IsKeyDown(_captureModifier))
-            {
-                FinishKeyCapture(new KeyChord(_captureModifier, _captureModifierWith));
-            }
-            input.ConsumeFrame();
-        }
 
         /// <summary>Left / right Shift, Ctrl and Alt codes (Windows reports the generic ones, but just in case).</summary>
         private static bool IsSideModifier(int code) => code is >= 0xA0 and <= 0xA5;
@@ -334,7 +291,7 @@ namespace BimGo.Game
 
         /// <summary>
         /// Draws CONTROLS in the panel shell (polish round P-A1): IMPORT / EXPORT / RESET ALL in the header, the search,
-        /// the gamepad tuning, the clash question or the last notice, the grouped list (a scroll region).
+        /// the clash question or the last notice, the grouped list (a scroll region).
         /// </summary>
         private void BuildControlsPanel()
         {
@@ -343,11 +300,10 @@ namespace BimGo.Game
             if (!input.LeftDown) { _activeSlider = -1; }
             bool capturing = IsCapturingKey;
             bool asking = _pendingAction != InputAction.None || _resetAllAsk;
-            bool mapping = IsMappingPad;
-            bool interactive = !capturing && !asking && !mapping;
+            bool interactive = !capturing && !asking;
 
             // Header: IMPORT… · EXPORT… · RESET ALL on the right
-            bool allDefault = Hotkeys.Map.AllDefault();
+            bool allDefault = InputCatalog.All.All(def => def.IsFixed || Hotkeys.Map.IsKeyDefault(def.Action));
             float controlsW = S(130) * 2f + S(UiTheme.GAP_SMALL) * 2f + (allDefault ? 0f : S(140));
             PanelFrame frame = BeginPanel(PanelSize.Wide, "CONTROLS", UiTheme.ACCENT, "Click a key to change it · right-click clears it · saved at once", headerControls: controlsW);
             if (HeaderButton(ref frame, "IMPORT…", enabled: interactive, width: S(130))) { ImportKeymap(); }
@@ -362,7 +318,7 @@ namespace BimGo.Game
             float boxW = MathF.Min(S(340), w * 0.4f), boxH = S(34);
             _ui.Panel(x, y, boxW, boxH, UiTheme.CONTROL, UiTheme.CONTROL_BORDER);
             float textY = y + boxH * 0.5f - f.Body.LineHeight * 0.5f;
-            if (_controlsSearchLength == 0) { _ui.Text(f.Body, x + S(10), textY, "Search: action, group or key (e.g. jump, sun, ctrl)", UiTheme.TEXT_FAINT); }
+            if (_controlsSearchLength == 0) { _ui.Text(f.Body, x + S(10), textY, "Search: action, group or key (e.g. move, comment, screenshot)", UiTheme.TEXT_FAINT); }
             else
             {
                 float used = _ui.Text(f.Body, x + S(10), textY, _controlsSearch.AsSpan(0, _controlsSearchLength), UiTheme.TEXT);
@@ -370,16 +326,9 @@ namespace BimGo.Game
             }
             y += boxH + S(12);
 
-            // Gamepad tuning (build B): look speed, invert Y, dead zone, trigger threshold, swap sticks
-            y += BuildPadTuning(f, input, x, y, w, interactive);
-
             // The clash question, or the notice
             float noticeH = _resetAllAsk ? S(54) : S(34);
-            if (mapping)
-            {
-                BuildPadMappingStrip(f, input, x, y, w, noticeH);
-            }
-            else if (_resetAllAsk)
+            if (_resetAllAsk)
             {
                 // P-B: RESET ALL lists what it changes; CONFIRM resets, CANCEL (or Esc) keeps everything
                 _ui.Panel(x, y, w, noticeH, UiTheme.PANEL_STRONG, UiTheme.DANGER);
@@ -389,7 +338,7 @@ namespace BimGo.Game
                 if (SmallButton(f, input, x + w - buttonsW - S(6), by, S(120), S(28), "CONFIRM"))
                 {
                     _resetAllAsk = false;
-                    Hotkeys.Map.ResetAll();
+                    Hotkeys.Map.ResetAll(keysOnly: true);
                     Hotkeys.Save();
                     Sound.Play(SoundId.UiClick);
                     SetControlsNotice("Every key is back to its default.", error: false);
@@ -420,16 +369,8 @@ namespace BimGo.Game
             else if (capturing)
             {
                 ActionDef def = InputCatalog.Get(_captureAction);
-                if (_captureSlot == KeyMap.PAD_SLOT)
-                {
-                    Text.Clear().Append("Press the gamepad button, trigger, stick direction or LB / RB + button for “").Append(def?.Label ?? string.Empty)
-                        .Append("” · LB / RB on their own: press and release · Esc or a click elsewhere cancels");
-                }
-                else
-                {
-                    Text.Clear().Append("Press the new key, mouse button or wheel for “").Append(def?.Label ?? string.Empty).Append("” (key ").Append(_captureSlot + 1)
-                        .Append(") · a modifier on its own: press and release it · LMB: click this slot again · Esc or a click elsewhere cancels");
-                }
+                Text.Clear().Append("Press the new key, mouse button or wheel for “").Append(def?.Label ?? string.Empty).Append("” (key ").Append(_captureSlot + 1)
+                    .Append(") · a modifier on its own: press and release it · LMB: click this slot again · Esc or a click elsewhere cancels");
                 _ui.TextWrapped(f.Body, x, y + S(8), w, Text.Span, UiTheme.ACCENT, maxLines: 1);
             }
             else if (_controlsNotice != null)
@@ -462,15 +403,14 @@ namespace BimGo.Game
             float regionW = w;
             w -= S(UiTheme.SCROLL_GUTTER); // the columns stop short of the scroll bar
             float labelW = w * 0.38f;
-            float slotW = MathF.Floor((w - labelW - S(110)) / KeyMap.ALL_SLOTS);
-            float resetX = x + labelW + slotW * KeyMap.ALL_SLOTS + S(10);
+            float slotW = MathF.Floor((w - labelW - S(110)) / KeyMap.MAX_SLOTS);
+            float resetX = x + labelW + slotW * KeyMap.MAX_SLOTS + S(10);
 
             // Column titles
             _ui.Text(f.Small, x, y, "ACTION", UiTheme.TEXT_MUTED, S(1.4f));
-            for (int s = 0; s < KeyMap.ALL_SLOTS; s++)
+            for (int s = 0; s < KeyMap.MAX_SLOTS; s++)
             {
-                if (s == KeyMap.PAD_SLOT) { Text.Clear().Append(Gamepad.Connected ? "GAMEPAD" : "GAMEPAD (none connected)"); }
-                else { Text.Clear().Append("KEY ").Append(s + 1); }
+                Text.Clear().Append("KEY ").Append(s + 1);
                 _ui.Text(f.Small, x + labelW + s * slotW + S(4), y, Text.Span, UiTheme.TEXT_MUTED, S(1.4f));
             }
             y += S(22);
@@ -507,7 +447,7 @@ namespace BimGo.Game
                 if (tag != null)
                 {
                     bool tagClash = false; // red: a new default meets one of the user's own keys
-                    for (int k = 0; k < KeyMap.ALL_SLOTS && !tagClash; k++) { tagClash = SlotClashes(action, k); }
+                    for (int k = 0; k < KeyMap.MAX_SLOTS && !tagClash; k++) { tagClash = SlotClashes(action, k); }
                     uint tagColour = tagClash ? UiTheme.DANGER : UiTheme.ACCENT;
                     tagW = UiBatch.Measure(f.Small, tag, S(1f)) + S(12);
                     float tx = x + labelW - tagW - S(8);
@@ -517,7 +457,7 @@ namespace BimGo.Game
                 }
                 _ui.TextWrapped(f.Body, x + S(10), ry + S(6), labelW - S(16) - tagW, def.Label, def.IsFixed ? UiTheme.TEXT_MUTED : UiTheme.TEXT, maxLines: 1);
 
-                for (int s = 0; s < KeyMap.ALL_SLOTS; s++)
+                for (int s = 0; s < KeyMap.MAX_SLOTS; s++)
                 {
                     float sx = x + labelW + s * slotW;
                     float sw = slotW - S(8);
@@ -560,11 +500,11 @@ namespace BimGo.Game
                 {
                     _ui.Text(f.Small, resetX + S(8), ry + S(9), "FIXED", UiTheme.TEXT_FAINT, S(1f));
                 }
-                else if (!map.IsDefault(action) && interactive)
+                else if (!map.IsKeyDefault(action) && interactive)
                 {
                     if (SmallButton(f, input, resetX, ry + S(2), S(90), rowH - S(6), "RESET"))
                     {
-                        map.Reset(action);
+                        map.Reset(action, keysOnly: true);
                         Hotkeys.Save();
                         SetControlsNotice($"{def.Label}: {map.AllLabels(action)} (default)", error: false);
                     }
@@ -595,8 +535,8 @@ namespace BimGo.Game
                 bool header = false;
                 foreach (ActionDef def in InputCatalog.All)
                 {
-                    if (def.Context != context) { continue; }
-                    string keys = map.AllLabels(def.Action) + " " + map.PadLabel(def.Action) + " " + Hotkeys.FreshTag(def.Action); // P-B: "new", "changed"
+                    if (def.Context != context || !InputCatalog.ReviewAction(def.Action)) { continue; }
+                    string keys = map.AllLabels(def.Action) + " " + Hotkeys.FreshTag(def.Action); // P-B: "new", "changed"
                     bool match = true;
                     foreach (string word in words)
                     {
@@ -666,7 +606,7 @@ namespace BimGo.Game
         #region Reset all (polish round P-B)
 
         /// <summary>
-        /// RESET ALL: lists the actions it would put back (current → default, keys and gamepad) and waits for CONFIRM.
+        /// RESET ALL: lists the actions it would put back and waits for CONFIRM.
         /// </summary>
         private void AskResetAll()
         {
@@ -676,110 +616,17 @@ namespace BimGo.Game
             int count = 0;
             foreach (ActionDef def in InputCatalog.All)
             {
-                if (def.IsFixed || map.IsDefault(def.Action)) { continue; }
+                if (def.IsFixed || map.IsKeyDefault(def.Action)) { continue; }
                 count++;
                 if (parts.Count >= 6) { continue; }
-                string now = map.IsKeyDefault(def.Action) ? null : $"{map.AllLabels(def.Action)} → {defaults.AllLabels(def.Action)}";
-                string pad = map.PadChord(def.Action) == def.PadDefault ? null
-                    : $"gamepad {Blank(map.PadLabel(def.Action))} → {Blank(defaults.PadLabel(def.Action))}";
-                parts.Add($"{def.Label}: {string.Join(", ", new[] { now, pad }.Where(p => p != null))}");
+                string now = $"{map.AllLabels(def.Action)} → {defaults.AllLabels(def.Action)}";
+                parts.Add($"{def.Label}: {now}");
             }
             if (count == 0) { return; }
             string more = count > parts.Count ? $" · and {count - parts.Count} more" : string.Empty;
             _resetAllText = $"RESET ALL puts {count} action{(count == 1 ? string.Empty : "s")} back to the defaults: {string.Join(" · ", parts)}{more}";
             _resetAllAsk = true;
             Sound.Play(SoundId.UiClick);
-        }
-
-        private static string Blank(string label) => string.IsNullOrEmpty(label) ? "none" : label;
-
-        #endregion
-
-        #region Gamepad tuning
-
-        private bool _padTuningDirty;
-
-        /// <summary>
-        /// One row of gamepad settings: look speed, dead zone, trigger threshold (sliders), invert Y, SWAP STICKS (look
-        /// and move change sticks). Saved when the slider is let go.
-        /// </summary>
-        /// <returns>The height used.</returns>
-        private float BuildPadTuning(FontAtlas f, InputState input, float x, float y, float w, bool interactive)
-        {
-            float h = S(44);
-            float col = S(160);
-            _ui.Text(f.Small, x, y + S(4), "GAMEPAD", UiTheme.TEXT_MUTED, S(1.4f));
-            _ui.TextWrapped(f.Small, x, y + S(22), col - S(12), Gamepad.Description, Gamepad.Connected ? UiTheme.GOOD : UiTheme.TEXT_FAINT, maxLines: 1);
-
-            // Right of the sliders: Invert Y, then the buttons. When the window is too narrow for the sliders to keep a
-            // usable width, the buttons drop to a line of their own under the sliders (right-aligned).
-            float buttonW = S(150), buttonH = S(30), gap = S(24);
-            bool generic = Gamepad.IsGeneric;
-            float buttonsW = generic ? buttonW * 2f + S(10) : buttonW;
-            float checkW = S(110);
-            float sliderW = (w - col - checkW - gap - buttonsW - gap) / 3f - gap;
-            bool oneLine = sliderW >= S(150);
-            if (!oneLine) { sliderW = MathF.Max(S(100), (w - col - checkW - gap) / 3f - gap); }
-
-            float sx = x + col;
-            if (interactive)
-            {
-                Text.Clear().Append(Gamepad.LookSensitivity, 2);
-                float look = MathF.Round(Slider(f, input, SLIDER_PAD_LOOK, sx, y, sliderW, "Look speed", Text.Span, Gamepad.LookSensitivity, 0.2f, 3f) / 0.05f) * 0.05f;
-                if (look != Gamepad.LookSensitivity) { Gamepad.LookSensitivity = look; _padTuningDirty = true; }
-                sx += sliderW + gap;
-
-                Text.Clear().Append(Gamepad.DeadZone * 100f, 0).Append(" %");
-                float dead = MathF.Round(Slider(f, input, SLIDER_PAD_DEAD, sx, y, sliderW, "Dead zone", Text.Span, Gamepad.DeadZone, 0.05f, 0.6f) / 0.01f) * 0.01f;
-                if (dead != Gamepad.DeadZone) { Gamepad.DeadZone = dead; _padTuningDirty = true; }
-                sx += sliderW + gap;
-
-                Text.Clear().Append(Gamepad.TriggerThreshold * 100f, 0).Append(" %");
-                float trigger = MathF.Round(Slider(f, input, SLIDER_PAD_TRIGGER, sx, y, sliderW, "Trigger threshold", Text.Span, Gamepad.TriggerThreshold, 0.05f, 0.9f) / 0.01f) * 0.01f;
-                if (trigger != Gamepad.TriggerThreshold) { Gamepad.TriggerThreshold = trigger; _padTuningDirty = true; }
-                sx += sliderW + gap;
-
-                bool invert = Checkbox(f, input, sx, y + S(22), checkW, "Invert Y", Gamepad.InvertY);
-                if (invert != Gamepad.InvertY)
-                {
-                    Gamepad.InvertY = invert;
-                    _padTuningDirty = true;
-                }
-
-                float by = oneLine ? y + S(14) : y + h;
-                float bx = x + w - buttonW;
-                if (SmallButton(f, input, bx, by, buttonW, buttonH, "SWAP STICKS"))
-                {
-                    SwapPadSticks();
-                }
-
-                // A generic controller (not XInput): record which of its buttons is which
-                bx -= buttonW + S(10);
-                if (generic && SmallButton(f, input, bx, by, buttonW, buttonH, "MAP BUTTONS…"))
-                {
-                    BeginPadMapping();
-                }
-            }
-            if (_padTuningDirty && !input.LeftDown)
-            {
-                _padTuningDirty = false;
-                Hotkeys.Save();
-            }
-            return (oneLine ? h : h + buttonH + S(6)) + S(8);
-        }
-
-        private const int SLIDER_PAD_LOOK = 51, SLIDER_PAD_DEAD = 52, SLIDER_PAD_TRIGGER = 53;
-
-        /// <summary>SWAP STICKS: the look and move actions trade their gamepad bindings (and saved).</summary>
-        private void SwapPadSticks()
-        {
-            KeyMap map = Hotkeys.Map;
-            map.SwapPad(InputAction.MoveForward, InputAction.LookUp);
-            map.SwapPad(InputAction.MoveBack, InputAction.LookDown);
-            map.SwapPad(InputAction.MoveLeft, InputAction.LookLeft);
-            map.SwapPad(InputAction.MoveRight, InputAction.LookRight);
-            Hotkeys.Save();
-            SetControlsNotice($"Sticks swapped: look on {(Gamepad.LookOnRightStick ? "the right" : "the left")} stick, move on {(Gamepad.LookOnRightStick ? "the left" : "the right")}", error: false);
         }
 
         #endregion

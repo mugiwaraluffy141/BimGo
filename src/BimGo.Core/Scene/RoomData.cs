@@ -29,7 +29,7 @@ namespace BimGo.Scene
         public double Number { get; }
 
         /// <summary>True when the value is numeric.</summary>
-        public bool IsNumeric => double.IsFinite(Number);
+        public bool IsNumeric => BimGo.NumericCompat.IsFinite(Number);
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ namespace BimGo.Scene
                 clean[m++] = c;
             }
             if (m == 0 || (m == 1 && (clean[0] == '-' || clean[0] == '.'))) { return double.NaN; }
-            return double.TryParse(clean[..m], NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double value)
+            return double.TryParse(new string(clean[..m].ToArray()), NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double value)
                 ? value : double.NaN;
         }
 
@@ -152,8 +152,8 @@ namespace BimGo.Scene
         public static RoomCheckStatus Evaluate(double value, double target, RoomCheckRule rule, double tolerancePercent, out double differencePercent)
         {
             differencePercent = double.NaN;
-            if (!double.IsFinite(value) || !double.IsFinite(target) || Math.Abs(target) < 1e-9) { return RoomCheckStatus.None; }
-            double tol = double.IsFinite(tolerancePercent) ? Math.Max(0.0, tolerancePercent) : 0.0;
+            if (!BimGo.NumericCompat.IsFinite(value) || !BimGo.NumericCompat.IsFinite(target) || Math.Abs(target) < 1e-9) { return RoomCheckStatus.None; }
+            double tol = BimGo.NumericCompat.IsFinite(tolerancePercent) ? Math.Max(0.0, tolerancePercent) : 0.0;
             double d = (value - target) / Math.Abs(target) * 100.0;
             differencePercent = d;
             const double EPS = 1e-9;
@@ -326,9 +326,9 @@ namespace BimGo.Scene
         /// <returns>This instance.</returns>
         public RoomOverlaySettings Clean()
         {
-            Height = float.IsFinite(Height) ? MathF.Round(Math.Clamp(Height, MIN_HEIGHT, MAX_HEIGHT) * 10f) / 10f : DEFAULT_HEIGHT;
-            Distance = float.IsFinite(Distance) ? MathF.Round(Math.Clamp(Distance, MIN_DISTANCE, MAX_DISTANCE) / 5f) * 5f : DEFAULT_DISTANCE;
-            Tolerance = float.IsFinite(Tolerance) ? MathF.Round(Math.Clamp(Tolerance, 0f, MAX_TOLERANCE) * 2f) / 2f : DEFAULT_TOLERANCE;
+            Height = BimGo.NumericCompat.IsFinite(Height) ? MathF.Round(BimGo.NumericCompat.Clamp(Height, MIN_HEIGHT, MAX_HEIGHT) * 10f) / 10f : DEFAULT_HEIGHT;
+            Distance = BimGo.NumericCompat.IsFinite(Distance) ? MathF.Round(BimGo.NumericCompat.Clamp(Distance, MIN_DISTANCE, MAX_DISTANCE) / 5f) * 5f : DEFAULT_DISTANCE;
+            Tolerance = BimGo.NumericCompat.IsFinite(Tolerance) ? MathF.Round(BimGo.NumericCompat.Clamp(Tolerance, 0f, MAX_TOLERANCE) * 2f) / 2f : DEFAULT_TOLERANCE;
             CheckRule = CheckRule;
             Value = string.IsNullOrWhiteSpace(Value) ? DEFAULT_VALUE : Value.Trim();
             Target = string.IsNullOrWhiteSpace(Target) ? null : Target.Trim();
