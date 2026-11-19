@@ -71,9 +71,7 @@ namespace BimGo.Game
             // One panel at a time (like the grids panel)
             CloseGridsPanel();
             CloseSunPanel();
-            CloseSunHours();
             CloseSectionEditor();
-            ClosePhotoMode();
             _window.SetCaptured(false);
             _window.Input.ReleaseAll();
             ShowUi();

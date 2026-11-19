@@ -77,7 +77,7 @@ namespace BimGo.Bridge
                     if (familyPath == null) { return Fail(result, why); }
                 }
 
-                var failures = new RevitEditor.SwallowFailures();
+                var failures = new SwallowFailures();
                 using var transaction = new Transaction(doc, MarkerFamily.TRANSACTION_NAME);
                 FailureHandlingOptions options = transaction.GetFailureHandlingOptions();
                 options.SetFailuresPreprocessor(failures);

@@ -346,7 +346,7 @@ namespace BimGo.Game
         private bool _dockOverMap, _dockOverMapNext;
 
         // The docks' bodies
-        private readonly ScrollRegion _sunDockScroll = new(), _studyDockScroll = new(), _sectionDockScroll = new(), _gridsDockScroll = new();
+        private readonly ScrollRegion _sunDockScroll = new(), _sectionDockScroll = new(), _gridsDockScroll = new();
 
         /// <summary>
         /// The right-hand column for a dock of this width (walkthrough: under the minimap when it shows, down to just
@@ -369,7 +369,7 @@ namespace BimGo.Game
             x = screenW - margin - width;
             top = margin;
             bottom = screenH - margin - S(UiTheme.SUN_ICON_SIZE) - S(10);
-            if (_showMap && !_photoOpen) // Y-B: the minimap hides in photo mode, so its dock starts at the top
+            if (_showMap) // Y-B: the minimap sits above the dock
             {
                 float under = margin + S(UiTheme.MINIMAP_HEIGHT) + S(UiTheme.COLUMN_GAP);
                 if (bottom - under >= S(UiTheme.DOCK_MIN_HEIGHT)) { top = under; }
@@ -379,7 +379,7 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// Draws a dock (a compact panel in the right-hand column: sun, study, section box, grids) and its header, and
+        /// Draws a dock (a compact panel in the right-hand column: sun, section box, grids) and its header, and
         /// lays out the body and footer. The dock is as tall as its content (last frame's) and the column allows; the
         /// body scrolls when it doesn't fit. Draw the body between <see cref="BeginDockBody"/> and
         /// <see cref="EndDockBody"/>, then call <see cref="EndDock"/>.
@@ -490,7 +490,7 @@ namespace BimGo.Game
 
         /// <summary>True while one of the panels that replace the pause menu is open.</summary>
         private bool AnyBigPanelOpen => IsCommentsPanelOpen || IsBookmarksPanelOpen || IsTexturesPanelOpen || IsLibraryPanelOpen || IsRoomsPanelOpen
-            || IsClashesPanelOpen || IsColourProfilesPanelOpen || IsGeometryPanelOpen || IsControlsPanelOpen || IsPushPanelOpen || IsMediaPanelOpen || IsEntouragePanelOpen || IsMarkupOpen || _menuPreview;
+            || IsClashesPanelOpen || IsColourProfilesPanelOpen || IsGeometryPanelOpen || IsControlsPanelOpen || IsEntouragePanelOpen || IsMarkupOpen || _menuPreview;
 
         /// <summary>
         /// One level back (Esc, the gamepad's B, ← BACK): an open dropdown or confirm, then the markup editor (Y-B: it
@@ -500,8 +500,8 @@ namespace BimGo.Game
         private bool PanelBack()
         {
             if (AnyBigPanelOpen && CloseOverlay()) { return true; }
-            bool closed = CancelMarkupPanel() || CloseMenuPreview() || ClosePush() || CloseComments() || CloseBookmarks() || CloseTextures() || CloseLibrary() || CloseRooms()
-                || CloseClashes() || CloseColourProfiles() || CloseGeometry() || CloseControls() || CloseMedia() || CloseEntourage();
+            bool closed = CancelMarkupPanel() || CloseMenuPreview() || CloseComments() || CloseBookmarks() || CloseTextures() || CloseLibrary() || CloseRooms()
+                || CloseClashes() || CloseColourProfiles() || CloseGeometry() || CloseControls() || CloseEntourage();
             if (closed && !AnyBigPanelOpen && _paused) { SetPaused(false); }
             return closed;
         }

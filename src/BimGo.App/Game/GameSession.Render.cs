@@ -73,16 +73,6 @@ namespace BimGo.Game
         {
             int width = _window.Width, height = _window.Height;
 
-            // ---- Recording a walkthrough video: video frames off-screen, then the preview and progress only
-            if (_video != null)
-            {
-                RenderVideo();
-                return;
-            }
-
-            // ---- Photo mode: a pending shot renders off-screen first (camera and targets restored afterwards)
-            if (_photoShotIn > 0 && --_photoShotIn == 0) { TakePhoto(); }
-
             // ---- Clash pictures (C-B2): row pictures, TO COMMENT / TO COMMENTS, off-screen (state restored afterwards)
             RenderClashPictures();
 
@@ -101,22 +91,13 @@ namespace BimGo.Game
                 }
                 CaptureScreenshot(width, height);
             }
-            if (_sunShotRequested)
-            {
-                // The study's screenshot: the 3D view plus the legend (drawn and flushed first), no other UI
-                _sunShotRequested = false;
-                Gl.Viewport(0, 0, width, height);
-                BuildSunLegend(_ui.Atlas, S(20), height - S(20) - S(78));
-                _ui.Flush(width, height);
-                CaptureScreenshot(width, height, " sun hours");
-            }
 
             // ---- Window pass: minimap 3D, then all 2D UI in one batch
             Gl.Viewport(0, 0, width, height);
             float mapX = width - S(20) - S(220), mapY = S(20);
             _dockOverMap = _dockOverMapNext; // P-A2: last frame's dock sat over the minimap (a short window): it hides
             _dockOverMapNext = false;
-            if (_showMap && !_paused && !_uiHidden && !_photoOpen && !_clashModeOn && !_dockOverMap) { DrawMinimapPlan(mapX + S(8), mapY + S(30), S(204), S(170)); }
+            if (_showMap && !_paused && !_uiHidden && !_clashModeOn && !_dockOverMap) { DrawMinimapPlan(mapX + S(8), mapY + S(30), S(204), S(170)); }
 
             if (_paused)
             {
@@ -125,19 +106,9 @@ namespace BimGo.Game
                 BuildPauseMenu();
                 if (IsEditingComment) { BuildCommentEditor(); }
             }
-            else if (_photoOpen)
-            {
-                // Photo mode: a clean frame, the grid and the photo panel only
-                BuildPhotoOverlay(_ui.Atlas, _window.Input, width, height);
-            }
-            else if (_tourActive)
-            {
-                // Bookmark tour: the HUD subset (UI on) or nothing, the fades and the key hint
-                BuildTourOverlay(width, height, mapX, mapY);
-            }
             else
             {
-                // A text box (comment, bookmark or study name) takes the clicks too: panels behind it stay still
+                // A text box (comment or bookmark name) takes the clicks too: panels behind it stay still
                 if (IsEditingComment) { _window.Input.ConsumeClicks(); }
                 if (_uiHidden) { BuildHiddenHud(width); }
                 else { BuildHud(mapX, mapY); }
@@ -155,7 +126,7 @@ namespace BimGo.Game
         private int ScreenReflectionQuality(bool clashView, bool photo)
         {
             bool realistic = _realistic && !_whitecard && _renderer.HasMaterials;
-            bool still = (photo || _photoOpen) && !_sharpOff;
+            bool still = photo && !_sharpOff;
             int quality = !realistic || clashView ? 0 : _reflectDebug == 3 ? Math.Max(_ssrQuality, 2) : _reflections && _reflectDebug == 0 && still ? _ssrQuality : 0;
             if (quality == 0 && !clashView && !_clashShot) { _renderer.ReleaseReflectionHistory(); }
             return quality;
@@ -185,7 +156,7 @@ namespace BimGo.Game
 
             // ---- Sun lighting and shadow maps (only changed cascades re-render). Clash pictures (C-B2) other than the real
             // model view draw without the sun, so they leave the cascades as the main view needs them
-            _renderer.Lighting = FrameLighting();
+            _renderer.Lighting = CurrentLighting();
             if (!photo) { timers.Stage(GpuTimers.SHADOWS); }
             bool clashShotUnlit = _clashShot && _clashView != CLASH_VIEW_REAL;
             string shadowError = clashShotUnlit ? null : _renderer.UpdateShadows(Camera, Scene.Bounds, ShadowSceneKey(), _groupVisible, Dynamics, _whitecard,
@@ -193,14 +164,14 @@ namespace BimGo.Game
             if (shadowError != null)
             {
                 OnShadowFailure(shadowError);
-                _renderer.Lighting = FrameLighting();
+                _renderer.Lighting = CurrentLighting();
             }
 
             // ---- Artificial lights for this frame (after the sun: daylight dims them), and their cached shadow maps
             // (unlit clash pictures keep the main view's picks, so no light shadow is re-rendered for them)
             if (!clashShotUnlit)
             {
-                UpdateArtificialLights(photo || _photoOpen || _allLightsLive); // X-C1: photos (and photo mode's preview), videos and stills light every fixture
+                UpdateArtificialLights(photo || _allLightsLive); // X-C1: off-screen views light every fixture
                 string lightShadowError = _renderer.UpdateLightShadows(_groupVisible, Dynamics, ShadowSceneKey());
                 if (lightShadowError != null) { Toast(lightShadowError, 6f, important: true); }
             }
@@ -259,18 +230,15 @@ namespace BimGo.Game
             if (!_clashShot)
             {
                 // Stills: Low 2 planes at half resolution, Medium 4 at full, High 8 at full (none in a warm-up pass)
-                int planarPlanes = clashView || ssr == 0 || _reflectionWarmup ? 0 : ssr == 1 ? 2 : ssr == 2 ? 4 : 8;
+                int planarPlanes = clashView || ssr == 0 ? 0 : ssr == 1 ? 2 : ssr == 2 ? 4 : 8;
                 float planarScale = ssr >= 2 ? 1f : 0.5f;
                 if (!photo && planarPlanes > 0)
                 {
-                    // Photo mode's preview (and colour by SSR, live): 2 at half resolution, enough to frame the shot
+                    // Live view: cap reflective planes to keep interactive rendering responsive
                     planarPlanes = Math.Min(planarPlanes, 2);
                     planarScale = 0.5f;
                 }
-                if (planarPlanes > 0 || !_reflectionWarmup)
-                {
-                    _renderer.UpdatePlanarReflections(p, width, height, planarPlanes, planarScale, _groupVisible, Dynamics, _groundZ);
-                }
+                _renderer.UpdatePlanarReflections(p, width, height, planarPlanes, planarScale, _groupVisible, Dynamics, _groundZ);
             }
             p.Planar = !clashView && !_clashShot && _renderer.PlanarCount > 0;
             p.Occlusion = cull; // Y-D1: after the planar views (they draw everything)
@@ -323,8 +291,8 @@ namespace BimGo.Game
                 Gun active = _guns[_activeGun];
                 _highlights.Clear();
                 // Hidden UI: no tints either, unless a gun is in the middle of something (Gizmo / Clone holding an element)
-                if (!_unarmed && !photo && !_photoOpen && !_paused && !_tourActive && (!_uiHidden || active.CapturesInput)) { active.CollectHighlights(_highlights); }
-                if (!photo && !_photoOpen && !_tourActive) { AddFixtureHighlight(_highlights); } // Round Y-C2: the fixture dock's fixture
+                if (!_unarmed && !photo && !_paused && (!_uiHidden || active.CapturesInput)) { active.CollectHighlights(_highlights); }
+                if (!photo) { AddFixtureHighlight(_highlights); } // Round Y-C2: the fixture dock's fixture
                 if (_highlights.Count > 0)
                 {
                     Gl.Enable(Gl.BLEND);
@@ -356,14 +324,10 @@ namespace BimGo.Game
 
             // Round W-C: a lightning flash in the classic light (with sun lighting it lifted the sky light instead); drops on
             // the lens (the main view only: never photos, videos, thumbnails or screenshots)
-            if (!photo && !clashView) { DrawLensDrops(target); }
-
-            // Photo exposure (the preview and the photo alike)
-            if (_photoOpen) { _renderer.ApplyExposure(_photoExposure); }
 
             // Markers: depth-tested, then a faint x-ray copy so markers behind walls stay discoverable (none while the
             // UI is hidden or in photo mode: clean views)
-            if (!_uiHidden && !photo && !_photoOpen)
+            if (!_uiHidden && !photo)
             {
                 DrawRoomTint(); // Round Z-A: the check's floor tint (depth-tested only), under the markers
                 _overlay.Begin(Camera);
@@ -373,15 +337,7 @@ namespace BimGo.Game
                 _overlay.Draw(Camera, depthTest: true, alpha: 1f, additive: false);
                 _overlay.Draw(Camera, depthTest: false, alpha: 0.16f, additive: false);
                 DrawClashToolOverlay(); // C-C2: a grouping tool's dots (brighter through walls), the cluster sphere
-                DrawPathEditor(); // Round K-B: the path, keys and handles while the path editor is on
             }
-            else if (_photoGridLines && !_clashShot && ((_photoOpen && !photo) || (photo && _photoShooting)))
-            {
-                DrawGrids(photo ? _photoLineScale : 1f); // polish round P-C: grids in photo mode and its photos (ticked)
-            }
-
-            // Sun hours grid (study results are content, so they show with the UI hidden too)
-            DrawSunHoursCells();
 
             // Section box frame and handles (editor only)
             if (!photo) { DrawSectionGizmo(); }
@@ -556,12 +512,6 @@ namespace BimGo.Game
             }
 
             // Round K-B: the path editor's HUD (dock, scrubber; no crosshair or guns)
-            if (_pathEditOn)
-            {
-                BuildPathEditorHud(f, width, height, mapX, mapY);
-                return;
-            }
-
             // Screen flash (portals)
             if (_clock < _flashUntil)
             {
@@ -588,13 +538,12 @@ namespace BimGo.Game
             }
 
             if (_sunPanelOpen) { BuildSunPanel(f, _window.Input); }
-            if (_sunHoursOpen) { BuildSunHoursPanel(f, _window.Input); }
             BuildGridsPanel(f, _window.Input); // grids round A
             BuildFixtureDock(f, _window.Input); // Round Y-C2
             BuildSectionPanel(f, _window.Input);
 
             // P-A2: the left-hand column (information): status, coordinates, the legends and the F1 sheet
-            BuildInfoColumn(f, height, sunLegend: true, profileLegend: true, help: true);
+            BuildInfoColumn(f, height, profileLegend: true, help: true);
             BuildRoomBanner(f, width);
             BuildLiveBanner(f, width, height);
             BuildReviewPanels();
@@ -602,8 +551,8 @@ namespace BimGo.Game
             BuildViewerToolbar(f, width, height);
         }
 
-        private bool ViewerToolbarVisible => !_paused && !_uiHidden && !_photoOpen && !_tourActive
-            && !IsEditingComment && !_markupOpen && !_pathEditOn && !_clashModeOn && !OverlayOpen;
+        private bool ViewerToolbarVisible => !_paused && !_uiHidden
+            && !IsEditingComment && !_markupOpen && !_clashModeOn && !OverlayOpen;
 
         private void BuildViewerToolbar(FontAtlas f, int width, int height)
         {
@@ -848,20 +797,19 @@ namespace BimGo.Game
             _ui.Text(f.Body, valueX, rowY, ColourModeLabel(), UiTheme.TEXT);
         }
 
-        /// <summary>True while one of the docks (sun, study, section box, grids) is open.</summary>
-        private bool AnyDockOpen => _sunPanelOpen || _sunHoursOpen || _sectionOpen || _gridsPanelOpen || _fixtureDockOpen;
+        /// <summary>True while one of the docks (sun, section box, grids) is open.</summary>
+        private bool AnyDockOpen => _sunPanelOpen || _sectionOpen || _gridsPanelOpen || _fixtureDockOpen;
 
         /// <summary>
         /// Polish round P-A2: the left-hand column (information), stacked from the top: the status panel and the
-        /// coordinates; from the bottom: the F1 note or sheet, then the sun legend; the colour legend fills what is left.
+        /// coordinates; from the bottom: the F1 note or sheet; the colour legend fills what is left.
         /// While the F1 sheet is open, or when the column runs out of room, the legends collapse to their title rows.
         /// </summary>
         /// <param name="f">Fonts.</param>
         /// <param name="height">The target's height (the window, or a video frame).</param>
-        /// <param name="sunLegend">Show the study's legend (when there are results).</param>
         /// <param name="profileLegend">Show the colour profile's legend (when one shows).</param>
         /// <param name="help">Show the F1 note or sheet.</param>
-        private void BuildInfoColumn(FontAtlas f, int height, bool sunLegend, bool profileLegend, bool help)
+        private void BuildInfoColumn(FontAtlas f, int height, bool profileLegend, bool help)
         {
             float x = S(UiTheme.COLUMN_MARGIN), gap = S(10);
             BuildStatusPanel(f);
@@ -873,24 +821,12 @@ namespace BimGo.Game
             }
             float perf = BuildPerformancePanel(f, x, top); // Round Y-D1
             if (perf > 0f) { top += perf + gap; }
-            if (!sunLegend && !profileLegend && !help) { return; }
+            if (!profileLegend && !help) { return; }
 
             float bottom = height - S(UiTheme.COLUMN_MARGIN);
             if (help) { bottom = BuildHelp(f, height, top) - gap; }
             bool collapse = help && _showHelp;
 
-            if (sunLegend && _sunStudy.Hours != null && _sunLegendTitle != null)
-            {
-                float full = S(78), small = S(UiTheme.LEGEND_COLLAPSED_HEIGHT);
-                bool profileWanted = profileLegend && ProfileLegendWanted;
-                bool open = !collapse && bottom - top >= full + (profileWanted ? small + S(12) : 0f);
-                float lh = open ? full : small;
-                if (bottom - lh >= top)
-                {
-                    BuildSunLegend(f, x, bottom - lh, collapsed: !open);
-                    bottom -= lh + S(12);
-                }
-            }
             if (profileLegend) { BuildProfileLegend(f, top, bottom, collapse); }
         }
 

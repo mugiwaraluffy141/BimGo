@@ -164,7 +164,6 @@ namespace BimGo.Game
             if (_unarmed) { return null; }
             return _guns[_activeGun] switch
             {
-                TeleportGun => "Teleport: blink here",
                 MeasureGun => "Measure snaps here",
                 _ => null
             };
@@ -223,7 +222,7 @@ namespace BimGo.Game
         private void UpdateGridHover()
         {
             _gridHoverValid = false;
-            if (!_grids.Nodes || _gridLevels.Count == 0 || _uiHidden || _paused || _photoOpen || _tourActive) { return; }
+            if (!_grids.Nodes || _gridLevels.Count == 0 || _uiHidden || _paused) { return; }
             EnsureGridNodes();
             if (_gridNodes.Length == 0) { return; }
 

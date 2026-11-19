@@ -453,8 +453,6 @@ namespace BimGo.Rendering
             _skyCelestialX = _skyProgram.Uniform("uCelestialX");
             _skyCelestialY = _skyProgram.Uniform("uCelestialY");
             _skyCelestialZ = _skyProgram.Uniform("uCelestialZ");
-            _skyLightning = _skyProgram.Uniform("uLightning"); // Round W-C
-            _skyBolt = _skyProgram.Uniform("uBolt");
             _depthViewProj = _shadowDepthProgram.Uniform("uViewProj");
             _depthModel = _shadowDepthProgram.Uniform("uModel");
             _transmitViewProj = _shadowTransmitProgram.Uniform("uViewProj");
@@ -467,7 +465,6 @@ namespace BimGo.Rendering
             _groundHalf = _groundProgram.Uniform("uHalf");
             _groundEye = _groundProgram.Uniform("uEye");
             _groundFog = _groundProgram.Uniform("uFogColor");
-            InitialiseWeather(); // Round W-B
 
             // Static geometry
             _vao = Gl.GenVertexArray();
@@ -1375,9 +1372,6 @@ namespace BimGo.Rendering
             Gl.Uniform3(_skyCelestialX, sky.CelestialX.X, sky.CelestialX.Y, sky.CelestialX.Z);
             Gl.Uniform3(_skyCelestialY, sky.CelestialY.X, sky.CelestialY.Y, sky.CelestialY.Z);
             Gl.Uniform3(_skyCelestialZ, sky.CelestialZ.X, sky.CelestialZ.Y, sky.CelestialZ.Z);
-            float strike = stars ? sky.Lightning.W : 0f; // W-C: not in probe faces
-            Gl.Uniform4(_skyLightning, sky.Lightning.X, sky.Lightning.Y, sky.Lightning.Z, strike);
-            Gl.Uniform4(_skyBolt, sky.Bolt.X, sky.Bolt.Y, sky.Bolt.Z, sky.Bolt.W);
             Gl.BindVertexArray(_emptyVao);
             Gl.DrawArrays(Gl.TRIANGLES, 0, 3);
             Gl.DepthMask(true);
@@ -1404,7 +1398,6 @@ namespace BimGo.Rendering
             ApplyLight(_groundLight, sun: true, transmit: true);
             ApplyAo(_groundAo, on: true);
             ApplyArtificial(_groundLights, on: true);
-            ApplyWeather(_groundWeather, on: true); // Round W-B
             Gl.BindVertexArray(_emptyVao);
             Gl.DrawArrays(Gl.TRIANGLES, 0, 6);
         }
@@ -1504,7 +1497,6 @@ namespace BimGo.Rendering
             // AO follows "transmit": on for opaque surfaces and highlights, off for glass (it isn't in the pre-pass)
             ApplyAo(_sceneAo, transmit && !p.Plan);
             ApplyArtificial(_sceneLights, !p.Plan);
-            ApplyWeather(_sceneWeather, !p.Plan); // Round W-B
             Gl.Uniform1(u.FogDensity, p.FogDensity);
             Gl.Uniform1(u.Whitecard, p.Whitecard ? 1 : 0);
             Gl.Uniform1(u.Plan, p.Plan ? 1 : 0);
@@ -1576,7 +1568,6 @@ namespace BimGo.Rendering
             DisposePhoto();
             DisposeGrass();
             DisposeBillboards(); // Round X-B
-            DisposeWeather();
             DisposeProfile();
             DisposeScreenReflections(); // Round X-C1
             DisposePlanarReflections();

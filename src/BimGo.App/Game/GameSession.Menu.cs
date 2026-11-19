@@ -91,7 +91,6 @@ namespace BimGo.Game
         public void BeginCommentEdit(Vector3 point, long elementId, string level)
         {
             _editing = true;
-            _editSunStudy = false;
             _editRecord = null;
             _editBookmark = null;
             _editReplyFor = _editAssigneeFor = null;
@@ -110,7 +109,6 @@ namespace BimGo.Game
         {
             if (record == null) { return; }
             _editing = true;
-            _editSunStudy = false;
             _editRecord = record;
             _editBookmark = null;
             _editReplyFor = _editAssigneeFor = null;
@@ -133,7 +131,6 @@ namespace BimGo.Game
         {
             if (record == null) { return; }
             _editing = true;
-            _editSunStudy = false;
             _editRecord = null;
             _editBookmark = record;
             _editReplyFor = _editAssigneeFor = null;
@@ -152,7 +149,6 @@ namespace BimGo.Game
         {
             if (record == null) { return; }
             _editing = true;
-            _editSunStudy = false;
             _editRecord = null;
             _editBookmark = null;
             _editAssigneeFor = null;
@@ -170,7 +166,6 @@ namespace BimGo.Game
         {
             if (record == null) { return; }
             _editing = true;
-            _editSunStudy = false;
             _editRecord = null;
             _editBookmark = null;
             _editReplyFor = null;
@@ -194,7 +189,6 @@ namespace BimGo.Game
         private void BeginTextEdit(string title, string initial, int max, Action<string> commit, string level = null)
         {
             _editing = true;
-            _editSunStudy = false;
             _editRecord = null;
             _editBookmark = null;
             _editReplyFor = _editAssigneeFor = null;
@@ -237,10 +231,6 @@ namespace BimGo.Game
                             if (_editBookmarkIsNew && _thumbnailFor == _editBookmark) { _thumbnailFor = null; }
                             Toast(_editBookmarkIsNew ? "Bookmark cancelled (nothing was saved)" : "Name not changed");
                         }
-                        else if (_editSunStudy)
-                        {
-                            Toast("Study not saved");
-                        }
                         else if (_editReplyFor != null || _editAssigneeFor != null)
                         {
                             Toast(_editReplyFor != null ? "Reply cancelled" : "Assignee not changed");
@@ -252,7 +242,6 @@ namespace BimGo.Game
                         _editRecord = null;
                         _editBookmark = null;
                         _editReplyFor = _editAssigneeFor = null;
-                        _editSunStudy = false;
                         return;
 
                     default:
@@ -276,18 +265,9 @@ namespace BimGo.Game
             CommentRecord editing = _editRecord;
             BookmarkRecord bookmark = _editBookmark;
             CommentRecord replyTo = _editReplyFor, assignFor = _editAssigneeFor;
-            bool sunStudy = _editSunStudy;
             _editRecord = null;
             _editBookmark = null;
             _editReplyFor = _editAssigneeFor = null;
-            _editSunStudy = false;
-
-            if (sunStudy)
-            {
-                SaveSunStudy(text);
-                return;
-            }
-
             if (replyTo != null)
             {
                 if (text.Length == 0) { Toast("Empty reply not saved"); return; }
@@ -357,11 +337,10 @@ namespace BimGo.Game
             float x = _window.Width * 0.5f - w * 0.5f, y = _window.Height * 0.5f + S(48);
 
             bool naming = _editBookmark != null || _editCustom != null;
-            uint frame = _editSunStudy ? UiTheme.SUN : naming ? UiTheme.BOOKMARK : UiTheme.COMMENT;
-            uint label = _editSunStudy ? UiTheme.SUN_LABEL : naming ? UiTheme.BOOKMARK_LABEL : UiTheme.COMMENT_LABEL;
+            uint frame = naming ? UiTheme.BOOKMARK : UiTheme.COMMENT;
+            uint label = naming ? UiTheme.BOOKMARK_LABEL : UiTheme.COMMENT_LABEL;
             _ui.Panel(x, y, w, h, UiTheme.PANEL_STRONG, frame);
             Text.Clear().Append(_editCustom != null ? _editCustomTitle + " · "
-                : _editSunStudy ? "SUN STUDY NAME (same name replaces) · "
                 : naming ? "BOOKMARK NAME · "
                 : _editReplyFor != null ? "REPLY · "
                 : _editAssigneeFor != null ? "ASSIGN TO (empty = unassigned) · "
@@ -418,15 +397,10 @@ namespace BimGo.Game
                 return;
             }
 
-            // The markup editor, the push report and the comment list take over the whole menu while open
+            // The markup editor and comment list take over the whole menu while open
             if (IsMarkupOpen)
             {
                 BuildMarkupEditor();
-                return;
-            }
-            if (IsPushPanelOpen)
-            {
-                BuildPushPanel();
                 return;
             }
             if (IsCommentsPanelOpen)
@@ -437,11 +411,6 @@ namespace BimGo.Game
             if (IsBookmarksPanelOpen)
             {
                 BuildBookmarksPanel();
-                return;
-            }
-            if (IsMediaPanelOpen)
-            {
-                BuildMediaPanel(); // Round K-A
                 return;
             }
             if (IsEntouragePanelOpen)
@@ -823,13 +792,13 @@ namespace BimGo.Game
             }
             y += S(10);
 
-            // Round Y-D2: artificial light quality (live view; photos and videos always High) and the depth pre-pass
+            // Round Y-D2: artificial light quality and the depth pre-pass
             _ui.Text(f.Body, ix, y + S(4), "Light quality", UiTheme.TEXT);
             y += S(24);
             _lightQuality = Segmented(f, input, ix, y, iw, LIGHT_QUALITY_OPTIONS, _lightQuality);
             y += S(40);
             y += _ui.TextWrapped(f.Small, ix, y, iw,
-                "Shadowed lights: Low 8, Medium 16 (the 8 strongest soft), High 32, all soft. The rest light without shadows. Photos and videos always use High.",
+                "Shadowed lights: Low 8, Medium 16 (the 8 strongest soft), High 32, all soft. The rest light without shadows. Off-screen views light every fixture.",
                 UiTheme.TEXT_FAINT, maxLines: 3) + S(8);
             _depthPrepass = Checkbox(f, input, ix, y, iw, "Depth pre-pass (light each pixel once)", _depthPrepass);
             y += S(28);
@@ -900,22 +869,8 @@ namespace BimGo.Game
 
         #region Menu labels
 
-        private string _pushMenuLabel;
-        private int _pushMenuLabelFor = -1;
         private string _commentsMenuLabel;
         private int _commentsMenuLabelFor = -1;
-
-        /// <summary>"PUSH TO REVIT (n)…" (rebuilt only when the count changes).</summary>
-        private string PushMenuLabel()
-        {
-            int pending = _journal.CountNotInRevit();
-            if (pending != _pushMenuLabelFor || _pushMenuLabel == null)
-            {
-                _pushMenuLabelFor = pending;
-                _pushMenuLabel = pending == 0 ? "PUSH TO REVIT…" : $"PUSH TO REVIT ({pending})…";
-            }
-            return _pushMenuLabel;
-        }
 
         /// <summary>"COMMENTS (n)" (rebuilt only when the count changes).</summary>
         private string CommentsMenuLabel()

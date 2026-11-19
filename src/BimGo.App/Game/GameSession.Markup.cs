@@ -220,7 +220,7 @@ namespace BimGo.Game
         {
             CommentRecord record = _markupPending;
             _markupPending = null;
-            if (record != null && !_markupOpen && !_tourActive && _video == null) { OpenMarkup(record, returnToGame: !_paused); }
+            if (record != null && !_markupOpen) { OpenMarkup(record, returnToGame: !_paused); }
         }
 
         #endregion

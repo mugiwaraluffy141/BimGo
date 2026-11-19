@@ -95,7 +95,6 @@ namespace BimGo.Game
             _sunPlaying = false;
             SunChanged();
             RefreshSunLocation();
-            MarkSunStudyStale();
             Sound.Play(SoundId.Commit);
             Toast(_sun.Location != null ? $"Location: {_sun.Location.Name}" : "Back to the model's location", 3f);
         }
@@ -276,7 +275,6 @@ namespace BimGo.Game
             _sun.Location = location.Clean();
             SunChanged();
             RefreshSunLocation();
-            MarkSunStudyStale();
         }
 
         /// <summary>The sun panel's DST control when the location decides daylight saving: switch to the manual tick.</summary>
@@ -289,13 +287,6 @@ namespace BimGo.Game
             _sun.Location = location;
             SunChanged();
             RefreshSunLocation();
-            MarkSunStudyStale();
-        }
-
-        /// <summary>Marks finished study results out of date (the location changed): RUN reads "settings changed".</summary>
-        private void MarkSunStudyStale()
-        {
-            if (_sunStudy?.Hours != null) { _sunStale = true; }
         }
 
         private static string ZoneOrNone(string zone) => string.IsNullOrEmpty(zone) ? "no time zone listed" : zone;

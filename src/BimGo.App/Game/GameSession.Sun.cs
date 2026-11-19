@@ -107,6 +107,7 @@ namespace BimGo.Game
         /// <summary>True when shadows (sun lighting) are on.</summary>
         public bool ShadowsOn => _sun?.Enabled == true;
 
+
         /// <summary>True if the sun state changed since the file was saved (file mode).</summary>
         private bool SunDirty => _sunRevision != _savedSunRevision;
 
@@ -290,12 +291,12 @@ namespace BimGo.Game
             if (_cloudOffset.LengthSquared() > 1e8f) { _cloudOffset = Vector2.Zero; } // days of drift: keep the noise precise
             _renderer.Sky = new SkyLook
             {
-                CloudCover = WeatherOn ? MathF.Max(_sun.CloudCover, 0.65f + 0.35f * _sun.WeatherIntensity) : _sun.CloudCover, // W-B: rain clouds
+                CloudCover = _sun.CloudCover,
                 CloudOffset = _cloudOffset,
                 SunSize = _sun.SunSize,
                 SunGlare = _sun.SunGlare,
-                Stars = _sun.Stars ? new Vector4(_sun.StarDensity, _sun.StarBrightness * (1f - WeatherOvercast), _sun.StarTwinkle, _sun.MilkyWay * (1f - WeatherOvercast)) : Vector4.Zero, // W-A (W-B: hidden by the storm)
-                Time = _video != null ? _videoFrame / (float)_videoFps : _clock % 3600f, // X-A: twinkle at the video's time
+                Stars = _sun.Stars ? new Vector4(_sun.StarDensity, _sun.StarBrightness, _sun.StarTwinkle, _sun.MilkyWay) : Vector4.Zero,
+                Time = _clock % 3600f,
                 CelestialX = _celestialX,
                 CelestialY = _celestialY,
                 CelestialZ = _celestialZ
@@ -322,7 +323,7 @@ namespace BimGo.Game
                 float cosElongation = Math.Clamp(1f - 2f * chosen, -1f, 1f);
                 lighting.MoonSunDirection = _moonDirection * cosElongation + side * MathF.Sqrt(1f - cosElongation * cosElongation);
             }
-            return SunLighting.WithWeather(lighting, WeatherOvercast, WeatherOn && _sun.Snowing); // W-B: dimmer, greyer under rain or snow
+            return lighting;
         }
 
         /// <summary>
@@ -363,11 +364,9 @@ namespace BimGo.Game
         private void OpenSunPanel()
         {
             if (_sunPanelOpen) { return; }
-            CloseSunHours(); // one panel at a time
             CloseGridsPanel();
             CloseFixtureDock(); // Round Y-C2
             CloseSectionEditor();
-            ClosePhotoMode();
             ShowUi(); // the panel is UI: Shift+O while hidden brings everything back
             _sunPanelOpen = true;
             _sunField = 0;
@@ -445,7 +444,7 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// The sun time keys (walking with shadows on, photo mode, the sun panel): −/+ 5 min, and −/+ 1 min (Shift by
+        /// The sun time keys (walking with shadows on, the sun panel): −/+ 5 min, and −/+ 1 min (Shift by
         /// default), on key repeat too.
         /// </summary>
         private void StepSunTimeKeys(InputState input)
@@ -862,10 +861,6 @@ namespace BimGo.Game
                     case SLIDER_STAR_BRIGHTNESS: _sun.StarBrightness = result; break;
                     case SLIDER_STAR_TWINKLE: _sun.StarTwinkle = result; break;
                     case SLIDER_MILKY_WAY: _sun.MilkyWay = result; break;
-                    case SLIDER_WEATHER: _sun.WeatherIntensity = result; break; // W-B
-                    case SLIDER_WETNESS: _sun.Wetness = result; break;
-                    case SLIDER_SNOW_COVER: _sun.SnowCover = result; break;
-                    case SLIDER_FLASH: _sun.LightningFlash = result; break; // W-C
                 }
                 SunChanged();
             }

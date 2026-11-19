@@ -12,7 +12,7 @@ namespace BimGo.Rendering
     /// (reprojected with the previous frame's camera, so the camera may move). Misses (off screen, the sky, behind
     /// something) keep the probe or sky reflection, faded in between, so SSR only ever sharpens what was there.
     /// <list type="bullet">
-    /// <item><b>History:</b> the scene target's colour copied after the glass and the weather (before bloom, markers
+    /// <item><b>History:</b> the scene target's colour copied after the glass (before bloom, markers
     /// and UI) into a mipmapped texture: rougher surfaces read a blurrier mip.</item>
     /// <item><b>Quality</b> (<see cref="SceneDrawParams.ScreenReflections"/>): 0 off, 1 low (12 steps), 2 medium (24),
     /// 3 high (48), each step further than the last (6 cm to 60 m), then a few halving steps on the hit.</item>
@@ -118,7 +118,7 @@ namespace BimGo.Rendering
         }
 
         /// <summary>
-        /// Keeps the target's colour as next frame's reflection history (call after the glass and the weather, before
+        /// Keeps the target's colour as next frame's reflection history (call after the glass, before
         /// bloom and markers), with the camera it was drawn from; rebinds the target afterwards. Skipped for targets
         /// over 4096 px (big photos reflect the view's own history).
         /// </summary>

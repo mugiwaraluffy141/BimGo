@@ -69,9 +69,6 @@ namespace BimGo.Live
         /// <summary>The session id.</summary>
         public string SessionId => Info.SessionId;
 
-        /// <summary>Applies the app's edits.</summary>
-        public Bridge.RevitEditor Editor { get; } = new();
-
         /// <summary>True if an app's heartbeat is fresh.</summary>
         public bool AppAttached => _appAttached;
 
@@ -131,7 +128,6 @@ namespace BimGo.Live
 
             if (!BimGoWriter.Write(path, document, writer, FileKinds.SNAPSHOT, out error, CompressionLevel.NoCompression, progress)) { return null; }
 
-            Editor.SetPhases(scene.ExistingPhaseId, scene.PhaseId);
             lock (_lock)
             {
                 Info.SnapshotNumber = number;

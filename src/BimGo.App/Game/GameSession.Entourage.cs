@@ -488,6 +488,24 @@ namespace BimGo.Game
         }
 
         /// <summary>
+        /// A label with − / + on the right (the value goes between them: <see cref="StepRowValue"/>, from <see cref="Text"/>).
+        /// </summary>
+        /// <returns>−1, 0 or +1 (this frame's click).</returns>
+        private int StepRow(FontAtlas f, InputState input, float x, float y, float w, string label)
+        {
+            _ui.Text(f.Body, x, y + S(7), label, UiTheme.TEXT_SOFT);
+            float fx = x + w - S(198);
+            int delta = 0;
+            if (SmallButton(f, input, fx, y, S(40), S(30), "−")) { delta = -1; }
+            if (SmallButton(f, input, fx + S(158), y, S(40), S(30), "+")) { delta = 1; }
+            return delta;
+        }
+
+        /// <summary><see cref="Text"/> centred between a <see cref="StepRow"/>'s buttons.</summary>
+        private void StepRowValue(FontAtlas f, float x, float y, float w) =>
+            _ui.TextCentred(f.Bold, x + w - S(99), y + S(6), Text.Span, UiTheme.TEXT);
+
+        /// <summary>
         /// The panel's FROM REVIT section: automatic swapping on / off, the counts and CLEAR (instance changes), then each
         /// Revit type with what it shows and PICKED · REVIT · HIDE · AUTO.
         /// </summary>

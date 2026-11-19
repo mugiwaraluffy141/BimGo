@@ -247,7 +247,7 @@ namespace BimGo.Game
             DrawGridHoverLabel(f); // grids round B
             BuildGridsPanel(f, _window.Input);
             // The review column takes the left edge on narrow windows so the clash dock and its headings both fit.
-            if (!ReviewPanelsUseLeftFallback) { BuildInfoColumn(f, height, sunLegend: false, profileLegend: true, help: true); }
+            if (!ReviewPanelsUseLeftFallback) { BuildInfoColumn(f, height, profileLegend: true, help: true); }
             BuildRoomBanner(f, width);
             BuildLiveBanner(f, width, height);
             BuildToast(f, width);

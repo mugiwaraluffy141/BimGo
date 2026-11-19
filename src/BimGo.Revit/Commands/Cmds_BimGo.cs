@@ -130,11 +130,10 @@ namespace BimGo.Commands.Cmds_BimGo
 
     /// <summary>
     /// Go: opens the launch options, extracts a snapshot of the model into the document's live session and opens it
-    /// in the BimGo app (starting the app, or handing the session to the running one). Demolish / move / clone
-    /// edits made in the app come back to this model. Pressing Go again re-extracts and the app reloads.
+    /// in the BimGo app (starting the app, or handing the session to the running one). Pressing Go again
+    /// re-extracts the model and refreshes the app's review.
     /// </summary>
-    // Manual (not ReadOnly): the family library's temporary transaction needs a modifiable document. Go itself
-    // commits nothing; that transaction is always rolled back (SceneExtractor.Library).
+    // Manual (not ReadOnly): Go runs the extraction in the active document context.
     [Transaction(TransactionMode.Manual)]
     public class Cmd_Launch : IExternalCommand
     {
@@ -176,7 +175,7 @@ namespace BimGo.Commands.Cmds_BimGo
                 var progress = new Utilities.OperationProgress();
                 using Forms.ProgressWindow window = Forms.ProgressWindow.Show($"Opening {uiDoc.Document.Title} in BimGo", progress, uiApp.MainWindowHandle);
 
-                SceneData scene = SceneExtractor.Extract(uiDoc, settings, progress, liveSession: true);
+                SceneData scene = SceneExtractor.Extract(uiDoc, settings, progress);
                 if (scene.Elements.Length == 0)
                 {
                     window?.Dispose();

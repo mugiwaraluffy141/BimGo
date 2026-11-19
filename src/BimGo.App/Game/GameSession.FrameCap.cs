@@ -9,8 +9,8 @@ namespace BimGo.Game
     /// <summary>
     /// Round X-D0: the frame rate limit (pause menu → Display: Off / 30 / 45 / 60, default 30, per machine in
     /// LaunchSettings). After each presented frame the loop waits until the next frame is due: Thread.Sleep(1) for most
-    /// of the wait (with a 1 ms system timer while limiting), a short spin for the last 2 ms. Not applied while recording
-    /// a video or running batch stills. Works with or without VSync (at 30 on a 60 Hz display VSync shows each frame
+    /// of the wait (with a 1 ms system timer while limiting), a short spin for the last 2 ms. Works with or without VSync
+    /// (at 30 on a 60 Hz display VSync shows each frame
     /// for two refreshes).
     /// </summary>
     internal sealed partial class GameSession
@@ -31,7 +31,7 @@ namespace BimGo.Game
         /// </summary>
         private void WaitForFrameLimit()
         {
-            if (_frameLimit <= 0 || _video != null || _stillsBatch != null)
+            if (_frameLimit <= 0)
             {
                 _frameDue = 0;
                 return;

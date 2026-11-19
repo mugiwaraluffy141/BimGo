@@ -27,7 +27,6 @@ namespace BimGo.Game
     {
         #region Constants
 
-        private const float TICK = 1f / 120f;
         private const float PICK_DISTANCE = 250f;
 
         /// <summary>How far the default ground plane sits below the lowest level (clear of slab faces at that level).</summary>
@@ -237,7 +236,6 @@ namespace BimGo.Game
             ReadEyeSettings(settings);
             _clashInstant = settings.ClashInstantFly;
             _clashThumbsOn = settings.ClashRowPictures;
-            ReadVideoSettings(settings);
             ReadAppearanceSettings(settings);
             UnitFormat.Read(settings);
             Hotkeys.Read(settings);
@@ -544,17 +542,12 @@ namespace BimGo.Game
 
             var clock = Stopwatch.StartNew();
             double previous = clock.Elapsed.TotalSeconds;
-            float accumulator = 0f;
 
             while (true)
             {
                 bool open = _window.PumpMessages();
                 if (!open || _endRequested)
                 {
-                    // A tour puts the walkthrough back first (so a save on the way out keeps the real state)
-                    AbortVideo();
-                    if (_tourActive) { StopTour(finished: false); }
-
                     // The window still exists (close was only requested): unsaved changes may cancel it (Round Z-C: never
                     // in kiosk mode, which makes no changes and has nobody to answer)
                     if (_window.Handle != 0 && !ConfirmDiscardOrSave())
@@ -574,9 +567,8 @@ namespace BimGo.Game
                 previous = now;
                 _clock += dt;
                 _frameTime = dt;
-                float worldDt = _video != null ? 0f : dt; // Round X-A: while recording, each video frame moves them by its own step
-                AdvanceSky(worldDt); // sky round: clouds drift, the sky look reaches the renderer
-                AdvanceWater(worldDt); // water round W: the ripples' clock runs at the ripple speed
+                AdvanceSky(dt); // sky round: clouds drift, the sky look reaches the renderer
+                AdvanceWater(dt); // water round W: the ripples' clock runs at the ripple speed
 
                 if (_window.IsMinimised)
                 {
@@ -588,20 +580,7 @@ namespace BimGo.Game
                 UpdateFrame(dt);
                 PollHost(dt);
 
-                if (!_paused && !_viewerCommandsOpen && (_window.IsActive || _tourActive))
-                {
-                    accumulator += dt;
-                    int ticks = 0;
-                    while (accumulator >= TICK && ticks < 12)
-                    {
-                        FixedUpdate(TICK);
-                        accumulator -= TICK;
-                        ticks++;
-                    }
-                    if (ticks == 12) { accumulator = 0f; }
-                }
-
-                UpdateCamera(_paused ? 1f : accumulator / TICK, dt);
+                UpdateCamera();
                 UpdateAim();
                 UpdateGuns(dt);
 
@@ -636,13 +615,6 @@ namespace BimGo.Game
 
             if (UpdateViewerToolbarInput(input)) { return; }
             UpdateReviewPanelInput(input, ReviewPanelsVisible);
-            // A bookmark tour has the keys (it carries on when the window loses focus)
-            if (_tourActive)
-            {
-                UpdateTour(input, dt);
-                return;
-            }
-
             // CONTROLS is waiting for a key: it has every key (Esc cancels)
             if (IsCapturingKey)
             {
@@ -665,18 +637,6 @@ namespace BimGo.Game
             }
 
             // The sun hours study has the cursor: the player stands still, RMB-drag looks, clicks pick surfaces
-            if (_sunHoursOpen && !_paused)
-            {
-                UpdateSunHoursMode(input);
-                return;
-            }
-
-            // Photo mode has the cursor: RMB-drag looks, Enter shoots
-            if (_photoOpen && !_paused)
-            {
-                UpdatePhotoMode(input);
-                return;
-            }
 
             // The section box editor has the cursor: RMB-drag looks, handles drag the cut
             if (_sectionOpen && !_paused)
@@ -704,13 +664,6 @@ namespace BimGo.Game
             if (FixtureDockHasKeys && !_paused)
             {
                 UpdateFixtureDockKeys(input);
-                return;
-            }
-
-            // Round K-B: the 3D path editor has the cursor; its own keys fly, RMB-drag looks
-            if (_pathEditOn && !_paused)
-            {
-                UpdatePathEditor(input, dt);
                 return;
             }
 
@@ -805,11 +758,6 @@ namespace BimGo.Game
             }
 
             if (input.Pressed(InputAction.Minimap)) { _showMap = !_showMap; }
-            if (!DesktopReviewNavigation && input.Pressed(InputAction.Fly))
-            {
-                _player.ToggleFly();
-                Toast(_player.Flying ? "Fly mode (no-clip)" : "Walk mode");
-            }
             if (input.Pressed(InputAction.GoHome)) { _player.GoHome(); }
             if (input.Pressed(InputAction.SetHome)) { SetHomeHere(); }
             if (input.Pressed(InputAction.LevelUp)) { TeleportLevel(+1); }
@@ -845,7 +793,6 @@ namespace BimGo.Game
             if (input.Pressed(InputAction.GridsCycle)) { CycleGrids(); }
             if (input.Pressed(InputAction.ColourProfile)) { ToggleProfile(); } // colour round A
             if (input.Pressed(InputAction.RoomTags)) { ToggleRoomTags(); } // Round Z-A
-            if (!DesktopReviewNavigation && input.Pressed(InputAction.Jump) && !_player.Flying) { _player.QueueJump(); }
 
             for (int i = 0; i < _guns.Length; i++)
             {
@@ -872,57 +819,15 @@ namespace BimGo.Game
         }
 
         /// <summary>
-        /// One fixed physics tick.
-        /// </summary>
-        private void FixedUpdate(float dt)
-        {
-            if (_tourActive) { return; } // the tour places the player itself
-            if (DesktopReviewNavigation) { return; } // desktop review camera: no gravity, collision, jump or crouch
-            _player.Controller.GroundZ = _groundZ;
-            bool frozen = IsEditingComment || _sunPanelOpen || _sunHoursOpen || GridsPanelHasKeys || FixtureDockHasKeys || !_window.IsActive || _guns[_activeGun].CapturesInput || ClashFreezesPlayer
-                || PathFreezesPlayer;
-            if (_pathEditOn)
-            {
-                // Round K-B: the path editor flies on its own keys (← / → pick keys there)
-                _player.FixedUpdate(dt, _window.Input, inputEnabled: !frozen, InputAction.PathFlyUp, InputAction.PathFlyDown, PATH_MOVES);
-            }
-            else if (_clashModeOn)
-            {
-                // Clash mode flies with its own up / down keys (the gamepad's A and B click and go back there)
-                _player.FixedUpdate(dt, _window.Input, inputEnabled: !frozen, InputAction.ClashFlyUp, InputAction.ClashFlyDown);
-            }
-            else
-            {
-                _player.FixedUpdate(dt, _window.Input, inputEnabled: !frozen);
-            }
-        }
-
-        /// <summary>
         /// Positions the camera at the smoothed eye.
         /// </summary>
-        private void UpdateCamera(float alpha, float dt)
+        private void UpdateCamera()
         {
-            if (_tourActive)
+            if (_window.IsActive)
             {
-                // The tour's pose: exact eye height (no smoothing), swivel and glides
-                Camera.Position = _tourPose.Eye;
-                Camera.Yaw = _tourPose.Yaw;
-                Camera.Pitch = _tourPose.Pitch;
-            }
-            else
-            {
-                if (_window.IsActive && DesktopReviewNavigation)
-                {
-                    Camera.Position = PlayerEye;
-                    Camera.Yaw = _player.Yaw;
-                    Camera.Pitch = _player.Pitch;
-                }
-                else if (_window.IsActive)
-                {
-                    Camera.Position = _player.GetEye(Math.Clamp(alpha, 0f, 1f), dt);
-                    Camera.Yaw = _player.Yaw;
-                    Camera.Pitch = _player.Pitch;
-                }
+                Camera.Position = PlayerEye;
+                Camera.Yaw = _player.Yaw;
+                Camera.Pitch = _player.Pitch;
             }
             Camera.HorizontalFovDegrees = _fov;
             Camera.ViewportWidth = _window.Width;
@@ -950,8 +855,8 @@ namespace BimGo.Game
         {
             PumpSource(dt);
             foreach (Gun gun in _guns) { gun.Tick(dt); }
-            if (_paused || _viewerCommandsOpen || IsEditingComment || _tourActive || _markupOpen || _photoOpen || _sectionOpen
-                || _sunPanelOpen || _sunHoursOpen || _gridsPanelOpen || _fixtureDockOpen || _pathEditOn || _clashModeOn || OverlayOpen) { return; }
+            if (_paused || _viewerCommandsOpen || IsEditingComment || _markupOpen || _sectionOpen
+                || _sunPanelOpen || _gridsPanelOpen || _fixtureDockOpen || _clashModeOn || OverlayOpen) { return; }
 
             if (_unarmed) { return; } // no gun out: nothing aims or fires
             Gun active = _guns[_activeGun];
@@ -1269,7 +1174,6 @@ namespace BimGo.Game
             settings.SectionCapColour = $"#{_capRgb:X6}";
             settings.ShadowQuality = _shadowQuality;
             WriteEyeSettings(settings);
-            WriteVideoSettings(settings);
             UnitFormat.Write(settings);
             Hotkeys.Write(settings);
             Gamepad.Write(settings);
@@ -1281,30 +1185,24 @@ namespace BimGo.Game
         /// </summary>
         public void Dispose()
         {
-            try { AbortVideo(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Video stop failed: {ex.Message}"); }
             EndFrameLimit();
-            if (_tourActive) { try { StopTour(finished: false); } catch (Exception ex) { Utilities.Log_Utils.Write($"Tour stop failed: {ex.Message}"); } }
             try { SaveSettings(); } catch { /* logged inside */ }
             try { FlushSunSidecar(); } catch { /* logged inside */ }
             try { FlushVisibilitySidecar(); } catch { /* logged inside */ }
             _window.SetCaptured(false);
-            _push?.Dispose();
             try { ReleaseThumbnails(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Thumbnail cleanup failed: {ex.Message}"); }
             try { DisposeEntourage(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Entourage cleanup failed: {ex.Message}"); } // Round X-B
             try { ReleaseLibraryPreviews(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Library preview cleanup failed: {ex.Message}"); }
             try { ReleaseMarkup(); } catch (Exception ex) { Utilities.Log_Utils.Write($"Markup cleanup failed: {ex.Message}"); }
             Sound.Dispose();
-            _weatherSound.Dispose(); // Round W-C
             _renderer?.Dispose();
             _overlay.Dispose();
             _roomTintOverlay.Dispose(); // Round Z-A
             _gridOverlay.Dispose();
             _gridNodeOverlay.Dispose();
-            _sunOverlay?.Dispose();
             _sectionOverlay?.Dispose();
             _photoTarget?.Dispose();
             _photoResolve?.Dispose();
-            _warmTarget?.Dispose(); // X-C1
             _target.Dispose();
             _ui?.Dispose();
         }

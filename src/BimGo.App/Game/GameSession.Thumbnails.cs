@@ -201,8 +201,7 @@ namespace BimGo.Game
                 Camera.Update();
                 _photoTarget?.Dispose();
                 _photoResolve?.Dispose();
-                _warmTarget?.Dispose(); // X-C1
-                _photoTarget = _photoResolve = _warmTarget = null;
+                _photoTarget = _photoResolve = null;
                 Gl.BindFramebuffer(Gl.FRAMEBUFFER, 0);
                 Gl.Viewport(0, 0, _window.Width, _window.Height);
             }

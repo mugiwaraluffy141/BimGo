@@ -37,7 +37,7 @@ namespace BimGo.Game
             new[] { "ADD COMMENT", "COMMENTS", "MARKUP", "IMPORT BCF", "EXPORT BCF" }
         };
 
-        private bool ReviewPanelsVisible => !_paused && !_uiHidden && !_photoOpen && !_tourActive
+        private bool ReviewPanelsVisible => !_paused && !_uiHidden
             && !IsEditingComment && !_markupOpen && !OverlayOpen;
 
         private bool ReviewPanelsUseLeftFallback
@@ -198,7 +198,6 @@ namespace BimGo.Game
             _clashMenuLook = false;
         }
 
-        private bool DesktopReviewNavigation => !_tourActive && !_pathEditOn;
         private float ReviewEyeOffset => _player.Controller.HoldCrouch && !_player.Flying
             ? _player.Controller.CrouchEye : _player.Controller.StandEye;
         private Vector3 PlayerEye => _player.Feet + Vector3.UnitZ * ReviewEyeOffset;
@@ -216,7 +215,7 @@ namespace BimGo.Game
 
         private void UpdateDesktopReviewNavigation(InputState input, float dt, bool pointerNavigation = true)
         {
-            if (!DesktopReviewNavigation || !_window.IsActive) { _reviewOrbitActive = _reviewPanActive = false; return; }
+            if (!_window.IsActive) { _reviewOrbitActive = _reviewPanActive = false; return; }
             if (_guns[_activeGun].CapturesInput) { _reviewOrbitActive = _reviewPanActive = false; return; }
             if (_clashFlying) { _reviewOrbitActive = _reviewPanActive = false; return; }
             bool blocked = ReviewNavigationBlocked(input.MousePosition);

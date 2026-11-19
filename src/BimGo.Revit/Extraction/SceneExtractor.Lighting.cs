@@ -526,12 +526,11 @@ namespace BimGo.Extraction
         /// <summary>
         /// X-D1 r3: a fixture without a light source of its own that holds lights: shared nested lighting families (they
         /// are elements of their own: the host gets no light) or non-shared ones (read from the family document once per
-        /// family: each nested light's transform, file, tilt, lumens, colour). Not in the family library pass (inside a
-        /// transaction: the family can't be opened then).
+        /// family: each nested light's transform, file, tilt, lumens, colour).
         /// </summary>
         private void ReadNestedLights(Element element, Element type)
         {
-            if (element is not FamilyInstance instance || type == null || _libraryPass) { return; }
+            if (element is not FamilyInstance instance || type == null) { return; }
             var key = (_src.Doc, type.Id.Ext_Value());
             if (!_ownLightOfType.TryGetValue(key, out bool own))
             {

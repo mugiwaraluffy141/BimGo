@@ -124,12 +124,9 @@ namespace BimGo.Extraction
         /// it). Cancelling throws <see cref="OperationCanceledException"/>; nothing in the model is changed.
         /// </param>
         /// <returns>The SceneData.</returns>
-        /// <param name="liveSession">
-        /// True for Go and live refreshes. The clash-review viewer does not extract the family library.
-        /// </param>
-        public static SceneData Extract(UIDocument uiDoc, LaunchSettings settings, OperationProgress progress = null, bool liveSession = false)
+        public static SceneData Extract(UIDocument uiDoc, LaunchSettings settings, OperationProgress progress = null)
         {
-            var extractor = new SceneExtractor(uiDoc.Document, settings, progress) { _includeLibrary = false };
+            var extractor = new SceneExtractor(uiDoc.Document, settings, progress);
             return extractor.Run(uiDoc);
         }
 
@@ -200,7 +197,7 @@ namespace BimGo.Extraction
             bool[] loaded = new bool[catalog.Count];
             int totalElements = work.Sum(w => w.Elements.Count);
             int processed = 0;
-            _progress?.Begin("Extracting geometry", 0.12, _includeLibrary ? 0.78 : 0.85);
+            _progress?.Begin("Extracting geometry", 0.12, 0.85);
             foreach ((SourceModel source, CategoryDef def, List<Element> elements) in work)
             {
                 _src = source;
@@ -243,19 +240,6 @@ namespace BimGo.Extraction
             }
             if (!bounds.IsValid) { bounds = new Aabb(new Vector3(-10, -10, 0), new Vector3(10, 10, 3)); }
 
-            // The family library (live sessions, opt-in): hidden templates after every model element
-            LibraryData library = LibraryData.Empty;
-            if (_includeLibrary)
-            {
-                try { library = ExtractLibrary(loaded); }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    Utilities.Log_Utils.Write($"Family library skipped: {ex}");
-                    library = LibraryData.Empty;
-                }
-            }
-
             stopwatch.Stop();
             Utilities.Log_Utils.Write($"Extracted {_elements.Count} elements, {_indices.Count / 3} triangles, {rooms.Count} rooms, {_links.Count} links " +
                 $"in {stopwatch.Elapsed.TotalSeconds:F1}s (proxies {_proxyCount}, skipped {_skippedCount}). Phases: {_phases.Existing?.Name ?? "none"} → {phase?.Name ?? "none"}.");
@@ -284,7 +268,6 @@ namespace BimGo.Extraction
                 Parameters = _parameters?.Build() ?? ParameterTable.Empty,
                 Lighting = BuildLighting(),
                 Materials = BuildMaterials(),
-                Library = library,
                 CategoryLoaded = loaded,
                 CategoryElementCounts = counts,
                 Settings = _settings,
@@ -653,7 +636,7 @@ namespace BimGo.Extraction
         /// <returns>True if a record was added.</returns>
         private bool ExtractElement(Element element, CategoryDef def)
         {
-            GeometryElement geometry = element.get_Geometry((_libraryPass ? null : _src.GeometryOptions) ?? _geometryOptions);
+            GeometryElement geometry = element.get_Geometry(_src.GeometryOptions ?? _geometryOptions);
             if (geometry == null) { return false; }
 
             // Reset per-element state

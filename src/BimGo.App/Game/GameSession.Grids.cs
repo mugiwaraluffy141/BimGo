@@ -129,9 +129,7 @@ namespace BimGo.Game
             if (!_clashModeOn)
             {
                 CloseSunPanel();
-                CloseSunHours();
                 CloseSectionEditor();
-                ClosePhotoMode();
                 CloseFixtureDock(); // Round Y-C2
                 _window.SetCaptured(false);
                 _window.Input.ReleaseAll();

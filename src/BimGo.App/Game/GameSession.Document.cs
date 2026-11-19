@@ -319,7 +319,7 @@ namespace BimGo.Game
                 Toast($"Edits are in Revit: undo them there, then press {Key(InputAction.Refresh)} to refresh");
                 return;
             }
-            if (_guns[_activeGun].CapturesInput || IsPushPanelOpen) { return; }
+            if (_guns[_activeGun].CapturesInput) { return; }
 
             // An edit already pushed into Revit stays: undoing only the file's copy would make them disagree
             if (_journal.Count > 0 && _journal.Entries[^1].AppliedToRevit)
@@ -354,7 +354,7 @@ namespace BimGo.Game
                 Toast($"Edits are in Revit: redo them there, then press {Key(InputAction.Refresh)} to refresh");
                 return;
             }
-            if (_guns[_activeGun].CapturesInput || IsPushPanelOpen) { return; }
+            if (_guns[_activeGun].CapturesInput) { return; }
 
             JournalEntry entry = _journal.Redo();
             if (entry == null)
@@ -520,11 +520,9 @@ namespace BimGo.Game
             UpdateLive();
             UpdateRevitViews(); // Round X-E: views Revit's ribbon asked for
             UpdateCommentMarkers(); // Round Z-B: comments → Revit markers
-            UpdatePush(dt);
             UpdateSun(dt);
             UpdateScreenshot();
             UpdateVisibilitySidecar(dt);
-            UpdateSunStudy();
 
             while (_window.TryTakeDroppedFile(out string dropped))
             {

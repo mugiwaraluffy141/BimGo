@@ -83,6 +83,36 @@ namespace BimGo.Game
             _renderer?.SetSection(_sectionPlanes, _sectionCount, _section.BoxOn);
         }
 
+        /// <summary>The world ray under a window pixel.</summary>
+        private void ScreenRay(Vector2 pixel, out Vector3 origin, out Vector3 direction)
+        {
+            float x = pixel.X / Math.Max(1, _window.Width) * 2f - 1f;
+            float y = 1f - pixel.Y / Math.Max(1, _window.Height) * 2f;
+            Matrix4x4 inverse = Camera.InverseViewProjection;
+            Vector4 near = Vector4.Transform(new Vector4(x, y, -1f, 1f), inverse);
+            Vector4 far = Vector4.Transform(new Vector4(x, y, 1f, 1f), inverse);
+            Vector3 a = new Vector3(near.X, near.Y, near.Z) / near.W;
+            Vector3 b = new Vector3(far.X, far.Y, far.Z) / far.W;
+            origin = Camera.Position;
+            direction = Vector3.Normalize(b - a);
+        }
+
+        /// <summary>"2.05 Kitchen" (number and name).</summary>
+        private string RoomLabel(int room)
+        {
+            if (room < 0 || room >= Scene.Rooms.Length) { return "no room"; }
+            RoomInfo r = Scene.Rooms[room];
+            return string.IsNullOrWhiteSpace(r.Number) || r.Number == "—" ? r.Name : $"{r.Number} {r.Name}";
+        }
+
+        /// <summary>Applies a temporary section cut for a rendered issue view without marking the document changed.</summary>
+        private void SetSectionQuiet(SectionCut cut)
+        {
+            _section = (cut ?? new SectionCut()).Clone().Clean();
+            _sectionCount = _section.LocalPlanes(Scene.OriginOffset, _sectionPlanes);
+            _renderer?.SetSection(_sectionPlanes, _sectionCount, _section.BoxOn);
+        }
+
         /// <summary>Ctrl+P / CLEAR ALL: no box, no plane.</summary>
         private void ClearSection()
         {
@@ -206,8 +236,6 @@ namespace BimGo.Game
             CloseSunPanel();
             CloseGridsPanel(); // grids round A: one panel at a time
             CloseFixtureDock(); // Round Y-C2
-            CloseSunHours();
-            ClosePhotoMode();
             ShowUi();
             if (!_section.BoxOn && !_section.PlaneOn) { FitSectionToLevel(); }
             _sectionOpen = true;
