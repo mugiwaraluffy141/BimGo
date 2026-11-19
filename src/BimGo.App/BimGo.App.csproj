@@ -63,24 +63,8 @@
 		<None Update="Resources\places.tsv" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
-	<!--
-		Local builds update the desktop app at the path the Revit add-in uses.
-		The packaging script passes DeployBimGoLocally=false to build artifacts only.
-	-->
-	<Target Name="InstallBimGoApp" AfterTargets="Build" Condition="'$(DeployBimGoLocally)' == 'true' And '$(BimGoInstallDir)' != '' And '$(Configuration)' == 'Debug'">
-		<PropertyGroup>
-			<_BimGoInstallPath>$([MSBuild]::EnsureTrailingSlash('$(BimGoInstallDir)'))</_BimGoInstallPath>
-		</PropertyGroup>
-		<ItemGroup>
-			<BimGoAppFiles Include="$(TargetDir)**\*.*" Exclude="$(TargetDir)**\*.pdb" />
-		</ItemGroup>
-		<MakeDir Directories="$(BimGoInstallDir)" />
-		<Copy SourceFiles="@(BimGoAppFiles)" DestinationFiles="@(BimGoAppFiles->'$(_BimGoInstallPath)%(RecursiveDir)%(Filename)%(Extension)')"
-			  SkipUnchangedFiles="true" />
-	</Target>
-
-	<!-- Release local builds must replace the installed app with the complete self-contained runtime. -->
-	<Target Name="PublishAndInstallBimGoApp" AfterTargets="Build" Condition="'$(DeployBimGoLocally)' == 'true' And '$(BimGoInstallDir)' != '' And $(Configuration.StartsWith('Release'))">
+	<!-- Local deployment is opt-in and always installs a complete self-contained publish. -->
+	<Target Name="PublishAndInstallBimGoApp" AfterTargets="Build" Condition="'$(DeployBimGoLocally)' == 'true' And '$(BimGoInstallDir)' != ''">
 		<PropertyGroup>
 			<_BimGoPublishDir>$(MSBuildProjectDirectory)\obj\$(Configuration)\local-deploy</_BimGoPublishDir>
 			<_BimGoInstallPath>$([MSBuild]::EnsureTrailingSlash('$(BimGoInstallDir)'))</_BimGoInstallPath>
@@ -91,11 +75,13 @@
 			   Text="The self-contained BimGo publish is missing required executable or .NET host files." />
 		<MakeDir Directories="$(BimGoInstallDir)" />
 		<ItemGroup>
-			<_BimGoPublishedFiles Include="$(_BimGoPublishDir)\**\*.*" Exclude="$(_BimGoPublishDir)\**\*.pdb" />
+			<_BimGoPublishedFiles Include="$(_BimGoPublishDir)\**\*.*" />
+			<_BimGoPublishedFiles Remove="$(_BimGoPublishDir)\**\*.pdb" Condition="$(Configuration.StartsWith('Release'))" />
 			<_BimGoPublishedFilesNoExe Include="@(_BimGoPublishedFiles)" Exclude="$(_BimGoPublishDir)\BimGo.exe" />
 		</ItemGroup>
 		<Copy SourceFiles="@(_BimGoPublishedFilesNoExe)" DestinationFiles="@(_BimGoPublishedFilesNoExe->'$(_BimGoInstallPath)%(RecursiveDir)%(Filename)%(Extension)')" />
 		<Copy SourceFiles="$(_BimGoPublishDir)\BimGo.exe" DestinationFiles="$(_BimGoInstallPath)BimGo.exe" />
+		<Delete Files="$(_BimGoInstallPath)BimGo.pdb;$(_BimGoInstallPath)BimGo.Core.pdb" Condition="$(Configuration.StartsWith('Release'))" />
 	</Target>
 
 </Project>
