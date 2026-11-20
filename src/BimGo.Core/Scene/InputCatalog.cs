@@ -36,7 +36,13 @@ namespace BimGo.Scene
         Kiosk,
 
         /// <summary>Keys that can't be rebound (Esc, menus and panels' mouse, Alt+F4). Listed for reference and clash checks.</summary>
-        Fixed
+        Fixed,
+
+        /// <summary>A selected Test or Set in the clash setup panel, outside text/overlay focus.</summary>
+        ClashSetup,
+
+        /// <summary>The paused Issues list and issue detail panel, outside editing/overlay focus.</summary>
+        Issues
     }
 
     /// <summary>
@@ -117,7 +123,19 @@ namespace BimGo.Scene
         KioskExit,
 
         // Fixed (not rebindable)
-        Back, CloseWindow, Click, DragLook, FineAdjust, PhotoZoom, OpenFile, PadClick, PadMenuBack
+        Back, CloseWindow, Click, DragLook, FineAdjust, PhotoZoom, OpenFile, PadClick, PadMenuBack,
+
+        // Clash setup (appended to preserve existing numeric action values too)
+        SetupRename, SetupCopy, SetupPaste, SetupDelete, SetupContextMenu,
+
+        // Clash review row commands (no Paste/duplication semantics)
+        ClashCopyInfo, ClashGroupRename, ClashRowContextMenu,
+
+        // Issues list/detail (text editing and replies keep their own contracts)
+        IssuesCopy, IssuesDelete, IssuesContextMenu,
+
+        // Read-only Inspect/Measure panel commands
+        ScanCopyInfo, MeasureCopyInfo
     }
 
     /// <summary>
@@ -311,6 +329,18 @@ namespace BimGo.Scene
             Add(InputAction.RevitViewNew, c, "New Revit view from here (live)", P, "Shift+F5"); // Round X-E
             Add(InputAction.RevitViewUpdate, c, "Update Revit's active view to here (live)", P, "Alt+F5");
 
+            c = InputContext.ClashSetup;
+            Add(InputAction.SetupRename, c, "Rename selected Test / Set", P, "F2");
+            Add(InputAction.SetupCopy, c, "Copy selected Test / Set configuration", P, "Ctrl+C");
+            Add(InputAction.SetupPaste, c, "Paste Test / Set configuration as copy", P, "Ctrl+V");
+            Add(InputAction.SetupDelete, c, "Delete selected Test / Set (twice)", P, "Delete");
+            Add(InputAction.SetupContextMenu, c, "Selected Test / Set context menu", P, "Shift+F10", "Key0x5D");
+
+            c = InputContext.Issues;
+            Add(InputAction.IssuesCopy, c, "Copy focused issue / reply / selected issues", P, "Ctrl+C");
+            Add(InputAction.IssuesDelete, c, "Delete focused issue / selected issues (confirm)", P, "Delete");
+            Add(InputAction.IssuesContextMenu, c, "Focused issue / reply / selection context menu", P, "Shift+F10", "Key0x5D");
+
             // Movement
             c = InputContext.Movement;
             Add(InputAction.MoveForward, c, "Move forward", H, "W", "Up");
@@ -377,9 +407,11 @@ namespace BimGo.Scene
             Add(InputAction.ScanSelectInRevit, InputContext.ScanGun, "Select in Revit (live)", P, "R");
             Add(InputAction.ScanHide, InputContext.ScanGun, "Hide the target", P, "I");
             Add(InputAction.ScanIsolate, InputContext.ScanGun, "Isolate its category (again: show all)", P, "Shift+I");
+            Add(InputAction.ScanCopyInfo, InputContext.ScanGun, "Copy inspected element information", P, "Ctrl+C");
             Add(InputAction.MeasureNormal, InputContext.MeasureGun, "Normal projection (distance mode)", P, "N");
             Add(InputAction.MeasureShowAll, InputContext.MeasureGun, "Show / hide the saved measurements", P, "I"); // Round Y-A
             Add(InputAction.MeasureExport, InputContext.MeasureGun, "Export the measurements (CSV)", P, "E");
+            Add(InputAction.MeasureCopyInfo, InputContext.MeasureGun, "Copy current measurement information", P, "Ctrl+C");
             Add(InputAction.CommentEdit, InputContext.CommentGun, "Edit the hovered comment", P, "E");
             Add(InputAction.DemolishMode, InputContext.DemolishGun, "Demolish / delete mode", P, "T");
             Add(InputAction.GizmoSnap, InputContext.GizmoGuns, "Snap on / off", P, "G");
@@ -433,6 +465,9 @@ namespace BimGo.Scene
             Add(InputAction.ClashSectionToggle, c, "Section box on / off (on: around the current clash)", P, "B");
             Add(InputAction.ClashSelectAll, c, "Select all shown clashes (focus on them all) / clear", P, "Ctrl+A");
             Add(InputAction.ClashPictures, c, "Row pictures on / off", P, "P");
+            Add(InputAction.ClashCopyInfo, c, "Copy current group / clash information", P, "Ctrl+C");
+            Add(InputAction.ClashGroupRename, c, "Rename current clash group", P, "F2");
+            Add(InputAction.ClashRowContextMenu, c, "Current group / clash row menu", P, "Shift+F10", "Key0x5D");
             Add(InputAction.ClashGroup, c, "Group the selected clashes", P, "Ctrl+G");
             Add(InputAction.ClashUngroup, c, "Ungroup the picked group / take the selected clashes out of their groups", P, "Ctrl+Shift+G");
             Add(InputAction.ClashPickPoints, c, "Pick points: click dots or rows to pick, then group them (again or Esc leaves)", P, "K"); // P-B
@@ -618,7 +653,7 @@ namespace BimGo.Scene
             InputContext.General, InputContext.Movement, InputContext.Guns, InputContext.Tools,
             InputContext.ScanGun, InputContext.MeasureGun, InputContext.CommentGun, InputContext.DemolishGun, InputContext.GizmoGuns,
             InputContext.Holding, InputContext.Markup, InputContext.SectionEditor, InputContext.PhotoMode, InputContext.SunPanel,
-            InputContext.Tour, InputContext.Clashes, InputContext.PauseMenu, InputContext.PathEditor, InputContext.Kiosk, InputContext.Fixed
+            InputContext.Tour, InputContext.Clashes, InputContext.ClashSetup, InputContext.Issues, InputContext.PauseMenu, InputContext.PathEditor, InputContext.Kiosk, InputContext.Fixed
         };
 
         /// <summary>A group's heading.</summary>
@@ -640,6 +675,8 @@ namespace BimGo.Scene
             InputContext.SunPanel => "Sun panel",
             InputContext.Tour => "Bookmark tour and camera paths",
             InputContext.Clashes => "Clash mode",
+            InputContext.ClashSetup => "Clash Tests and Sets",
+            InputContext.Issues => "Issues list and details",
             InputContext.PauseMenu => "Settings panel",
             InputContext.PathEditor => "Path editor",
             InputContext.Kiosk => "Kiosk mode",
@@ -658,6 +695,8 @@ namespace BimGo.Scene
             InputContext.SunPanel => "Shadows / sun panel or Esc closes it; the sun time keys work.",
             InputContext.Tour => "While a bookmark tour or a camera path plays (Esc stops it).",
             InputContext.Clashes => "Clash detection's docked list (the clash mode key or Esc leaves): RMB orbits, MMB pans, the wheel zooms off the dock and scrolls the list over it.",
+            InputContext.ClashSetup => "Only while a Test / Set is selected in its setup panel, outside text editing, dialogs and menus. Conflicting setup shortcuts are suppressed; resolve red conflicts in CONTROLS. Paste accepts configurations copied in the same model/session only.",
+            InputContext.Issues => "The paused Issues list/detail panel, outside editors, dialogs and menus. Commands target the detail record, a filtered list anchor or explicit selection; no hovered/implicit first-row target. Delete keeps its existing arming or selected-issues confirmation. Conflicts are suppressed; resolve red bindings in CONTROLS. These are not reply-edit or markup commands.",
             InputContext.Movement => "Desktop review: WASD moves freely, RMB orbits, MMB pans and the wheel zooms; MORE → FIT VIEW frames the model.",
             InputContext.PauseMenu => "While the Settings panel is open.",
             InputContext.Kiosk => "A file opened from a kiosk shortcut: visitors walk, fly and look only (no menus, tools, panels or saving); after two minutes without input the bookmark tour plays. Leaving it goes to the normal walkthrough.",
@@ -690,6 +729,8 @@ namespace BimGo.Scene
         public const string SIT_START = "Start screen";
         public const string SIT_PAUSE = "Viewer panels";
         public const string SIT_SETTINGS = "Settings panel";
+        public const string SIT_CLASH_SETUP = "Selected clash Test / Set";
+        public const string SIT_ISSUES = "Issues list / detail";
         public const string SIT_PATH = "Path editor";
         public const string SIT_FIXTURE = "Fixture light profile";
         public const string SIT_KIOSK = "Kiosk mode";
@@ -710,6 +751,30 @@ namespace BimGo.Scene
                 if (string.Equals(situation.Name, name, StringComparison.Ordinal)) { return situation; }
             }
             return null;
+        }
+
+        /// <summary>
+        /// A live conflict for the pressed setup binding, or None. Callers must not execute/consume
+        /// the setup command on conflict: existing global overrides retain their normal routing.
+        /// </summary>
+        public static InputAction SetupCommandConflict(KeyMap map, InputAction action, IKeyState state)
+        {
+            if (Get(action)?.Context != InputContext.ClashSetup) { return InputAction.None; }
+            return PressedCommandConflict(map, action, state, SIT_CLASH_SETUP);
+        }
+
+        /// <summary>A conflict on the pressed command's slot in the named active situation; unrelated contexts are ignored.</summary>
+        public static InputAction PressedCommandConflict(KeyMap map, InputAction action, IKeyState state, string situationName)
+        {
+            int slot = map.PressedSlot(action, state);
+            if (slot < 0) { return InputAction.None; }
+            InputSituation situation = Situation(situationName);
+            if (situation == null || !situation.Contains(action)) { return InputAction.None; }
+            foreach (BindingClash clash in map.FindClashes(action, map.Get(action, slot)))
+            {
+                if (situation.Contains(clash.Action) && map.Pressed(clash.Action, state)) { return clash.Action; }
+            }
+            return InputAction.None;
         }
 
         private static InputSituation[] BuildSituations()
@@ -775,7 +840,7 @@ namespace BimGo.Scene
                 H("Select all shown", InputAction.ClashSelectAll),
                 H("Group · ungroup", InputAction.ClashGroup, InputAction.ClashUngroup),
                 H("Pick points", InputAction.ClashPickPoints),
-                H("Row pictures", InputAction.ClashPictures),
+                H("Copy info · rename group · row menu", InputAction.ClashCopyInfo, InputAction.ClashGroupRename, InputAction.ClashRowContextMenu),
                 H("Grids · colour profile", InputAction.GridsCycle, InputAction.ColourProfile),
                 H("Grids panel", InputAction.GridsPanel),
                 H("Leave clash mode", InputAction.ClashMode),
@@ -787,11 +852,13 @@ namespace BimGo.Scene
                 new InputSituation(SIT_WALKING, walking, Array.Empty<InputAction>(), Walk()),
                 new InputSituation(SIT_SCAN, With(InputContext.ScanGun), Array.Empty<InputAction>(), Walk(
                     H("Hide · isolate its category", InputAction.ScanHide, InputAction.ScanIsolate),
-                    H("Select in Revit (live)", InputAction.ScanSelectInRevit))),
+                    H("Select in Revit (live)", InputAction.ScanSelectInRevit),
+                    H("Copy inspected element information", InputAction.ScanCopyInfo))),
                 new InputSituation(SIT_MEASURE, With(InputContext.MeasureGun), Array.Empty<InputAction>(), Walk(
                     H("Measure mode (also in INSPECT)", InputAction.Gun2),
                     H("Normal projection", InputAction.MeasureNormal),
                     H("Show / hide saved · export CSV", InputAction.MeasureShowAll, InputAction.MeasureExport),
+                    H("Copy current measurement information", InputAction.MeasureCopyInfo),
                     H("Delete all (twice)", InputAction.ClearMarkers))),
                 new InputSituation(SIT_COMMENT, With(InputContext.CommentGun), Array.Empty<InputAction>(), Walk(
                     H("Edit the hovered comment", InputAction.CommentEdit))),
@@ -929,6 +996,19 @@ namespace BimGo.Scene
                     H("Refresh from Revit (live)", InputAction.Refresh),
                     H("New Revit view · update Revit's view (live)", InputAction.RevitViewNew, InputAction.RevitViewUpdate)
                 }),
+                new InputSituation(SIT_CLASH_SETUP, new[] { InputContext.ClashSetup }, Join(padMenu,
+                    InputAction.Help, InputAction.Fullscreen, InputAction.Screenshot, InputAction.Refresh, InputAction.Save, InputAction.SaveAs,
+                    InputAction.Undo, InputAction.Redo, InputAction.RevitViewNew, InputAction.RevitViewUpdate, InputAction.Click), new[]
+                {
+                    H("Rename selected Test / Set", InputAction.SetupRename),
+                    H("Copy configuration · paste as copy", InputAction.SetupCopy, InputAction.SetupPaste),
+                    H("Delete selected Test / Set (twice)", InputAction.SetupDelete),
+                    H("Selected Test / Set menu", InputAction.SetupContextMenu),
+                    click,
+                    H("Save · save as", InputAction.Save, InputAction.SaveAs),
+                    H("Refresh from Revit (live)", InputAction.Refresh),
+                    H("Screenshot", InputAction.Screenshot)
+                }),
                 new InputSituation(SIT_SETTINGS, new[] { InputContext.PauseMenu }, Join(padMenu,
                     InputAction.MenuPreview, InputAction.Help, InputAction.Fullscreen, InputAction.Screenshot, InputAction.Save, InputAction.SaveAs,
                     InputAction.Click), new[]
@@ -936,6 +1016,18 @@ namespace BimGo.Scene
                     click,
                     H("Close Settings", InputAction.MenuPreview),
                     H("Save · save as", InputAction.Save, InputAction.SaveAs)
+                }),
+                new InputSituation(SIT_ISSUES, new[] { InputContext.Issues }, Join(padMenu,
+                    InputAction.Help, InputAction.Fullscreen, InputAction.Screenshot, InputAction.Refresh, InputAction.Save, InputAction.SaveAs,
+                    InputAction.Undo, InputAction.Redo, InputAction.RevitViewNew, InputAction.RevitViewUpdate, InputAction.Click), new[]
+                {
+                    H("Copy focused issue / reply / selected issues", InputAction.IssuesCopy),
+                    H("Delete focused / selected (confirm)", InputAction.IssuesDelete),
+                    H("Focused issue / reply / selection menu", InputAction.IssuesContextMenu),
+                    click,
+                    H("Save · save as", InputAction.Save, InputAction.SaveAs),
+                    H("Refresh from Revit (live)", InputAction.Refresh),
+                    H("Screenshot", InputAction.Screenshot)
                 }),
 
                 // Round K-B: the 3D path editor. ← / → snap into keys, so it flies on its own WASD / E / Q actions (the walking
@@ -965,10 +1057,12 @@ namespace BimGo.Scene
         /// The controls defaults version (polish round P-B). 0: the defaults up to P-A2; 1: P-B's hotkey review; 2: Round
         /// K-A's media panel; 3: Round K-B's path editor; 4: Round X-B3's billboard resize (HoldScale); 5: Round X-E's
         /// Revit views from here (RevitViewNew, RevitViewUpdate); 6: Round Y-A's saved measurements (MeasureShowAll, MeasureExport); 7: Round Y-C2's
-        /// fixture light profile dock (FixtureProfile); 8: Round Z-A's room tags (RoomTags); 9: Round Z-C's kiosk exit (KioskExit). Raise it when a default changes and add the changes to
+        /// fixture light profile dock (FixtureProfile); 8: Round Z-A's room tags (RoomTags); 9: Round Z-C's kiosk exit (KioskExit);
+        /// 10: selected clash Test / Set commands; 11: group / result information, group rename and row menus;
+        /// 12: Issues copy, delete and context menu; 13: Scan and Measure panel copy. Raise it when a default changes and add the changes to
         /// <see cref="DefaultsChanges"/> (ControlsTests checks the table against the defaults).
         /// </summary>
-        public const int DEFAULTS_VERSION = 9;
+        public const int DEFAULTS_VERSION = 13;
 
         /// <summary>Every default that changed, by version (oldest first). <c>Was</c>: the old binding ("none" for none).</summary>
         public static readonly DefaultsChange[] DefaultsChanges =
@@ -1025,7 +1119,28 @@ namespace BimGo.Scene
             new(8, InputAction.RoomTags, true, null),
 
             // Version 9 (Round Z-C): Ctrl+Shift+Q held leaves kiosk mode
-            new(9, InputAction.KioskExit, true, null)
+            new(9, InputAction.KioskExit, true, null),
+
+            // Version 10: contextual Test / Set commands (existing overrides remain untouched)
+            new(10, InputAction.SetupRename, true, null),
+            new(10, InputAction.SetupCopy, true, null),
+            new(10, InputAction.SetupPaste, true, null),
+            new(10, InputAction.SetupDelete, true, null),
+            new(10, InputAction.SetupContextMenu, true, null),
+
+            // Version 11: contextual group / result row commands
+            new(11, InputAction.ClashCopyInfo, true, null),
+            new(11, InputAction.ClashGroupRename, true, null),
+            new(11, InputAction.ClashRowContextMenu, true, null),
+
+            // Version 12: Issues list/detail commands (not text-field/reply editing)
+            new(12, InputAction.IssuesCopy, true, null),
+            new(12, InputAction.IssuesDelete, true, null),
+            new(12, InputAction.IssuesContextMenu, true, null),
+
+            // Version 13: read-only Inspect / Measure panel copy
+            new(13, InputAction.ScanCopyInfo, true, null),
+            new(13, InputAction.MeasureCopyInfo, true, null)
         };
 
         /// <summary>The changes made after a version the user saw (empty when it is current or newer).</summary>

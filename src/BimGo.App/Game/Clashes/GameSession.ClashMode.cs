@@ -95,6 +95,7 @@ namespace BimGo.Game
         /// </summary>
         private void EnterClashMode(ClashRecord clash, string testId = null)
         {
+            _clashRowDoubleClick.Reset();
             EnsureClashes();
             _clashPickerRule = null;
             CloseOverlay();
@@ -132,6 +133,7 @@ namespace BimGo.Game
         /// </summary>
         private void ExitClashMode()
         {
+            _clashRowDoubleClick.Reset();
             if (!_clashModeOn) { return; }
             CloseGridsPanel(); // grids round A (clash mode's cursor handling follows)
             CloseFixtureDock(); // Round Y-C2
@@ -141,6 +143,7 @@ namespace BimGo.Game
             LeaveClashTool(); // C-C2: a box tool puts the cut back first
             _clashToolHover = null;
             _clashModeOn = false;
+            _window.HideNativeSearch();
             _clashFlying = false;
             _clashSearchFocused = false;
             _clashMenuLook = false;
@@ -169,6 +172,10 @@ namespace BimGo.Game
         /// </summary>
         private void UpdateClashMode(InputState input, float dt)
         {
+            if (!_window.IsActive || OverlayOpen || _clashSearchFocused || _clashTool != CLASH_TOOL_NONE)
+            {
+                _clashRowDoubleClick.Reset();
+            }
             if (!_window.IsActive) { return; }
 
             // The search box has the keys while it is focused (Enter / Esc / a click elsewhere end it)
@@ -178,6 +185,8 @@ namespace BimGo.Game
                 AdvanceClashFlight(dt);
                 return;
             }
+
+            if (UpdateClashReviewCommands(input)) { AdvanceClashFlight(dt); return; }
 
             // Grids round A: the grids keys stay live in clash mode (Esc closes an open grids panel first)
             if (input.Pressed(InputAction.GridsPanel)) { ToggleGridsPanel(); }
@@ -224,8 +233,9 @@ namespace BimGo.Game
             if (input.Pressed(InputAction.Fullscreen)) { _window.ToggleFullscreen(); }
             if (input.Pressed(InputAction.Screenshot)) { RequestScreenshot(); }
             // C-C1: RMB pressed over the dock opens a row menu, so it doesn't look until it is released
-            if (input.RightPressed && _clashDockW > 0f && Hover(input, _clashDockX, _clashDockY, _clashDockW, _clashDockH)) { _clashMenuLook = true; }
-            if (!input.RightDown) { _clashMenuLook = false; }
+            _clashMenuLook = PointerEventOwnership.RightButtonOwnedByRect(_clashMenuLook, input.RightDown,
+                input.RightPressed, _clashDockW > 0f && Hover(input, _clashDockX, _clashDockY, _clashDockW, _clashDockH),
+                input.PointerEvents, (int)_clashDockX, (int)_clashDockY, (int)MathF.Ceiling(_clashDockW), (int)MathF.Ceiling(_clashDockH));
             UpdateDesktopReviewNavigation(input, dt);
             UpdateRoom();
 

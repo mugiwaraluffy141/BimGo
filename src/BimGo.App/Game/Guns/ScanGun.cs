@@ -3,6 +3,7 @@ using BimGo.Audio;
 using BimGo.Rendering;
 using BimGo.Scene;
 using BimGo.Platform;
+using System.Drawing;
 
 // The class belongs to the Guns namespace
 namespace BimGo.Game.Guns
@@ -32,6 +33,10 @@ namespace BimGo.Game.Guns
 
         /// <summary>"Existing (phase)" for the panel, built once.</summary>
         private string _existingLabel;
+        private readonly List<(Rectangle Bounds, string Label, string Value)> _valueRows = new(10);
+        private readonly ContextClickTracker _valueContextClick = new();
+        private int _valueElement = -1, _valueDynamic;
+        private int _valueWindowWidth, _valueWindowHeight;
 
         public override float PanelHeight => 169f + (IsLinkedTarget ? 19f : 0f) + 19f * Math.Min(Session.Scene.Parameters.CountFor(Target), MAX_PARAMETER_ROWS);
 
@@ -55,10 +60,17 @@ namespace BimGo.Game.Guns
         }
 
         /// <summary>The panel's "R  REVIT" tag (rebuilt when the key changes).</summary>
-        private static readonly KeyHint HINT_REVIT = new(() => Hotkeys.Label(InputAction.ScanSelectInRevit).ToUpperInvariant() + "  REVIT");
+        private static readonly KeyHint HINT_COPY_REVIT = new(() => Hotkeys.Label(InputAction.ScanCopyInfo).ToUpperInvariant() + " COPY  ·  "
+            + Hotkeys.Label(InputAction.ScanSelectInRevit).ToUpperInvariant() + " REVIT");
 
         public override void OnKeys(Platform.InputState input)
         {
+            if (RouteValueContext(input)) { return; }
+            if (input.Pressed(InputAction.ScanCopyInfo) && Target >= 0)
+            {
+                Session.CopyScanInformation(input, Target, _locked >= 0 ? _lockedDynamic : _hoverDynamic);
+            }
+
             if (input.Pressed(InputAction.ScanSelectInRevit) && Target >= 0)
             {
                 Session.ShowInRevit(Target, _locked >= 0 ? _lockedDynamic : _hoverDynamic);
@@ -123,7 +135,8 @@ namespace BimGo.Game.Guns
             int target = _locked >= 0 ? _locked : _hover;
 
             ui.Text(f.Small, x, y, _locked >= 0 ? "SCAN · TARGET" : "SCAN · HOVER", UiTheme.SCAN_LABEL, S(1.1f));
-            if (Session.IsLiveConnected) { ui.TextRight(f.Small, x + width, y, HINT_REVIT.Text, UiTheme.TEXT_MUTED, S(1f)); }
+            ui.TextRight(f.Small, x + width, y, Session.IsLiveConnected ? HINT_COPY_REVIT.Text
+                : Hotkeys.Label(InputAction.ScanCopyInfo).ToUpperInvariant() + " COPY", UiTheme.TEXT_MUTED, S(1f));
             y += S(20);
 
             if (target < 0)
@@ -133,6 +146,11 @@ namespace BimGo.Game.Guns
             }
 
             ElementRecord record = Session.Scene.Elements[target];
+            _valueRows.Clear();
+            _valueElement = target;
+            _valueDynamic = _locked >= 0 ? _lockedDynamic : _hoverDynamic;
+            _valueWindowWidth = Session.WindowWidth;
+            _valueWindowHeight = Session.WindowHeight;
             Physics.DynamicInstance instance = Session.Dynamics.Find(_locked >= 0 ? _lockedDynamic : _hoverDynamic);
             ui.TextWrapped(f.Bold, x, y, width, record.Name, UiTheme.TEXT, maxLines: 1);
             y += S(24);
@@ -148,6 +166,7 @@ namespace BimGo.Game.Guns
             else { Session.Text.Clear().Append("clone #").Append(instance.CloneKey); }
             ui.Text(f.Body, x, y, "Element ID", UiTheme.TEXT_MUTED);
             ui.Text(f.Mono, x + labelWidth, y + S(1), Session.Text.Span, UiTheme.TEXT);
+            RegisterValue(x, y, width, "Element ID", Session.Text.Span.ToString());
             y += S(19);
             Row(ui, f, x, ref y, labelWidth, "Level", record.LevelName);
             string group = CategoryCatalog.GROUP_NAMES[(int)CategoryCatalog.All[record.CategoryIndex].Group];
@@ -164,6 +183,7 @@ namespace BimGo.Game.Guns
                 {
                     ui.TextWrapped(f.Body, x, y, labelWidth - S(6), name, UiTheme.TEXT_MUTED, maxLines: 1);
                     ui.TextWrapped(f.Body, x + labelWidth, y, width - labelWidth, string.IsNullOrEmpty(value) ? "—" : value, UiTheme.TEXT, maxLines: 1);
+                    RegisterValue(x, y, width, name, value ?? string.Empty);
                     y += S(19);
                 }
             }
@@ -180,8 +200,40 @@ namespace BimGo.Game.Guns
             {
                 u.Text(fonts.Body, rx, ry, label, UiTheme.TEXT_MUTED);
                 u.TextWrapped(fonts.Body, rx + lw, ry, width - lw, value ?? "—", UiTheme.TEXT, maxLines: 1);
+                if (label is "Category" or "Family" or "Level") { RegisterValue(rx, ry, width, label, value ?? string.Empty); }
                 ry += S(19);
             }
+        }
+
+        private void RegisterValue(float x, float y, float width, string label, string value)
+        {
+            _valueRows.Add((new Rectangle((int)MathF.Floor(x), (int)MathF.Floor(y), (int)MathF.Ceiling(width),
+                Math.Max(1, (int)MathF.Ceiling(S(19)))), label, value));
+        }
+
+        private bool RouteValueContext(InputState input)
+        {
+            if (!Session.IsScanValueContextVisible(_valueWindowWidth, _valueWindowHeight)
+                || Target < 0 || Target != _valueElement || (_locked >= 0 ? _lockedDynamic : _hoverDynamic) != _valueDynamic)
+            { _valueContextClick.Reset(); return false; }
+            string TargetAt(int x, int y)
+            {
+                for (int i = 0; i < _valueRows.Count; i++)
+                {
+                    Rectangle b = _valueRows[i].Bounds;
+                    if (x >= b.Left && x < b.Right && y >= b.Top && y < b.Bottom) { return i.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+                }
+                return null;
+            }
+            var drag = SystemInformation.DragSize;
+            var batch = new PointerEventBatch(input.PointerEvents);
+            bool clicked = _valueContextClick.Process(batch, e => TargetAt(e.X, e.Y), drag.Width, drag.Height,
+                enabled: true, out string selected, out PointerEvent clickedAt);
+            input.ConsumePointerEvents(batch);
+            if (!clicked || !int.TryParse(selected, out int row) || (uint)row >= (uint)_valueRows.Count) { return false; }
+            string label = _valueRows[row].Label, value = _valueRows[row].Value;
+            Session.ShowScanValueMenu(input, clickedAt.X, clickedAt.Y, label, value);
+            return true;
         }
     }
 }

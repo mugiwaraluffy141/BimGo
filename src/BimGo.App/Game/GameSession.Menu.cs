@@ -116,14 +116,12 @@ namespace BimGo.Game
             _editPoint = record.Local;
             _editElement = record.ElementId;
             _editLevel = string.IsNullOrEmpty(record.Level) ? null : record.Level;
-            _editLength = Math.Min(record.Text?.Length ?? 0, _editChars.Length);
-            record.Text?.CopyTo(0, _editChars, 0, _editLength);
+            SetEditText(record.Text);
             _window.Input.ReleaseAll();
         }
 
         /// <summary>
-        /// Opens the text box on a bookmark's name (selected text replaced by typing is not supported: the name is
-        /// ready to extend or Backspace over).
+        /// Opens the native text editor on a bookmark's name.
         /// </summary>
         /// <param name="record">The bookmark.</param>
         /// <param name="isNew">True right after B: the bookmark is pending (Enter adds it, Esc throws it away).</param>
@@ -137,8 +135,7 @@ namespace BimGo.Game
             _editBookmarkIsNew = isNew;
             _editMax = BookmarkStore.MAX_NAME;
             _editLevel = string.IsNullOrEmpty(record.Level) ? null : record.Level;
-            _editLength = Math.Min(record.Name?.Length ?? 0, _editMax);
-            record.Name?.CopyTo(0, _editChars, 0, _editLength);
+            SetEditText(record.Name);
             _window.Input.ReleaseAll();
         }
 
@@ -172,8 +169,7 @@ namespace BimGo.Game
             _editAssigneeFor = record;
             _editMax = MAX_ASSIGNEE;
             _editLevel = string.IsNullOrEmpty(record.Level) ? null : record.Level;
-            _editLength = Math.Min(record.AssignedTo?.Length ?? 0, _editMax);
-            record.AssignedTo?.CopyTo(0, _editChars, 0, _editLength);
+            SetEditText(record.AssignedTo);
             _window.Input.ReleaseAll();
         }
 
@@ -196,59 +192,81 @@ namespace BimGo.Game
             _editCustomTitle = title;
             _editMax = Math.Clamp(max, 1, _editChars.Length);
             _editLevel = level;
-            _editLength = Math.Min(initial?.Length ?? 0, _editMax);
-            initial?.CopyTo(0, _editChars, 0, _editLength);
+            SetEditText(initial);
             _window.Input.ReleaseAll();
         }
 
+        private void SetEditText(string text)
+        {
+            string limited = NativeTextEditor.Limit(text, _editMax, multiline: true);
+            _editLength = limited.Length;
+            limited.CopyTo(0, _editChars, 0, _editLength);
+        }
+
         /// <summary>
-        /// Consumes typed characters: Enter saves, Esc cancels, Backspace deletes.
+        /// Runs the owned native editor on the next update, outside immediate-mode UI construction.
         /// </summary>
         private void UpdateCommentEditor(InputState input)
         {
-            foreach (char c in input.Chars)
+            string title = _editCustom != null ? _editCustomTitle
+                : _editBookmark != null ? "BOOKMARK NAME"
+                : _editReplyFor != null ? "REPLY"
+                : _editAssigneeFor != null ? "ASSIGN TO (empty = unassigned)"
+                : _editRecord != null ? "EDIT COMMENT" : "NEW COMMENT";
+            bool multiline = _editCustom != null
+                ? _editCustomTitle == "CLASH NOTES (empty clears)" || _editCustomTitle == "GROUP NOTES (empty clears)"
+                : _editBookmark == null && _editAssigneeFor == null;
+            _window.SetCaptured(false);
+            input.ReleaseAll();
+            bool accepted;
+            string value;
+            try
             {
-                switch (c)
-                {
-                    case '\b':
-                        if (_editLength > 0) { _editLength--; }
-                        break;
-
-                    case '\r':
-                        CommitComment();
-                        return;
-
-                    case (char)27:
-                        _editing = false;
-                        if (_editCustom != null)
-                        {
-                            _editCustom = null;
-                            Toast("Not changed");
-                            return;
-                        }
-                        if (_editBookmark != null)
-                        {
-                            if (_editBookmarkIsNew && _thumbnailFor == _editBookmark) { _thumbnailFor = null; }
-                            Toast(_editBookmarkIsNew ? "Bookmark cancelled (nothing was saved)" : "Name not changed");
-                        }
-                        else if (_editReplyFor != null || _editAssigneeFor != null)
-                        {
-                            Toast(_editReplyFor != null ? "Reply cancelled" : "Assignee not changed");
-                        }
-                        else
-                        {
-                            Toast(_editRecord != null ? "Edit cancelled" : "Comment cancelled");
-                        }
-                        _editRecord = null;
-                        _editBookmark = null;
-                        _editReplyFor = _editAssigneeFor = null;
-                        return;
-
-                    default:
-                        if (c >= ' ' && _editLength < _editMax) { _editChars[_editLength++] = c; }
-                        break;
-                }
+                accepted = NativeTextEditor.Show(_window.Handle, title, new string(_editChars, 0, _editLength), _editMax, multiline, out value);
             }
+            finally
+            {
+                // The nested WinForms pump may deliver raw input/focus messages to the viewer.
+                // Do not replay those, or the opening/closing gesture, into model commands.
+                input.ReleaseAll();
+            }
+            if (accepted)
+            {
+                _editLength = value.Length;
+                value.CopyTo(0, _editChars, 0, _editLength);
+                CommitComment();
+            }
+            else
+            {
+                CancelCommentEdit();
+            }
+        }
+
+        private void CancelCommentEdit()
+        {
+            _editing = false;
+            if (_editCustom != null)
+            {
+                _editCustom = null;
+                Toast("Not changed");
+                return;
+            }
+            if (_editBookmark != null)
+            {
+                if (_editBookmarkIsNew && _thumbnailFor == _editBookmark) { _thumbnailFor = null; }
+                Toast(_editBookmarkIsNew ? "Bookmark cancelled (nothing was saved)" : "Name not changed");
+            }
+            else if (_editReplyFor != null || _editAssigneeFor != null)
+            {
+                Toast(_editReplyFor != null ? "Reply cancelled" : "Assignee not changed");
+            }
+            else
+            {
+                Toast(_editRecord != null ? "Edit cancelled" : "Comment cancelled");
+            }
+            _editRecord = null;
+            _editBookmark = null;
+            _editReplyFor = _editAssigneeFor = null;
         }
 
         private void CommitComment()

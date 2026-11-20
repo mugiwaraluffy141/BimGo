@@ -62,6 +62,7 @@ namespace BimGo.Game
         /// </summary>
         private void OpenComments()
         {
+            ResetCommentContextClick();
             _commentsOpen = true;
             _commentScroll.Reset();
             _commentDeleteArmed = null;
@@ -80,6 +81,7 @@ namespace BimGo.Game
         /// <returns>True if it was open.</returns>
         private bool CloseComments()
         {
+            ResetCommentContextClick();
             if (!_commentsOpen) { return false; }
             if (CloseOverlay()) { return true; } // C-B3: the bulk delete confirm first
             if (_commentDetail != null)
@@ -181,6 +183,7 @@ namespace BimGo.Game
             FontAtlas f = _ui.Atlas;
             InputState input = _window.Input;
             if (_commentDetail != null && !Comments.Comments.Contains(_commentDetail)) { _commentDetail = null; }
+            BeginCommentContextRows(input);
             if (_commentDetail != null)
             {
                 BuildCommentDetail(f, input, _commentDetail);
@@ -265,6 +268,7 @@ namespace BimGo.Game
 
             if (total == 0)
             {
+                ResetCommentContextClick();
                 _ui.TextWrapped(f.Body, x, y + S(8), w, Comments.Comments.Count == 0
                     ? "No comments yet. Select Comment (4), then click the model to place a marker and open a text box."
                     : "No comments match. Use ← → for another level, or pick All.", UiTheme.TEXT_MUTED, maxLines: 2);
@@ -295,6 +299,7 @@ namespace BimGo.Game
                 if (index >= last) { break; }
 
                 float ry = top + index * rowH + S(4);
+                RegisterCommentContextRow(record, x - S(8), ry - S(4), w + S(16), rowH - S(4), y, bottom);
                 if ((index & 1) == 0) { _ui.Rect(x - S(8), ry - S(4), w + S(16), rowH - S(4), UiTheme.ROW_STRIPE); }
 
                 // Status bar on the left edge, the tick (C-B3), then the thumbnail
@@ -348,15 +353,10 @@ namespace BimGo.Game
             EndScroll(_commentScroll, input, top + total * rowH);
 
             // Act after drawing (the list must not change while it is being walked)
+            if (ShowCommentContextMenu(input)) { return; }
             if (tick != null) { TickComment(tick, tickRun); }
             else if (go != null) { GoToComment(go); }
-            else if (open != null)
-            {
-                _commentDetail = open;
-                _commentDetailScroll.Reset();
-                _replyDeleteArmed = null;
-                _commentsNotice = null;
-            }
+            else if (open != null) { OpenCommentDetail(open); }
             else if (delete != null) { DeleteComment(delete); }
         }
 
@@ -567,11 +567,14 @@ namespace BimGo.Game
             }
 
             // Thread
-            cy += MathF.Max(picH, fy + S(20) - cy) + S(16);
+            float issueBottom = cy + MathF.Max(picH, fy + S(20) - cy);
+            RegisterCommentContextRow(record, ix, cy, iw, issueBottom - cy, frame.BodyTop, frame.BodyBottom);
+            cy = issueBottom + S(16);
             Text.Clear().Append("REPLIES (").Append(record.ReplyCount).Append(')');
             _ui.Text(f.Small, ix, cy, Text.Span, UiTheme.COMMENT_LABEL, S(1f));
             cy += S(24);
-            cy = BuildReplies(f, input, record, ix, cy, iw);
+            cy = BuildReplies(f, input, record, ix, cy, iw, frame.BodyTop, frame.BodyBottom);
+            RouteCommentBodyFocus(input, record);
             EndScroll(_commentDetailScroll, input, cy);
 
             // GO TO VIEW · SET VIEW HERE · EDIT TEXT · DELETE (← LIST returns to the list, as Esc)
@@ -581,6 +584,7 @@ namespace BimGo.Game
             bool armed = ReferenceEquals(_commentDeleteArmed, record) && _clock <= _commentDeleteArmedUntil;
             int delete = FooterAction(armed ? "SURE?" : "DELETE", ShellStyle.Danger);
             int pressed = EndPanel(frame, _commentsNotice, "REPLY… adds to the thread · ← LIST (or Esc) returns to the list", backLabel: "← LIST");
+            if (ShowReplyContextMenu(input) || ShowCommentContextMenu(input)) { return; }
             if (pressed == FOOTER_LEFT || pressed == FOOTER_NONE) { return; }
             if (pressed == goTo) { GoToComment(record); }
             else if (pressed == setView)
@@ -604,7 +608,8 @@ namespace BimGo.Game
         /// The reply thread (oldest first, inside the detail view's scroll region), each with its author, date and DELETE.
         /// </summary>
         /// <returns>The thread's bottom.</returns>
-        private float BuildReplies(FontAtlas f, InputState input, CommentRecord record, float x, float y, float w)
+        private float BuildReplies(FontAtlas f, InputState input, CommentRecord record, float x, float y, float w,
+            float clipTop, float clipBottom)
         {
             if (record.ReplyCount == 0)
             {
@@ -622,28 +627,20 @@ namespace BimGo.Game
                 float ry = y + i * rowH;
                 if (!InView(_commentDetailScroll, ry, rowH)) { continue; }
                 CommentReply reply = replies[i];
+                bool focused = reply.Id == _replyKeyboardId && record.Id == _replyKeyboardParentId;
+                if (focused) { _ui.Rect(x, ry, w - S(90), rowH - S(10), UiTheme.HOVER); }
                 _ui.Rect(x, ry, S(2), rowH - S(10), UiTheme.COMMENT);
                 reply.Header ??= $"{reply.Author?.ToUpperInvariant() ?? "?"} · {reply.Created.ToLocalTime():dd MMM HH:mm}";
                 _ui.Text(f.Small, x + S(12), ry, reply.Header, UiTheme.COMMENT_LABEL, S(0.6f));
                 _ui.TextWrapped(f.Body, x + S(12), ry + S(18), w - S(110), reply.Text, UiTheme.TEXT, maxLines: 2);
+                RegisterReplyContextRow(record, reply, x, ry, w - S(90), rowH - S(10), clipTop, clipBottom);
                 bool armed = ReferenceEquals(_replyDeleteArmed, reply);
                 if (SmallButton(f, input, x + w - S(84), ry + S(4), S(84), S(28), armed ? "SURE?" : "DELETE", danger: true)) { delete = reply; }
             }
             float bottom = y + replies.Count * rowH;
 
             if (delete == null) { return bottom; }
-            if (ReferenceEquals(_replyDeleteArmed, delete))
-            {
-                Comments.RemoveReply(record, delete);
-                _replyDeleteArmed = null;
-                _commentsNotice = Comments.LastError ?? "Reply deleted";
-                Sound.Play(SoundId.Remove);
-            }
-            else
-            {
-                _replyDeleteArmed = delete;
-                _replyDeleteArmedUntil = _clock + 3f;
-            }
+            RequestReplyDelete(record.Id, delete.Id);
             return bottom;
         }
 

@@ -21,6 +21,61 @@ namespace BimGo.Platform
         private readonly bool[] _repeated = new bool[256];
         private readonly char[] _chars = new char[64];
         private bool _leftReleased;
+        private readonly List<PointerEvent> _pointerEvents = new();
+        public IReadOnlyList<PointerEvent> PointerEvents => _pointerEvents;
+        public int ClickRevision { get; private set; }
+        private Vector2? _pointerPositionAfterFrame;
+
+        /// <summary>
+        /// Capture the current stream into a reusable PointerEventBatch; apply it with Handled set only for
+        /// messages the caller routed. Only indices below Count are read (arrays may have spare capacity).
+        /// Unhandled messages (including movement and the other button) remain in order. Legacy left/right press
+        /// flags reflect each button's last native press; a handled press is never replayed. Remaining legacy
+        /// mouse hit-tests use the latest pending native press position, restored to the actual cursor at EndFrame.
+        /// Own consumption advances ClickRevision; gesture owners must acknowledge that revision after applying.
+        /// </summary>
+        public void ConsumePointerEvents(PointerEventBatch batch)
+        {
+            _pointerEvents.Clear();
+            bool anyHandled = false, hasPress = false, hasRightPress = false;
+            for (int i = 0; i < batch.Count; i++)
+            {
+                hasPress |= batch.Events[i].Kind == PointerEventKind.Down;
+                hasRightPress |= batch.Events[i].Kind == PointerEventKind.RightDown;
+                if (!batch.Handled[i]) { _pointerEvents.Add(batch.Events[i]); }
+                else { anyHandled = true; }
+            }
+            for (int i = batch.Count - 1; i >= 0; i--)
+            {
+                if (batch.Events[i].Kind != PointerEventKind.Up) { continue; }
+                if (batch.Handled[i]) { _leftReleased = false; }
+                break;
+            }
+            if (hasPress)
+            {
+                _pressed[KeyCodes.LEFT_MOUSE] = batch.PendingPress.HasValue;
+            }
+            if (hasRightPress) { _pressed[KeyCodes.RIGHT_MOUSE] = batch.PendingRightPress.HasValue; }
+            PointerEvent? pending = batch.PendingMousePress;
+            if (pending.HasValue)
+            {
+                _pointerPositionAfterFrame ??= MousePosition;
+                MousePosition = new Vector2(pending.Value.X, pending.Value.Y);
+            }
+            if (anyHandled) { ClickRevision++; }
+        }
+
+        public void OnPointer(PointerEventKind kind, uint time, int x, int y, bool control, bool shift, bool alt)
+        {
+            MousePosition = new Vector2(x, y);
+            _pointerEvents.Add(new PointerEvent(kind, time, x, y, control, shift, alt));
+        }
+
+        private void CancelPointerClicks()
+        {
+            _pointerEvents.Clear();
+            ClickRevision++;
+        }
 
         // Legacy controller state is retained for stored action-map compatibility; no input path fills it now.
         private readonly bool[] _padDown = new bool[KeyCodes.PAD_COUNT];
@@ -149,7 +204,11 @@ namespace BimGo.Platform
 
         public void OnMouseMove(int x, int y) => MousePosition = new Vector2(x, y);
 
-        public void OnWheel(int delta) => Wheel += delta / 120;
+        public void OnWheel(int delta)
+        {
+            Wheel += delta / 120;
+            CancelPointerClicks();
+        }
 
         public void OnLeft(bool down)
         {
@@ -165,6 +224,7 @@ namespace BimGo.Platform
         public void OnButton(ushort code, bool down)
         {
             if (code >= 256) { return; }
+            if (code != KeyCodes.LEFT_MOUSE && code != KeyCodes.RIGHT_MOUSE && down) { CancelPointerClicks(); }
             if (down && !_injectingClick) { LastInputWasPad = false; }
             if (down && !_down[code]) { _pressed[code] = true; }
             _down[code] = down;
@@ -281,6 +341,12 @@ namespace BimGo.Platform
         /// </summary>
         public void EndFrame()
         {
+            if (_pointerPositionAfterFrame.HasValue)
+            {
+                MousePosition = _pointerPositionAfterFrame.Value;
+                _pointerPositionAfterFrame = null;
+            }
+            _pointerEvents.Clear();
             Array.Clear(_pressed);
             Array.Clear(_repeated);
             Array.Clear(_padPressed);
@@ -296,6 +362,7 @@ namespace BimGo.Platform
         /// </summary>
         public void ReleaseAll()
         {
+            CancelPointerClicks();
             Array.Clear(_down); // (the gamepad is polled, not sent: its held state stays, or pausing with Start would repeat)
             EndFrame();
         }
@@ -306,6 +373,7 @@ namespace BimGo.Platform
         /// </summary>
         public void ConsumeFrame()
         {
+            CancelPointerClicks();
             Array.Clear(_pressed);
             Array.Clear(_repeated);
             Array.Clear(_padPressed);
@@ -325,6 +393,7 @@ namespace BimGo.Platform
         /// </summary>
         public void ConsumeClicks()
         {
+            CancelPointerClicks();
             _pressed[KeyCodes.LEFT_MOUSE] = _pressed[KeyCodes.RIGHT_MOUSE] = _pressed[KeyCodes.MIDDLE_MOUSE] = false;
             _pressed[KeyCodes.MOUSE4] = _pressed[KeyCodes.MOUSE5] = false;
             _leftReleased = false;

@@ -14,7 +14,7 @@ namespace BimGo.Shell
     /// The app's start screen, drawn in the game window with the same immediate-mode UI as the HUD:
     /// join a live Revit session, open a .bimgo, pick a recent file, or drop a file on the window.
     /// </summary>
-    internal sealed class HomeScreen
+    internal sealed partial class HomeScreen
     {
         #region Fields
 
@@ -68,12 +68,14 @@ namespace BimGo.Shell
             _quit = false;
             _infos.Clear();
             _lastLive = LastLiveSession.Load();
+            _homeContextRouter.Reset();
             try
             {
                 return RunLoop();
             }
             finally
             {
+                _homeContextRouter.Reset();
                 ReleaseThumbnails();
             }
         }
@@ -113,6 +115,7 @@ namespace BimGo.Shell
 
                 if (_window.IsMinimised)
                 {
+                    _homeContextRouter.Reset();
                     _window.Input.EndFrame();
                     Thread.Sleep(50);
                     continue;
@@ -124,6 +127,7 @@ namespace BimGo.Shell
                 {
                     _sessionScan = 0f;
                     _sessions = LiveSessions.ListAlive();
+                    _homeContextRouter.Reset();
                 }
 
                 InputState input = _window.Input;
@@ -167,6 +171,8 @@ namespace BimGo.Shell
         /// <returns>What to open, or null.</returns>
         private OpenTarget Draw(InputState input)
         {
+            _homeContextRows.Clear();
+            _homeCardAction = null;
             BeginFrame();
             FontAtlas f = _ui.Atlas;
             int width = _window.Width, height = _window.Height;
@@ -209,16 +215,21 @@ namespace BimGo.Shell
             if (_sessions.Count > 0 || lastLive)
             {
                 // Always drawn (not "??="): a short-circuit would skip the panel and leave 'used' unassigned
-                OpenTarget session = DrawSessions(f, input, rightX, top, rightW, lastLive, out float used);
-                chosen ??= session;
+                DrawSessions(f, input, rightX, top, rightW, lastLive, out float used);
                 top += used + S(18);
             }
-            chosen ??= DrawRecent(f, input, rightX, top, rightW, height - pad - top);
+            if (chosen == null) { DrawRecent(f, input, rightX, top, rightW, height - pad - top); }
 
             // Footer
             _ui.TextRight(f.Small, width - pad, height - S(30), "BimGo " + Program.Version + " · Ctrl+O open · drop a .bimgo here · Go in Revit to walk live", UiTheme.TEXT_FAINT, S(0.5f));
             _ui.Text(f.Small, pad, height - S(30), TRADEMARK_LINE, UiTheme.TEXT_FAINT, S(0.3f)); // sky round: bottom left
             _ui.Flush(width, height);
+            if (ProcessHomeContextMenu(input, out OpenTarget menuTarget)) { return menuTarget; }
+            if (chosen == null && _homeCardAction != null)
+            {
+                input.ConsumeClicks();
+                chosen = _homeCardAction();
+            }
             return chosen;
         }
 
@@ -226,15 +237,16 @@ namespace BimGo.Shell
         /// Running Revit sessions (Go pressed): click joins.
         /// </summary>
         /// <param name="used">Height drawn.</param>
-        private OpenTarget DrawSessions(FontAtlas f, InputState input, float x, float top, float width, bool lastLive, out float used)
+        private void DrawSessions(FontAtlas f, InputState input, float x, float top, float width, bool lastLive, out float used)
         {
             _ui.Text(f.Small, x, top + S(6), _sessions.Count > 0 ? "LIVE REVIT SESSIONS" : "LAST LIVE SESSION", _sessions.Count > 0 ? UiTheme.ACCENT : UiTheme.TEXT_MUTED, S(1.8f));
             float y = top + S(32);
             float row = S(58);
-            OpenTarget chosen = null;
 
             foreach (SessionInfo session in _sessions.Take(4))
             {
+                RegisterHomeContextCard(new HomeContextTarget("live:" + session.SessionId, SessionId: session.SessionId,
+                    Information: SessionInformation(session)), x, y, width, row);
                 bool hover = Hover(input, x, y, width, row);
                 _ui.Panel(x, y, width, row, hover ? UiTheme.HOVER : UiTheme.CARD, hover ? UiTheme.ACCENT : Rgba.WithAlpha(UiTheme.ACCENT, 0.35f));
                 _ui.Circle(x + S(18), y + S(18), S(4), UiTheme.GOOD);
@@ -250,8 +262,8 @@ namespace BimGo.Shell
 
                 if (hover && input.LeftPressed)
                 {
-                    input.ConsumeClicks();
-                    chosen = OpenTarget.Live(session.SessionId);
+                    string sessionId = session.SessionId;
+                    _homeCardAction = () => OpenHomeSession(sessionId);
                 }
                 y += row + S(8);
             }
@@ -259,6 +271,8 @@ namespace BimGo.Shell
             // The last model walked live, greyed: it can't be joined from here (Revit starts sessions)
             if (lastLive)
             {
+                string information = $"Model: {_lastLive.DocTitle}\r\nPath: {_lastLive.DocPath}\r\nRevit: {_lastLive.RevitVersion}\r\nNot running: open in Revit and press Go.";
+                RegisterHomeContextCard(new HomeContextTarget("last-live:" + _lastLive.DocPath, Information: information), x, y, width, row);
                 bool hover = Hover(input, x, y, width, row);
                 _ui.Panel(x, y, width, row, UiTheme.CARD, Rgba.Hex(0xFFFFFF, hover ? 0.18f : 0.08f));
                 _ui.Ring(x + S(18), y + S(18), S(4), S(1.5f), UiTheme.TEXT_FAINT);
@@ -268,21 +282,20 @@ namespace BimGo.Shell
                 _ui.TextWrapped(f.Body, x + S(16), y + S(32), width - S(32), when + "open it in Revit and press Go", UiTheme.TEXT_FAINT, maxLines: 1);
                 if (hover && input.LeftPressed)
                 {
-                    input.ConsumeClicks();
-                    SetMessage($"{_lastLive.DocTitle} isn't running in Revit: open it there and press Go (BimGo tab).", error: false);
+                    string title = _lastLive.DocTitle;
+                    _homeCardAction = () => { SetMessage($"{title} isn't running in Revit: open it there and press Go (BimGo tab).", error: false); return null; };
                 }
                 y += row + S(8);
             }
 
             used = y - top;
-            return chosen;
         }
 
         /// <summary>
         /// The recent files list: a card per file with its thumbnail (saved since the review tools round), title,
-        /// details, and SHOW IN FOLDER / REMOVE; click opens, right-click removes from the list too.
+        /// details, and SHOW IN FOLDER / REMOVE; right-click opens the card's action menu.
         /// </summary>
-        private OpenTarget DrawRecent(FontAtlas f, InputState input, float x, float top, float width, float height)
+        private void DrawRecent(FontAtlas f, InputState input, float x, float top, float width, float height)
         {
             _ui.Text(f.Small, x, top + S(6), "RECENT", UiTheme.TEXT_MUTED, S(1.8f));
             float y = top + S(32);
@@ -292,14 +305,13 @@ namespace BimGo.Shell
             {
                 _ui.Panel(x, y, width, S(70), UiTheme.CARD, UiTheme.CARD_BORDER);
                 _ui.Text(f.Body, x + S(16), y + S(25), "No recent files yet.", UiTheme.TEXT_MUTED);
-                return null;
+                return;
             }
 
-            OpenTarget chosen = null;
-            string remove = null;
             int visible = Math.Max(1, (int)((height - S(32)) / (row + S(8))));
             foreach (RecentFile entry in _recent.Entries.Take(visible))
             {
+                RegisterHomeContextCard(new HomeContextTarget("recent:" + entry.Path, Path: entry.Path), x, y, width, row);
                 if (!_infos.TryGetValue(entry.Path, out RecentInfo info))
                 {
                     info = RecentInfo.For(entry.Path);
@@ -349,26 +361,14 @@ namespace BimGo.Shell
 
                 if (hover && input.LeftPressed)
                 {
-                    input.ConsumeClicks();
-                    if (removeHover) { remove = entry.Path; }
-                    else if (showHover) { ShowInFolder(entry.Path); }
-                    else if (info.Exists) { chosen = OpenTarget.File(entry.Path); }
-                    else { SetMessage($"{Path.GetFileName(entry.Path)} was not found. REMOVE FROM LIST takes it off.", error: true); }
-                }
-                else if (hover && input.RightPressed)
-                {
-                    remove = entry.Path;
+                    string path = entry.Path;
+                    if (removeHover) { _homeCardAction = () => { RemoveHomeRecent(path); return null; }; }
+                    else if (showHover) { _homeCardAction = () => { ShowHomeRecentInFolder(path); return null; }; }
+                    else { _homeCardAction = () => OpenHomeRecent(path); }
                 }
                 y += row + S(8);
             }
 
-            if (remove != null)
-            {
-                _recent.Remove(remove);
-                _infos.Remove(remove);
-                if (_thumbnails.Remove(remove, out uint texture) && texture != 0) { Gl.DeleteTexture(texture); }
-            }
-            return chosen;
         }
 
         /// <summary>

@@ -1,6 +1,5 @@
 using System.Numerics;
 using BimGo.Audio;
-using BimGo.Native;
 using BimGo.Physics;
 using BimGo.Platform;
 using BimGo.Rendering;
@@ -31,8 +30,10 @@ namespace BimGo.Game
 
         private bool _roomsOpen;
         private readonly ScrollRegion _roomScroll = new();
-        private readonly char[] _roomSearch = new char[ROOM_SEARCH_MAX];
-        private int _roomSearchLength;
+        private string _roomSearch = string.Empty;
+        private bool _roomSearchFocused;
+        private bool _roomSearchFocusRequested;
+        private bool _roomSearchEnterRequested;
         private List<RoomRow> _roomRows;
         private readonly List<RoomRow> _roomMatches = new();
         private bool _roomMatchesDirty = true;
@@ -56,6 +57,9 @@ namespace BimGo.Game
                 return;
             }
             if (!_paused) { SetPaused(true); }
+            _window.HideNativeSearch();
+            _roomTab = 0;
+            _roomSearchFocusRequested = true;
             _roomsOpen = true;
             _roomScroll.Reset();
             _roomMatchesDirty = true;
@@ -68,6 +72,7 @@ namespace BimGo.Game
         private bool CloseRooms()
         {
             if (!_roomsOpen) { return false; }
+            _window.HideNativeSearch();
             _roomsOpen = false;
             return true;
         }
@@ -149,6 +154,8 @@ namespace BimGo.Game
             int tab = Tabs(f, input, tabsX, frame.HeaderControlY + S(2), tabsW, ROOM_TABS, _roomTab);
             if (tab != _roomTab)
             {
+                _window.HideNativeSearch();
+                _roomSearchFocusRequested = _roomParamFocusRequested = false;
                 _roomTab = tab;
                 _activeSlider = -1;
             }
@@ -162,18 +169,30 @@ namespace BimGo.Game
             }
 
             // Search box (typing anywhere in the panel goes here; Enter goes to the first match)
-            bool enter = TypeIntoRoomSearch(input);
+            bool enter = _roomSearchEnterRequested;
+            _roomSearchEnterRequested = false;
             float boxH = S(UiTheme.CONTROL_HEIGHT + 4f);
-            _ui.Panel(ix, cy, iw, boxH, UiTheme.CONTROL, UiTheme.CONTROL_BORDER);
-            if (_roomSearchLength == 0)
+            _ui.Panel(ix, cy, iw, boxH, UiTheme.CONTROL, _roomSearchFocused ? UiTheme.ACCENT : UiTheme.CONTROL_BORDER);
+            if (_roomSearch.Length == 0 && !_roomSearchFocused)
             {
                 _ui.Text(f.Body, ix + S(10), cy + boxH * 0.5f - f.Body.LineHeight * 0.5f, "e.g. 2.05, kitchen, Level 2", UiTheme.TEXT_FAINT);
             }
-            else
+            bool beginSearch = input.LeftPressed && Hover(input, ix, cy, iw, boxH);
+            if (_roomSearch.Length > 0 || _roomSearchFocused || beginSearch || _roomSearchFocusRequested)
             {
-                float used = _ui.Text(f.Body, ix + S(10), cy + boxH * 0.5f - f.Body.LineHeight * 0.5f, _roomSearch.AsSpan(0, _roomSearchLength), UiTheme.TEXT);
-                if (((int)(_clock * 2f) & 1) == 0) { _ui.Rect(ix + S(11) + used, cy + S(8), S(2), boxH - S(16), UiTheme.TEXT_SOFT); }
+                NativeSearchEditor editor = _window.GetNativeSearch(ROOM_SEARCH_MAX);
+                editor.Show(new System.Drawing.Rectangle((int)MathF.Round(ix + S(6)), (int)MathF.Round(cy + S(4)),
+                    Math.Max(1, (int)MathF.Round(iw - S(12))), Math.Max(1, (int)MathF.Round(boxH - S(8)))),
+                    UiScale, _roomSearch, OnRoomSearchChanged, focused => _roomSearchFocused = focused,
+                    "rooms.find", "Room search", accepted => _roomSearchEnterRequested = accepted,
+                    previous =>
+                    {
+                        if (!previous && _roomsHaveData) { _roomTab = 1; _roomParamFocusRequested = true; }
+                    });
+                if (beginSearch || _roomSearchFocusRequested) { editor.Focus(); }
+                _roomSearchFocusRequested = false;
             }
+            else { _window.HideNativeSearch(); }
             cy += boxH + S(UiTheme.GAP);
 
             RefreshRoomMatches();
@@ -238,30 +257,12 @@ namespace BimGo.Game
             return picked;
         }
 
-        /// <summary>
-        /// Typed characters go into the search (Backspace deletes, Ctrl+Backspace clears).
-        /// </summary>
-        /// <returns>True when Enter was pressed.</returns>
-        private bool TypeIntoRoomSearch(InputState input)
+        private void OnRoomSearchChanged(string value)
         {
-            bool enter = false;
-            foreach (char c in input.Chars)
-            {
-                if (c == '\r') { enter = true; }
-                else if (c == '\b')
-                {
-                    if (input.IsDown(Win32.VK_CONTROL)) { _roomSearchLength = 0; }
-                    else if (_roomSearchLength > 0) { _roomSearchLength--; }
-                    _roomMatchesDirty = true;
-                }
-                else if (c >= ' ' && c != 127 && _roomSearchLength < ROOM_SEARCH_MAX)
-                {
-                    _roomSearch[_roomSearchLength++] = c;
-                    _roomMatchesDirty = true;
-                }
-            }
+            if (value == _roomSearch) { return; }
+            _roomSearch = value;
+            _roomMatchesDirty = true;
             if (_roomMatchesDirty) { _roomScroll.Reset(); }
-            return enter;
         }
 
         /// <summary>
@@ -273,7 +274,7 @@ namespace BimGo.Game
             if (!_roomMatchesDirty) { return; }
             _roomMatchesDirty = false;
 
-            string[] words = new string(_roomSearch, 0, _roomSearchLength).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] words = _roomSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             _roomMatches.Clear();
             foreach (RoomRow row in _roomRows)
             {

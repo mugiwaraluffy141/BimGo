@@ -160,6 +160,7 @@ namespace BimGo.Game
         /// </summary>
         private void BuildClashDisplay()
         {
+            _clashReviewContext.Reset(); // Test/filter/document/status rebuild: no stale context-row focus.
             EnsureClashGroupIndex();
             _clashDisplay.Clear();
             _clashList.Clear();
@@ -424,37 +425,54 @@ namespace BimGo.Game
 
         #region Right-click menu
 
-        /// <summary>Opens the right-click menu for a row (after the dock is drawn), at the mouse, kept inside the dock.</summary>
+        /// <summary>Opens a native keyboard-navigable row menu after the dock is drawn; Windows keeps it on screen.</summary>
         private void OpenClashRowMenu(ClashDisplayRow row, Vector2 at)
         {
-            var labels = new List<string>();
-            var actions = new List<Action>();
-            void Item(string label, Action action)
+            if (!ClashReviewCommandsHaveFocus) { return; }
+            var items = new List<NativeContextMenu.Item>();
+            void Item(string label, Action action, InputAction shortcut = InputAction.None)
             {
-                labels.Add(label);
-                actions.Add(action);
+                items.Add(new NativeContextMenu.Item(label, Action: action,
+                    Shortcut: shortcut == InputAction.None ? null : Hotkeys.Label(shortcut)));
             }
 
             if (row.Row == null)
             {
                 // A group row
-                ClashGroup group = row.Group;
+                string groupId = row.Group?.Id;
+                ClashGroup group = ResolveReviewGroup(groupId);
+                if (group == null) { return; }
+                // Capture before retargeting: choosing an unpicked destination clears the UI selection,
+                // but MERGE and ADD SELECTED must still use the original source group/clash snapshot.
                 List<ClashGroup> picked = PickedClashGroups(group);
-                if (picked.Count >= 2) { Item($"MERGE {picked.Count} GROUPS (INTO “{Shorten(ClashGroups.DisplayName(picked[0]), 28)}”)", () => MergeClashGroups(picked)); }
+                var sources = ClashReviewContext.FreezeSources(
+                    ClashMultiActive ? _clashSelected.Select(c => c.Id) : Enumerable.Empty<string>(), picked.Select(g => g.Id));
                 int outside = ClashMultiActive ? _clashSelected.Count(c => ClashGroupOf(c) != group) : 0;
-                if (outside > 0) { Item($"ADD THE {outside} SELECTED TO THIS GROUP", () => AddClashesToGroup(group, _clashSelected.ToList())); }
-                Item("RENAME…", () => RenameClashGroup(group));
+                if (!_clashGroupPicks.Contains(group)) { ClickClashGroupRow(group, ctrl: false); }
+                FocusClashReviewRow(groupId, null);
+                Item("COPY GROUP INFORMATION", () => CopyClashReviewInfo(groupId, null), InputAction.ClashCopyInfo);
+                if (picked.Count >= 2) { Item($"MERGE {picked.Count} GROUPS FROM SELECTION (INTO “{Shorten(ClashGroups.DisplayName(picked[0]), 28)}”)", () => MergeFrozenReviewGroups(sources.GroupIds)); }
+                if (outside > 0) { Item($"ADD {outside} PREVIOUSLY SELECTED CLASHES TO THIS GROUP", () => AddFrozenReviewClashes(groupId, sources.ClashIds)); }
+                Item("RENAME…", () => RenameReviewGroup(groupId), InputAction.ClashGroupRename);
                 // C-C2: the group's box (a group without one starts with a box round its members)
                 Item("EDIT BOX…", () => BeginClashBoxTool(group));
                 if (group.Box != null) { Item("RECOLLECT FROM ITS BOX", () => RecollectClashGroup(group, null)); }
                 Item(_clashGroupExpanded.Contains(group.Id) ? "COLLAPSE" : "EXPAND", () => ToggleClashGroupExpanded(group));
-                Item("UNGROUP (CLASHES STAY)", () => UngroupClashGroup(group));
+                Item("UNGROUP (CLASHES STAY)", () => UngroupClashGroup(group), InputAction.ClashUngroup);
             }
             else
             {
-                ClashRecord clash = row.Row.Clash;
+                string clashId = row.Row.Clash.Id;
+                ClashRecord clash = ResolveReviewClash(clashId);
+                if (clash == null) { return; }
+                if (!IsClashSelected(clash) && _clashCurrent != clash) { ClickClashRow(clash, ctrl: false, shift: false); }
+                _clashGroupCurrent = null;
+                FocusClashReviewRow(null, clashId);
+                Item("COPY CLASH INFORMATION", () => CopyClashReviewInfo(null, clashId), InputAction.ClashCopyInfo);
+                Item("FOCUS THIS CLASH", () => FocusReviewClash(clashId, showInRevit: false), InputAction.ClashFrame);
+                Item("SHOW THIS CLASH IN REVIT", () => FocusReviewClash(clashId, showInRevit: true), InputAction.ClashSelectInRevit);
                 List<ClashRecord> targets = ClashMenuTargets(clash);
-                Item(targets.Count > 1 ? $"GROUP SELECTED ({targets.Count})" : "NEW GROUP (THIS CLASH)", () => GroupClashes(targets, null));
+                Item(targets.Count > 1 ? $"GROUP SELECTED ({targets.Count})" : "NEW GROUP (THIS CLASH)", () => GroupClashes(targets, null), InputAction.ClashGroup);
                 if (_clashGroupsInTest > 0) { Item(targets.Count > 1 ? $"ADD {targets.Count} TO GROUP ›" : "ADD TO GROUP ›", () => OpenAddToGroupMenu(targets, at)); }
                 int grouped = targets.Count(c => ClashGroupOf(c) != null);
                 if (grouped > 0) { Item(grouped > 1 ? $"REMOVE {grouped} FROM THEIR GROUPS" : "REMOVE FROM GROUP", () => RemoveClashesFromGroups(targets)); }
@@ -468,9 +486,7 @@ namespace BimGo.Game
                 if (clash.B.Key != clash.A.Key) { Item($"GROUP ALL ON {Shorten(ClashGroups.ElementName(clash.B), 34)}", () => GroupAllOnClashElement(clash.B)); }
             }
 
-            float w = MathF.Min(S(340), _clashDockW - S(20));
-            float x = Math.Clamp(at.X, _clashDockX + S(6), _clashDockX + _clashDockW - w - S(6));
-            OpenDropdown(_clashList, DROP_DOCK_MENU, x, at.Y, w, 0f, labels, -1, i => actions[i]());
+            NativeContextMenu.Show(_window.Handle, (int)at.X, (int)at.Y, items, _window.Input);
         }
 
         /// <summary>ADD TO GROUP ›: the test's groups as a second list (largest first).</summary>
@@ -478,10 +494,9 @@ namespace BimGo.Game
         {
             List<ClashGroup> groups = ClashGroups.OfTest(_clashDocument, _clashReviewTest).OrderByDescending(g => g.Count).ToList();
             if (groups.Count == 0) { return; }
-            var labels = groups.Select(g => $"{Shorten(ClashGroups.DisplayName(g), 40)} ({g.Count})").ToList();
-            float w = MathF.Min(S(340), _clashDockW - S(20));
-            float x = Math.Clamp(at.X, _clashDockX + S(6), _clashDockX + _clashDockW - w - S(6));
-            OpenDropdown(_clashList, DROP_DOCK_ADD_TO, x, at.Y, w, 0f, labels, -1, i => AddClashesToGroup(groups[i], targets));
+            var items = groups.Select(g => new NativeContextMenu.Item($"{Shorten(ClashGroups.DisplayName(g), 40)} ({g.Count})",
+                Action: () => AddClashesToGroup(g, targets))).ToList();
+            NativeContextMenu.Show(_window.Handle, (int)at.X, (int)at.Y, items, _window.Input);
         }
 
         private static string Shorten(string text, int max) =>

@@ -293,6 +293,12 @@ namespace BimGo.Native
         [DllImport("user32.dll")]
         public static extern int GetSystemMetrics(int index);
 
+        [DllImport("user32.dll")]
+        public static extern uint GetDoubleClickTime();
+
+        [DllImport("user32.dll")]
+        public static extern int GetMessageTime();
+
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int MessageBoxW(nint hwnd, string text, string caption, uint type);
 

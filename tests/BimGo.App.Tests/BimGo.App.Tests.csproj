@@ -1,0 +1,29 @@
+<Project Sdk="MSTest.Sdk/4.4.1">
+
+	<!-- Source-linked App logic with Core data types; no viewer startup, OpenGL context or Revit. -->
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>disable</Nullable>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>BimGo.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\BimGo.Core\BimGo.Core.csproj" />
+		<Compile Include="..\..\src\BimGo.App\Platform\DoubleClickTracker.cs" Link="Platform\DoubleClickTracker.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\ContextClickTracker.cs" Link="Platform\ContextClickTracker.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\CopyValueAvailability.cs" Link="Platform\CopyValueAvailability.cs" />
+		<Compile Include="..\..\src\BimGo.App\Shell\HomeCardContextRouter.cs" Link="Shell\HomeCardContextRouter.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\NativeTextEditor.cs" Link="Platform\NativeTextEditor.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\NativeSearchEditor.cs" Link="Platform\NativeSearchEditor.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\ClashReviewContext.cs" Link="Platform\ClashReviewContext.cs" />
+		<Compile Include="..\..\src\BimGo.App\Platform\SetupClipboard.cs" Link="Platform\SetupClipboard.cs" />
+		<Compile Include="..\..\src\BimGo.App\Game\Clashes\ClashRowGeometry.cs" Link="Clashes\ClashRowGeometry.cs" />
+		<Compile Include="..\..\src\BimGo.App\Reports\ClashExcelSnapshot.cs" Link="Reports\ClashExcelSnapshot.cs" />
+		<Compile Include="..\..\src\BimGo.App\Reports\ClashExcelWriter.cs" Link="Reports\ClashExcelWriter.cs" Condition="Exists('..\..\src\BimGo.App\Reports\ClashExcelWriter.cs')" />
+	</ItemGroup>
+
+</Project>

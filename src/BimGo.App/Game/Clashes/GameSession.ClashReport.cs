@@ -23,7 +23,7 @@ namespace BimGo.Game
         #region Fields
 
         private const int REPORT_SCOPE_SHOWN = 0, REPORT_SCOPE_SELECTION = 1, REPORT_SCOPE_TEST = 2, REPORT_SCOPE_ALL = 3;
-        private const int REPORT_FORMAT_BOTH = 0, REPORT_FORMAT_HTML = 1, REPORT_FORMAT_XML = 2;
+        private const int REPORT_FORMAT_BOTH = 0, REPORT_FORMAT_HTML = 1, REPORT_FORMAT_XML = 2, REPORT_FORMAT_EXCEL = 3;
         private const int REPORT_PICTURE_W = 960, REPORT_PICTURE_H = 540;
         private const long REPORT_JPEG_QUALITY = 78L;
 
@@ -32,7 +32,7 @@ namespace BimGo.Game
 
         private const int DROP_DOCK_REPORT_SCOPE = 21, DROP_DOCK_REPORT_FORMAT = 22, DROP_DOCK_REPORT_GROUPS = 23;
 
-        private static readonly string[] REPORT_FORMAT_LABELS = { "FORMAT: HTML + XML", "FORMAT: HTML", "FORMAT: XML" };
+        private static readonly string[] REPORT_FORMAT_LABELS = { "FORMAT: HTML + XML", "FORMAT: HTML", "FORMAT: XML", "FORMAT: EXCEL" };
         private static readonly string[] REPORT_GROUP_LABELS = { "GROUPS: SECTIONS (MEMBERS LISTED)", "GROUPS: COMPACT (ONE ITEM EACH)", "GROUPS: IGNORED (EVERY CLASH)" };
 
         // The card and its choices (kept for the session)
@@ -61,7 +61,7 @@ namespace BimGo.Game
 
         #region Card
 
-        /// <summary>REPORT… → EXPORT REPORT (HTML / XML)…: the card in the dock.</summary>
+        /// <summary>REPORT… → EXPORT REPORT: the format and scope card in the dock.</summary>
         private void OpenClashReportCard()
         {
             if (_clashBatch != null || _clashReportJob != null) { return; }
@@ -93,20 +93,35 @@ namespace BimGo.Game
             if (DropdownButton(f, input, x, cy, half, S(28), REPORT_FORMAT_LABELS[_clashReportFormat], IsDropdownOpen(_clashList, DROP_DOCK_REPORT_FORMAT)))
             {
                 float fy = cy;
-                OpenDropdown(_clashList, DROP_DOCK_REPORT_FORMAT, x, fy, half, S(28), REPORT_FORMAT_LABELS, _clashReportFormat, i => _clashReportFormat = i);
+                OpenDropdown(_clashList, DROP_DOCK_REPORT_FORMAT, x, fy, half, S(28), REPORT_FORMAT_LABELS, _clashReportFormat, i =>
+                {
+                    _clashReportFormat = i;
+                    if (i == REPORT_FORMAT_EXCEL && _clashReportScope == REPORT_SCOPE_ALL)
+                    {
+                        _clashReportScope = REPORT_SCOPE_SHOWN;
+                        _clashReportLabelScope = -1;
+                    }
+                });
             }
-            bool html = _clashReportFormat != REPORT_FORMAT_XML;
+            bool excel = _clashReportFormat == REPORT_FORMAT_EXCEL;
+            bool html = _clashReportFormat != REPORT_FORMAT_XML && !excel;
             string pictures = !html ? "PICTURES: —" : _clashReportPictures ? "PICTURES: ON" : "PICTURES: OFF";
-            if (SmallButton(f, input, x + half + S(6), cy, half, S(28), pictures) && html) { _clashReportPictures = !_clashReportPictures; }
+            if (excel) { _ui.Text(f.Small, x + half + S(6), cy + S(8), pictures, UiTheme.TEXT_MUTED); }
+            else if (SmallButton(f, input, x + half + S(6), cy, half, S(28), pictures) && html) { _clashReportPictures = !_clashReportPictures; }
             cy += S(34);
 
-            if (DropdownButton(f, input, x, cy, w, S(28), REPORT_GROUP_LABELS[_clashReportGroups], IsDropdownOpen(_clashList, DROP_DOCK_REPORT_GROUPS)))
+            if (excel) { _ui.Text(f.Small, x, cy + S(8), "GROUPS: ONE ROW PER CLASH", UiTheme.TEXT_MUTED); }
+            else if (DropdownButton(f, input, x, cy, w, S(28), REPORT_GROUP_LABELS[_clashReportGroups], IsDropdownOpen(_clashList, DROP_DOCK_REPORT_GROUPS)))
             {
                 float gy = cy;
                 OpenDropdown(_clashList, DROP_DOCK_REPORT_GROUPS, x, gy, w, S(28), REPORT_GROUP_LABELS, _clashReportGroups, i => _clashReportGroups = i);
             }
             cy += S(34);
 
+            if (excel)
+            {
+                cy += _ui.TextWrapped(f.Small, x, cy, w, "Excel 365: checkbox save/sort not yet verified.", UiTheme.TEXT_MUTED, maxLines: 2) + S(8);
+            }
             if (SmallButton(f, input, x, cy, half, S(28), "EXPORT…")) { _clashReportAction = 4; } // after the overlays (a file dialog)
             if (SmallButton(f, input, x + half + S(6), cy, half, S(28), "CANCEL")) { _clashReportCardOpen = false; }
         }
@@ -144,7 +159,8 @@ namespace BimGo.Game
         private List<string> ClashReportScopeChoices()
         {
             var labels = new List<string>(4);
-            for (int scope = 0; scope < 4; scope++) { labels.Add($"{ClashReportScopeName(scope)} ({ClashReportScopeCount(scope):N0})"); }
+            int scopes = _clashReportFormat == REPORT_FORMAT_EXCEL ? 3 : 4;
+            for (int scope = 0; scope < scopes; scope++) { labels.Add($"{ClashReportScopeName(scope)} ({ClashReportScopeCount(scope):N0})"); }
             return labels;
         }
 
@@ -212,6 +228,11 @@ namespace BimGo.Game
         private void StartClashReport(bool confirmed = false)
         {
             if (_clashDocument == null || _clashReportJob != null) { return; }
+            if (_clashReportFormat == REPORT_FORMAT_EXCEL)
+            {
+                StartClashExcelReport();
+                return; // Never build a JPEG job or change HTML/XML/JSON report behavior.
+            }
             List<ClashRecord> clashes = ClashReportClashes(_clashReportScope);
             if (clashes.Count == 0)
             {

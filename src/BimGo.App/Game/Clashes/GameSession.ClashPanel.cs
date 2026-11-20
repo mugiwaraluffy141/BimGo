@@ -147,6 +147,7 @@ namespace BimGo.Game
             _clashRowsDirty = true;
             _clashPickerRule = null;
             _clashDeleteArmed = null;
+            _setupRightTarget = _setupMenuTarget = null;
             CloseOverlay();
             if (_clashDocument.FindTest(_clashSelectedTest) == null) { _clashSelectedTest = _clashReviewTest ?? _clashDocument.Tests.FirstOrDefault()?.Id; }
             if (_clashDocument.FindSet(_clashSelectedSet) == null) { _clashSelectedSet = _clashDocument.Sets.FirstOrDefault()?.Id; }
@@ -168,6 +169,7 @@ namespace BimGo.Game
                 return true;
             }
             _clashesOpen = false;
+            _setupRightTarget = _setupMenuTarget = null;
             _clashListDirty = true;
             if (_profilesReturnFromClashes)
             {
@@ -232,6 +234,7 @@ namespace BimGo.Game
         {
             FontAtlas f = _ui.Atlas;
             InputState input = _window.Input;
+            BeginClashSetupContextRows(input);
             RefreshClashRows();
 
             // Header: the TESTS / SETS tabs and RUN ALL on the right (an open dropdown / confirm takes this frame's click)
@@ -251,6 +254,7 @@ namespace BimGo.Game
                 if (tab != _clashTab)
                 {
                     _clashTab = tab;
+                    _setupRightTarget = _setupMenuTarget = null;
                     _clashScroll.Reset();
                     _clashRuleScroll.Reset();
                     _clashEditorScroll.Reset();
@@ -302,6 +306,11 @@ namespace BimGo.Game
             // The footer, then the open dropdown / confirm on top (a pick or confirm acts there)
             int pressed = EndPanel(frame, null, "Tick the tests RUN ALL runs · REVIEW opens clash mode on a test's results", backLabel);
             if (pressed == FOOTER_LEFT || !_clashesOpen) { return; }
+
+            // Native menu actions run after drawing/enumeration, just like the footer actions.
+            ProcessClashSetupContextRows(input);
+            ShowClashSetupMenu(input);
+            if (!_clashesOpen) { return; }
 
             // Actions after drawing (they open dialogs, the progress screen, a confirm or clash mode)
             if (run != null) { RequestClashRun(new[] { run }); return; }
@@ -414,6 +423,8 @@ namespace BimGo.Game
                 _ui.TextWrapped(f.Bold, x + S(40), ry + S(6), w - S(50), row.Title, selected ? UiTheme.ACCENT : UiTheme.TEXT, maxLines: 1);
                 _ui.TextWrapped(f.Small, x + S(40), ry + S(28), w - S(50), row.Detail, row.Changed ? Rgba.Hex(0xFCD34D) : UiTheme.TEXT_MUTED, maxLines: 1);
 
+                RegisterClashSetupContextRow(test, x, ry, w, rowH - S(6), y, listBottom);
+
                 if (Hover(input, x + S(36), ry, w - S(36), rowH - S(6)) && input.LeftPressed)
                 {
                     input.ConsumeClicks();
@@ -458,12 +469,7 @@ namespace BimGo.Game
             _ui.TextWrapped(f.Bold, fx, cy + S(7), fw - S(110), test.Name, UiTheme.TEXT, maxLines: 1);
             if (SmallButton(f, input, x + w - S(100), cy, S(100), S(30), "RENAME…"))
             {
-                BeginTextEdit("TEST NAME", test.Name, 60, text =>
-                {
-                    if (text.Length == 0) { return; }
-                    test.Name = text;
-                    ClashSetupChanged();
-                });
+                RenameClashSetup(test);
             }
             cy += S(44);
 
@@ -556,29 +562,12 @@ namespace BimGo.Game
             if (SmallButton(f, input, x + (bw + S(6)) * 2f, by, bw, S(32), bw >= S(124) ? "RESET RESULTS…" : "RESET…", danger: true)) { RequestClashReset(new[] { test }); }
             if (SmallButton(f, input, x + (bw + S(6)) * 3f, by, bw, S(32), "DUPLICATE"))
             {
-                var copy = new ClashTest { Name = test.Name + " (copy)", Kind = test.Kind, SetA = test.SetA, SetB = test.SetB, Tolerance = test.Tolerance, Enabled = test.Enabled };
-                _clashDocument.Tests.Insert(_clashDocument.Tests.IndexOf(test) + 1, copy);
-                _clashSelectedTest = copy.Id;
-                ClashSetupChanged();
+                DuplicateClashSetup(test);
             }
             bool armed = _clashDeleteArmed == test;
             if (SmallButton(f, input, x + (bw + S(6)) * 4f, by, bw, S(32), armed ? "SURE?" : "DELETE", danger: true))
             {
-                if (!armed)
-                {
-                    _clashDeleteArmed = test;
-                    Toast("Click DELETE again to delete the test and its clashes", 3f);
-                }
-                else
-                {
-                    ClashMerge.RemoveTest(_clashDocument, test.Id);
-                    if (_clashReviewTest == test.Id) { _clashReviewTest = null; }
-                    ForgetCurrentClashIfGone();
-                    _clashSelectedTest = _clashDocument.Tests.FirstOrDefault()?.Id;
-                    _clashDeleteArmed = null;
-                    ClashSetupChanged();
-                    Toast("Test deleted", 2f);
-                }
+                DeleteClashSetup(test);
             }
         }
 
@@ -657,6 +646,7 @@ namespace BimGo.Game
                 _ui.Rect(x, ry, w, rowH - S(6), selected ? Rgba.Hex(0x22D3EE, 0.12f) : hover ? Rgba.Hex(0xFFFFFF, 0.06f) : Rgba.Hex(0xFFFFFF, 0.03f));
                 _ui.TextWrapped(f.Bold, x + S(12), ry + S(6), w - S(24), row.Title, selected ? UiTheme.ACCENT : UiTheme.TEXT, maxLines: 1);
                 _ui.TextWrapped(f.Small, x + S(12), ry + S(27), w - S(24), row.Detail, UiTheme.TEXT_MUTED, maxLines: 1);
+                RegisterClashSetupContextRow(row.Set, x, ry, w, rowH - S(6), y, listBottom);
                 if (hover && input.LeftPressed)
                 {
                     input.ConsumeClicks();
@@ -704,12 +694,7 @@ namespace BimGo.Game
             _ui.TextWrapped(f.Bold, fx, cy + S(7), fw - S(110), set.Name, UiTheme.TEXT, maxLines: 1);
             if (SmallButton(f, input, x + w - S(100), cy, S(100), S(30), "RENAME…"))
             {
-                BeginTextEdit("SET NAME", set.Name, 60, text =>
-                {
-                    if (text.Length == 0) { return; }
-                    set.Name = text;
-                    ClashSetupChanged();
-                });
+                RenameClashSetup(set);
             }
             cy += S(44);
 
@@ -832,33 +817,12 @@ namespace BimGo.Game
             }
             if (SmallButton(f, input, x + (bw + S(6)) * 2f, by, bw, S(32), "DUPLICATE"))
             {
-                SearchSet copy = set.Copy(newId: true);
-                copy.Name = set.Name + " (copy)";
-                _clashDocument.Sets.Insert(_clashDocument.Sets.IndexOf(set) + 1, copy);
-                _clashSelectedSet = copy.Id;
-                ClashSetupChanged();
+                DuplicateClashSetup(set);
             }
             bool armed = _clashDeleteArmed == set;
             if (SmallButton(f, input, x + (bw + S(6)) * 3f, by, bw, S(32), armed ? "SURE?" : "DELETE", danger: true))
             {
-                if (row.UsedBy > 0)
-                {
-                    Sound.Play(SoundId.Error);
-                    Toast($"“{set.Name}” is used by {row.UsedBy} test{(row.UsedBy == 1 ? string.Empty : "s")}: change {(row.UsedBy == 1 ? "it" : "them")} first", 3.5f);
-                }
-                else if (!armed)
-                {
-                    _clashDeleteArmed = set;
-                    Toast("Click DELETE again to delete the set", 3f);
-                }
-                else
-                {
-                    _clashDocument.Sets.Remove(set);
-                    _clashSelectedSet = _clashDocument.Sets.FirstOrDefault()?.Id;
-                    _clashDeleteArmed = null;
-                    ClashSetupChanged();
-                    Toast("Set deleted", 2f);
-                }
+                DeleteClashSetup(set);
             }
         }
 

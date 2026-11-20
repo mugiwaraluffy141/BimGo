@@ -29,6 +29,28 @@ namespace BimGo.Platform
         private bool _captured;
         private bool _fullscreen;
         private Win32.WINDOWPLACEMENT _placement;
+        private NativeSearchEditor _nativeSearch;
+
+        /// <summary>Native text/menu focus takes precedence over viewer commands.</summary>
+        public bool HasNativeTextFocus => _nativeSearch?.HasFocus == true;
+
+        public NativeSearchEditor GetNativeSearch(int maxLength) =>
+            _nativeSearch ??= new NativeSearchEditor(Handle, maxLength, ReleaseNativeEditorInput);
+
+        private void ReleaseNativeEditorInput()
+        {
+            SetCaptured(false);
+            Input.ReleaseAll();
+        }
+
+        public void HideNativeSearch() => _nativeSearch?.Hide();
+
+        /// <summary>Call when a session/model is disposed; callbacks must not retain the old session.</summary>
+        public void CloseNativeSearch()
+        {
+            _nativeSearch?.Dispose();
+            _nativeSearch = null;
+        }
 
         /// <summary>The window handle.</summary>
         public nint Handle { get; private set; }
@@ -194,6 +216,7 @@ namespace BimGo.Platform
             while (Win32.PeekMessageW(out Win32.MSG msg, 0, 0, 0, Win32.PM_REMOVE))
             {
                 if (msg.message == Win32.WM_QUIT) { return false; }
+                if (_nativeSearch?.Preprocess(msg.hwnd, msg.message, msg.wParam, msg.lParam) == true) { continue; }
                 Win32.TranslateMessage(msg);
                 Win32.DispatchMessageW(msg);
             }
@@ -402,15 +425,18 @@ namespace BimGo.Platform
         private bool HandleMessage(nint hwnd, uint msg, nint wParam, nint lParam, out nint result)
         {
             result = 0;
+            if (_nativeSearch != null && _nativeSearch.ReflectParentMessage(msg, wParam, lParam, out result)) { return true; }
             switch (msg)
             {
                 case Win32.WM_CLOSE:
                     // The session loop sees this, releases GL resources, then disposes the window
                     SetCaptured(false);
+                    HideNativeSearch();
                     CloseRequested = true;
                     return true;
 
                 case Win32.WM_DESTROY:
+                    CloseNativeSearch();
                     Handle = 0;
                     Win32.PostQuitMessage(0);
                     return true;
@@ -477,24 +503,31 @@ namespace BimGo.Platform
 
                 case Win32.WM_MOUSEMOVE:
                     Input.OnMouseMove(Win32.LoWordSigned(lParam), Win32.HiWordSigned(lParam));
+                    RecordPointer(PointerEventKind.Move, wParam, lParam);
                     return true;
 
                 case Win32.WM_LBUTTONDOWN:
+                    _nativeSearch?.Blur(); // Outside click returns focus before recording the new gesture.
                     Win32.SetCapture(hwnd);
                     Input.OnLeft(true);
+                    RecordPointer(PointerEventKind.Down, wParam, lParam);
                     return true;
 
                 case Win32.WM_LBUTTONUP:
                     Win32.ReleaseCapture();
                     Input.OnLeft(false);
+                    RecordPointer(PointerEventKind.Up, wParam, lParam);
                     return true;
 
                 case Win32.WM_RBUTTONDOWN:
+                    _nativeSearch?.Blur();
                     Input.OnRight(true);
+                    RecordPointer(PointerEventKind.RightDown, wParam, lParam);
                     return true;
 
                 case Win32.WM_RBUTTONUP:
                     Input.OnRight(false);
+                    RecordPointer(PointerEventKind.RightUp, wParam, lParam);
                     return true;
 
                 case Win32.WM_MBUTTONDOWN:
@@ -518,6 +551,7 @@ namespace BimGo.Platform
                     return true;
 
                 case Win32.WM_INPUT:
+                    if (HasNativeTextFocus) { return false; }
                     ReadRawInput(lParam);
                     return false; // DefWindowProc must run for WM_INPUT cleanup
 
@@ -528,6 +562,10 @@ namespace BimGo.Platform
             }
             return false;
         }
+
+        private void RecordPointer(PointerEventKind kind, nint flags, nint position) =>
+            Input.OnPointer(kind, unchecked((uint)Win32.GetMessageTime()), Win32.LoWordSigned(position), Win32.HiWordSigned(position),
+                ((long)flags & 0x0008) != 0, ((long)flags & 0x0004) != 0, Input.IsDown(Win32.VK_MENU));
 
         /// <summary>
         /// Reads a raw mouse packet.
@@ -550,6 +588,7 @@ namespace BimGo.Platform
         /// </summary>
         public void Dispose()
         {
+            CloseNativeSearch();
             Win32.ClipCursor(null);
             if (_context != 0)
             {

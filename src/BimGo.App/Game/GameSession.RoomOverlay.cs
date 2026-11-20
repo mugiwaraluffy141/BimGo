@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Numerics;
 using BimGo.Audio;
-using BimGo.Native;
 using BimGo.Physics;
 using BimGo.Platform;
 using BimGo.Rendering;
@@ -56,8 +55,9 @@ namespace BimGo.Game
         private RoomOverlaySettings _roomOverlay = new();
         private int _roomTab; // 0 FIND, 1 ROOM DATA
         private readonly ScrollRegion _roomParamScroll = new();
-        private readonly char[] _roomParamSearch = new char[ROOM_SEARCH_MAX];
-        private int _roomParamSearchLength;
+        private string _roomParamSearch = string.Empty;
+        private bool _roomParamSearchFocused;
+        private bool _roomParamFocusRequested;
         private List<RoomParamRow> _roomParamRows;
         private readonly List<RoomParamRow> _roomParamMatches = new();
         private bool _roomParamMatchesDirty = true;
@@ -537,10 +537,9 @@ namespace BimGo.Game
         {
             if (!input.LeftDown && _activeSlider >= SLIDER_ROOM_HEIGHT && _activeSlider <= SLIDER_ROOM_TOLERANCE) { _activeSlider = -1; }
             RebuildRoomTexts();
-            TypeIntoRoomParamSearch(input);
-
             if (!_roomsHaveData)
             {
+                _window.HideNativeSearch();
                 _ui.TextWrapped(f.Small, ix, cy, iw, HINT_ROOM_NO_DATA.Text, UiTheme.MEASURE_LABEL, maxLines: 2);
                 cy += S(40);
             }
@@ -611,14 +610,27 @@ namespace BimGo.Game
             _ui.Rect(ix, cy, iw, MathF.Max(1f, UiScale), UiTheme.DIVIDER);
             cy += S(10);
             float boxH = S(UiTheme.CONTROL_HEIGHT);
-            _ui.Panel(ix, cy, iw, boxH, UiTheme.CONTROL, UiTheme.CONTROL_BORDER);
+            _ui.Panel(ix, cy, iw, boxH, UiTheme.CONTROL, _roomParamSearchFocused ? UiTheme.ACCENT : UiTheme.CONTROL_BORDER);
             float textY = cy + boxH * 0.5f - f.Body.LineHeight * 0.5f;
-            if (_roomParamSearchLength == 0) { _ui.Text(f.Body, ix + S(10), textY, "Type to find a parameter (e.g. area, finish, occupancy)", UiTheme.TEXT_FAINT); }
-            else
+            if (_roomParamSearch.Length == 0 && !_roomParamSearchFocused)
             {
-                float used = _ui.Text(f.Body, ix + S(10), textY, _roomParamSearch.AsSpan(0, _roomParamSearchLength), UiTheme.TEXT);
-                if (((int)(_clock * 2f) & 1) == 0) { _ui.Rect(ix + S(11) + used, cy + S(7), S(2), boxH - S(14), UiTheme.TEXT_SOFT); }
+                _ui.Text(f.Body, ix + S(10), textY, "Type to find a parameter (e.g. area, finish, occupancy)", UiTheme.TEXT_FAINT);
             }
+            bool beginSearch = input.LeftPressed && Hover(input, ix, cy, iw, boxH);
+            if (_roomsHaveData && (_roomParamSearch.Length > 0 || _roomParamSearchFocused || beginSearch || _roomParamFocusRequested))
+            {
+                NativeSearchEditor editor = _window.GetNativeSearch(ROOM_SEARCH_MAX);
+                editor.Show(new System.Drawing.Rectangle((int)MathF.Round(ix + S(6)), (int)MathF.Round(cy + S(4)),
+                    Math.Max(1, (int)MathF.Round(iw - S(12))), Math.Max(1, (int)MathF.Round(boxH - S(8)))),
+                    UiScale, _roomParamSearch, OnRoomParamSearchChanged, focused => _roomParamSearchFocused = focused,
+                    "rooms.parameters", "Room parameter search", tabbed: previous =>
+                    {
+                        if (previous) { _roomTab = 0; _roomSearchFocusRequested = true; }
+                    });
+                if (beginSearch || _roomParamFocusRequested) { editor.Focus(); }
+                _roomParamFocusRequested = false;
+            }
+            else { _window.HideNativeSearch(); }
             cy += boxH + S(UiTheme.GAP_SMALL);
 
             RefreshRoomParamMatches();
@@ -725,25 +737,12 @@ namespace BimGo.Game
             _roomDataNoticeUntil = _clock + 4f;
         }
 
-        /// <summary>Typed characters go into the parameter search (Backspace deletes, Ctrl+Backspace clears; Enter ignored).</summary>
-        private void TypeIntoRoomParamSearch(InputState input)
+        private void OnRoomParamSearchChanged(string value)
         {
-            foreach (char c in input.Chars)
-            {
-                if (c == '\r') { continue; }
-                if (c == '\b')
-                {
-                    if (input.IsDown(Win32.VK_CONTROL)) { _roomParamSearchLength = 0; }
-                    else if (_roomParamSearchLength > 0) { _roomParamSearchLength--; }
-                    _roomParamMatchesDirty = true;
-                }
-                else if (c >= ' ' && c != 127 && _roomParamSearchLength < ROOM_SEARCH_MAX)
-                {
-                    _roomParamSearch[_roomParamSearchLength++] = c;
-                    _roomParamMatchesDirty = true;
-                }
-            }
-            if (_roomParamMatchesDirty) { _roomParamScroll.Reset(); }
+            if (value == _roomParamSearch) { return; }
+            _roomParamSearch = value;
+            _roomParamMatchesDirty = true;
+            _roomParamScroll.Reset();
         }
 
         /// <summary>The parameter rows (made once), then the matches for the search (every word in the name).</summary>
@@ -753,7 +752,7 @@ namespace BimGo.Game
             _roomParamRows ??= BuildRoomParamRowList();
             if (!_roomParamMatchesDirty) { return; }
             _roomParamMatchesDirty = false;
-            string[] words = new string(_roomParamSearch, 0, _roomParamSearchLength).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] words = _roomParamSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             _roomParamMatches.Clear();
             foreach (RoomParamRow row in _roomParamRows)
             {

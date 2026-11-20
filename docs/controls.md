@@ -8,6 +8,20 @@ Keyboard defaults include **1** for Scan, **2** for Measure, **4** for Comment, 
 
 See [Clash detection](clash-detection.md) for the review workflow.
 
+## Text editing and clash setup
+
+Shared name/comment/note editors open an owned Windows text dialog: drag to select, use **Ctrl+A/C/X/V**,
+**Ctrl+Z/Y**, or its right-click edit menu. **Enter** saves and **Esc** cancels. Search boxes and markup text
+are separate editors and have not yet been migrated to this dialog.
+
+In the **Tests/Sets setup panel**, right-click a row for its actions. With that panel active, **F2** renames,
+**Ctrl+C/V** copies/pastes configuration, **Delete** uses the existing two-step deletion, and **Shift+F10**
+or the Menu key opens the selected row's menu. Configuration paste is limited to the same model/session;
+it creates a new Test/Set, not copies of clash results, history or issues. A Set used by a Test cannot be deleted.
+
+These controls are implemented slices; Windows focus/IME/DPI and live Revit acceptance are tracked in the
+[validation checklist](plans/review-workflow-usability-validation.md).
+
 <!-- controls:begin (generated from the action map's defaults by tests/BimGo.Core.Tests/ControlsTests.cs: edit InputCatalog, not this table) -->
 **General**
 
@@ -84,6 +98,7 @@ See [Clash detection](clash-detection.md) for the review workflow.
 | Select in Revit (live) | `R` |
 | Hide the target | `I` |
 | Isolate its category (again: show all) | `Shift+I` |
+| Copy inspected element information | `Ctrl+C` |
 
 **Measure tool** While the tool is selected (movement keys remain active).
 
@@ -92,6 +107,7 @@ See [Clash detection](clash-detection.md) for the review workflow.
 | Normal projection (distance mode) | `N` |
 | Show / hide the saved measurements | `I` |
 | Export the measurements (CSV) | `E` |
+| Copy current measurement information | `Ctrl+C` |
 
 **Comment tool** While the tool is selected (movement keys remain active).
 
@@ -142,10 +158,31 @@ See [Clash detection](clash-detection.md) for the review workflow.
 | Section box on / off (on: around the current clash) | `B` |
 | Select all shown clashes (focus on them all) / clear | `Ctrl+A` |
 | Row pictures on / off | `P` |
+| Copy current group / clash information | `Ctrl+C` |
+| Rename current clash group | `F2` |
+| Current group / clash row menu | `Shift+F10` · `Menu` |
 | Group the selected clashes | `Ctrl+G` |
 | Ungroup the picked group / take the selected clashes out of their groups | `Ctrl+Shift+G` |
 | Pick points: click dots or rows to pick, then group them (again or Esc leaves) | `K` |
 | Status: next (new → active → reviewed → approved → resolved) |  |
+
+**Clash Tests and Sets** Only while a Test / Set is selected in its setup panel, outside text editing, dialogs and menus. Conflicting setup shortcuts are suppressed; resolve red conflicts in CONTROLS. Paste accepts configurations copied in the same model/session only.
+
+| Action | Keys |
+|---|---|
+| Rename selected Test / Set | `F2` |
+| Copy selected Test / Set configuration | `Ctrl+C` |
+| Paste Test / Set configuration as copy | `Ctrl+V` |
+| Delete selected Test / Set (twice) | `Del` |
+| Selected Test / Set context menu | `Shift+F10` · `Menu` |
+
+**Issues list and details** The paused Issues list/detail panel, outside editors, dialogs and menus. Commands target the detail record, a filtered list anchor or explicit selection; no hovered/implicit first-row target. Delete keeps its existing arming or selected-issues confirmation. Conflicts are suppressed; resolve red bindings in CONTROLS. These are not reply-edit or markup commands.
+
+| Action | Keys |
+|---|---|
+| Copy focused issue / reply / selected issues | `Ctrl+C` |
+| Delete focused issue / selected issues (confirm) | `Del` |
+| Focused issue / reply / selection context menu | `Shift+F10` · `Menu` |
 
 **Settings panel** While the Settings panel is open.
 

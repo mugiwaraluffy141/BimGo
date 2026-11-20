@@ -71,6 +71,7 @@ namespace BimGo.Game
         /// </summary>
         private void Render()
         {
+            if (_uiHidden || ((_paused || !_clashModeOn) && !_roomsOpen)) { _window.HideNativeSearch(); }
             int width = _window.Width, height = _window.Height;
 
             // ---- Clash pictures (C-B2): row pictures, TO COMMENT / TO COMMENTS, off-screen (state restored afterwards)

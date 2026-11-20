@@ -1,4 +1,5 @@
-﻿using BimGo.Audio;
+﻿using System.Numerics;
+using BimGo.Audio;
 using BimGo.Clashes;
 using BimGo.Format;
 using BimGo.Native;
@@ -39,13 +40,18 @@ namespace BimGo.Game
         private int _clashTestCount;
         private string _clashDockCounts, _clashDockTestName, _clashStatusLabel, _clashLevelLabel;
         private string _clashCardDetail, _clashCardAssign, _clashCardNotes;
+        private readonly DoubleClickTracker _clashRowDoubleClick = new();
+        private readonly ContextClickTracker _clashRowContextClick = new();
+        private readonly PointerEventBatch _clashRowPointerBatch = new();
+        private int _clashClickRevision = -1;
+        private enum ClashDockPointerTarget { None, Row, Group, Chevron, RowPencil, GroupPencil }
 
         // Dropdown slots on the dock (owner: the dock's list)
         private const int DROP_DOCK_TEST = 11, DROP_DOCK_STATUS = 12, DROP_DOCK_LEVEL = 13, DROP_DOCK_VIEW = 14, DROP_DOCK_REPORT = 15;
 
         /// <summary>QOL round: the clash report's choices (moved here from the Clashes panel).</summary>
         /// <summary>REPORT… (C-C3: the HTML / XML report's card first; the BimGo JSON exchange as before).</summary>
-        private static readonly string[] CLASH_REPORT_ACTIONS = { "EXPORT REPORT (HTML / XML)…", "EXPORT BIMGO REPORT (JSON)…", "IMPORT BIMGO REPORT (JSON)…" };
+        private static readonly string[] CLASH_REPORT_ACTIONS = { "EXPORT REPORT (HTML / XML / EXCEL)…", "EXPORT BIMGO REPORT (JSON)…", "IMPORT BIMGO REPORT (JSON)…" };
 
         // A REPORT… pick or the report card's EXPORT…, run after the dock is drawn (they open file dialogs): 0 none,
         // 1 the report card, 2 export JSON, 3 import JSON, 4 the card's EXPORT…, 5 the same after its large-report confirm
@@ -65,6 +71,7 @@ namespace BimGo.Game
         private void SetClashReviewTest(string testId)
         {
             if (testId == _clashReviewTest) { return; }
+            _clashRowDoubleClick.Reset();
             LeaveClashTool(); // C-C2: a tool works on one test's list
             ClearClashSelection(); // C-B3: a selection belongs to one test
             _clashReviewTest = testId;
@@ -81,6 +88,7 @@ namespace BimGo.Game
             if (_clashDocument == null) { return; }
             if (_clashListUnits != UnitFormat.Revision) { _clashListDirty = true; }
             if (!_clashListDirty) { return; }
+            _clashRowDoubleClick.Reset();
             _clashListDirty = false;
             _clashListUnits = UnitFormat.Revision;
             EnsureClashGroupIndex(); // C-C1: rows know their group (search matches group names too)
@@ -204,32 +212,26 @@ namespace BimGo.Game
         #region Search box
 
         /// <summary>
-        /// Typing into the search box: Backspace deletes (Ctrl+Backspace clears), Enter or Esc stop typing.
+        /// Native search consumes keyboard messages directly; no text passes through the frame char buffer.
         /// </summary>
         private void TypeIntoClashSearch(InputState input)
         {
-            foreach (char c in input.Chars)
-            {
-                if (c == '\r' || c == (char)27)
-                {
-                    _clashSearchFocused = false;
-                    input.ReleaseAll();
-                    return;
-                }
-                if (c == '\b')
-                {
-                    if (input.IsDown(Win32.VK_CONTROL)) { _clashSearchLength = 0; }
-                    else if (_clashSearchLength > 0) { _clashSearchLength--; }
-                    _clashListDirty = true;
-                    _clashListScroll.Reset();
-                }
-                else if (c >= ' ' && c != 127 && _clashSearchLength < CLASH_SEARCH_MAX)
-                {
-                    _clashSearch[_clashSearchLength++] = c;
-                    _clashListDirty = true;
-                    _clashListScroll.Reset();
-                }
-            }
+            input.ReleaseAll();
+        }
+
+        private void OnClashSearchChanged(string text)
+        {
+            _clashSearchLength = text.Length;
+            text.CopyTo(0, _clashSearch, 0, _clashSearchLength);
+            _clashListDirty = true;
+            _clashListScroll.Reset();
+            _clashRowDoubleClick.Reset();
+        }
+
+        private void OnClashSearchFocusChanged(bool focused)
+        {
+            _clashSearchFocused = focused;
+            _clashRowDoubleClick.Reset();
         }
 
         #endregion
@@ -258,6 +260,11 @@ namespace BimGo.Game
         /// </summary>
         private void BuildClashDock(FontAtlas f, InputState input, int width, int height)
         {
+            if (OverlayOpen || _editing || _paused || _clashTool != CLASH_TOOL_NONE) { _window.HideNativeSearch(); }
+            if (OverlayOpen || _editing || _paused || _clashSearchFocused || _clashTool != CLASH_TOOL_NONE)
+            {
+                _clashRowDoubleClick.Reset();
+            }
             RefreshClashList();
             BeginOverlays(input); // an open dropdown takes this frame's click and wheel
             float w = MathF.Min(S(420), width * 0.42f);
@@ -276,7 +283,6 @@ namespace BimGo.Game
             _ui.Panel(x, y, w, h, UiTheme.PANEL_STRONG, UiTheme.PANEL_BORDER);
             bool overDock = Hover(input, x, y, w, h);
             (_clashDockX, _clashDockY, _clashDockW, _clashDockH) = (x, y, w, h);
-            if (overDock && input.RightPressed) { _clashMenuLook = true; } // C-C1: a right-click on the dock is a menu, not a look
 
             // P-A2: the docks' header (title, the counts on the right, a divider)
             float ix = x + S(14), iw = w - S(28);
@@ -353,21 +359,18 @@ namespace BimGo.Game
             {
                 _ui.Text(f.Small, sx + S(8), cy + S(7), "search…", UiTheme.TEXT_FAINT);
             }
-            else
+            bool beginSearch = input.LeftPressed && searchHover;
+            if (!OverlayOpen && !_editing && !_paused && _clashTool == CLASH_TOOL_NONE
+                && (_clashSearchLength > 0 || _clashSearchFocused || beginSearch))
             {
-                float used = _ui.Text(f.Small, sx + S(8), cy + S(7), _clashSearch.AsSpan(0, _clashSearchLength), UiTheme.TEXT);
-                if (_clashSearchFocused && ((int)(_clock * 2f) & 1) == 0) { _ui.Rect(sx + S(9) + used, cy + S(6), S(1.5f), S(16), UiTheme.TEXT_SOFT); }
+                NativeSearchEditor search = _window.GetNativeSearch(CLASH_SEARCH_MAX);
+                search.Show(new System.Drawing.Rectangle((int)MathF.Round(sx + S(6)), (int)MathF.Round(cy + S(5)),
+                    Math.Max(1, (int)MathF.Round(searchW - S(12))), Math.Max(1, (int)MathF.Round(S(19)))),
+                    UiScale, new string(_clashSearch, 0, _clashSearchLength), OnClashSearchChanged, OnClashSearchFocusChanged,
+                    "clash.search", "Clash search");
+                if (beginSearch) { search.Focus(); }
             }
-            if (input.LeftPressed && overDock)
-            {
-                bool focus = searchHover;
-                if (focus != _clashSearchFocused)
-                {
-                    _clashSearchFocused = focus;
-                    if (focus) { input.ReleaseAll(); }
-                }
-            }
-            else if (input.LeftPressed && _clashSearchFocused) { _clashSearchFocused = false; }
+            else { _window.HideNativeSearch(); }
             float selectX = sx + searchW + S(6);
             if (SmallButton(f, input, selectX, cy, selectW, S(28), ClashSelectAllLabel())) { ToggleSelectAllShownClashes(); }
             float reportX = selectX + selectW + S(6);
@@ -400,6 +403,7 @@ namespace BimGo.Game
             // C-C3: the label of the dot under the mouse (in the view), then the open dropdown on top (a pick acts here)
             if (_clashTool == CLASH_TOOL_NONE) { DrawClashHoverLabel(f, input, width); }
             DrawOverlays(f, input, x, y, w, h);
+            if (OverlayOpen || _editing || _paused || !_clashModeOn) { _window.HideNativeSearch(); }
             if (RunClashToolBarAction()) { return; } // C-C2: the tool bar's buttons (they may leave the tool or open a menu)
 
             // Actions after drawing
@@ -477,6 +481,7 @@ namespace BimGo.Game
         {
             if (_clashDisplay.Count == 0)
             {
+                _clashRowDoubleClick.Reset();
                 string why = _clashTestCount == 0 ? "This test has no clashes yet: TESTS… runs it." : "No clash matches the filters.";
                 _ui.TextWrapped(f.Body, x, y + S(6), w, why, UiTheme.TEXT_MUTED, maxLines: 3);
                 return null;
@@ -502,7 +507,10 @@ namespace BimGo.Game
                 }
             }
 
+            float oldOffset = region.Offset;
             float top = BeginScroll(region, input, x, y, w + S(8), viewH, out _);
+            bool scrolling = oldOffset != region.Offset || region.Offset != region.Target || _scrollDrag == region || input.Wheel != 0;
+            bool nativeRows = HandleClashRowPointerEvents(input, x, y, listW, viewH, top, rowH, pictures, thumbW, scrolling);
             VisibleRows(region, rowH, count, out int first, out int last);
             ClashRecord picked = null;
             for (int i = first; i < last; i++)
@@ -520,17 +528,12 @@ namespace BimGo.Game
                     float indent = line.Member ? S(14) : 0f;
                     if (line.Member) { _ui.Rect(x + S(5), ry, S(2), rowH, Rgba.Hex(0xFFFFFF, 0.12f)); }
                     BuildClashRowBody(f, input, line.Row, x + indent, ry, listW - indent, rowH, pictures, thumbW, thumbH, hover, (i & 1) == 0);
-                    if (hover && input.LeftPressed)
+                    if (!nativeRows && hover && input.LeftPressed)
                     {
                         input.ConsumeClicks();
                         Sound.Play(SoundId.UiClick);
                         picked = line.Row.Clash;
                     }
-                }
-                if (hover && input.RightPressed)
-                {
-                    _clashMenuRow = line;
-                    _clashMenuAt = input.MousePosition;
                 }
             }
             EndScroll(region, input, top + count * rowH);
@@ -544,6 +547,130 @@ namespace BimGo.Game
             }
             return picked;
         }
+
+        /// <summary>Replay native events in order, hit-testing each message position, not the frame's final cursor.</summary>
+        private bool HandleClashRowPointerEvents(InputState input, float x, float y, float listW, float viewH, float top,
+            float rowH, bool pictures, float thumbW, bool scrolling)
+        {
+            if (_clashClickRevision != input.ClickRevision)
+            {
+                _clashRowDoubleClick.Reset();
+                _clashRowContextClick.Reset();
+            }
+            _clashClickRevision = input.ClickRevision;
+            bool enabled = _window.IsActive && _clashModeOn && !OverlayOpen && !_editing && !_paused
+                && !_clashSearchFocused && _clashTool == CLASH_TOOL_NONE;
+            if (!enabled || scrolling) { _clashRowDoubleClick.Reset(); _clashRowContextClick.Reset(); }
+            if (input.PointerEvents.Count == 0) { return false; }
+            if (!enabled) { return false; }
+            PointerEventBatch batch = _clashRowPointerBatch;
+            batch.Capture(input.PointerEvents);
+            bool picked = false;
+            uint time = Win32.GetDoubleClickTime();
+            int doubleW = Math.Max(1, Win32.GetSystemMetrics(36)); // SM_CXDOUBLECLK
+            int doubleH = Math.Max(1, Win32.GetSystemMetrics(37)); // SM_CYDOUBLECLK
+            int dragW = Math.Max(1, Win32.GetSystemMetrics(68)); // SM_CXDRAG
+            int dragH = Math.Max(1, Win32.GetSystemMetrics(69)); // SM_CYDRAG
+            bool contextClicked = _clashRowContextClick.Process(batch,
+                e => ClashDockRowKey(ClashDockRowAt(e.X, e.Y, x, y, listW, viewH, top, rowH)),
+                dragW, dragH, enabled && !scrolling, out string contextTarget, out PointerEvent contextRelease);
+            if (contextClicked)
+            {
+                ClashDisplayRow row = ClashDockRowAt(contextRelease.X, contextRelease.Y, x, y, listW, viewH, top, rowH);
+                if (ClashDockRowKey(row) == contextTarget)
+                {
+                    _clashMenuRow = row;
+                    _clashMenuAt = new Vector2(contextRelease.X, contextRelease.Y);
+                }
+            }
+            for (int eventIndex = 0; eventIndex < batch.Count; eventIndex++)
+            {
+                PointerEvent e = batch.Events[eventIndex];
+                ClashRecord clash = null;
+                ClashDisplayRow targetLine = null;
+                ClashDockPointerTarget target = ClashDockPointerTarget.None;
+                if ((e.Kind is PointerEventKind.Down or PointerEventKind.Up)
+                    && e.X >= x && e.X < x + listW && e.Y >= y && e.Y < y + viewH)
+                {
+                    int index = (int)MathF.Floor((e.Y - top) / rowH);
+                    if (index >= 0 && index < _clashDisplay.Count)
+                    {
+                        ClashDisplayRow line = _clashDisplay[index];
+                        float ry = top + index * rowH, rx = x + (line.Member ? S(14) : 0f);
+                        if (e.X >= rx && e.Y < ry + rowH - S(4))
+                        {
+                            targetLine = line;
+                            bool group = line.Row == null;
+                            CommentRecord comment = group ? FindClashGroupComment(line.Group) : FindClashComment(line.Row.Clash);
+                            bool pencil = comment != null && (comment.SnapshotData != null || comment.SnapshotOriginalData != null || comment.Thumbnail != null);
+                            Vector2 pencilAt = ClashRowGeometry.PencilCenter(rx, ry, x + listW - rx, thumbW, UiScale, pictures, group);
+                            float r = S(11);
+                            bool overPencil = pencil && e.X >= pencilAt.X - r && e.X < pencilAt.X + r
+                                && e.Y >= pencilAt.Y - r && e.Y < pencilAt.Y + r;
+                            bool chevron = group && e.X >= x + S(4) && e.X < x + S(30);
+                            if (chevron) { target = ClashDockPointerTarget.Chevron; }
+                            else if (overPencil) { target = group ? ClashDockPointerTarget.GroupPencil : ClashDockPointerTarget.RowPencil; }
+                            else if (group) { target = ClashDockPointerTarget.Group; }
+                            else
+                            {
+                                clash = line.Row.Clash;
+                                target = ClashDockPointerTarget.Row;
+                            }
+                        }
+                    }
+                }
+                if (scrolling) { _clashRowDoubleClick.Reset(); }
+                bool activate = _clashRowDoubleClick.Process(e, clash?.Id, time, doubleW, doubleH, dragW, dragH);
+                bool routed = e.Kind == PointerEventKind.Down && target != ClashDockPointerTarget.None;
+                if (routed)
+                {
+                    switch (target)
+                    {
+                        case ClashDockPointerTarget.Row:
+                            ClickClashRow(clash, e.Control, e.Shift);
+                            Sound.Play(SoundId.UiClick);
+                            break;
+                        case ClashDockPointerTarget.Group: ClickClashGroupRow(targetLine.Group, e.Control); break;
+                        case ClashDockPointerTarget.Chevron: ToggleClashGroupExpanded(targetLine.Group); break;
+                        case ClashDockPointerTarget.RowPencil:
+                            _clashMarkupClick = targetLine.Row.Clash;
+                            Sound.Play(SoundId.UiClick);
+                            break;
+                        case ClashDockPointerTarget.GroupPencil:
+                            _clashGroupMarkupClick = targetLine.Group;
+                            Sound.Play(SoundId.UiClick);
+                            break;
+                    }
+                }
+                else if (activate)
+                {
+                    // Dispatch now, before a later queued click can change the current selection.
+                    ClickClashRow(clash, ctrl: false, shift: false);
+                    ShowClashInRevit();
+                    routed = true;
+                }
+                batch.MarkHandled(eventIndex, routed);
+                picked |= routed;
+            }
+            if (scrolling) { _clashRowDoubleClick.Reset(); }
+            input.ConsumePointerEvents(batch); // retain unhandled presses, at their original message position
+            _clashClickRevision = input.ClickRevision; // our own consumption does not cancel the pending pair
+            return picked;
+        }
+
+        private ClashDisplayRow ClashDockRowAt(int px, int py, float x, float y, float listW, float viewH, float top, float rowH)
+        {
+            if (px < x || px >= x + listW || py < y || py >= y + viewH) { return null; }
+            int index = (int)MathF.Floor((py - top) / rowH);
+            if (index < 0 || index >= _clashDisplay.Count) { return null; }
+            ClashDisplayRow line = _clashDisplay[index];
+            float rowTop = top + index * rowH;
+            float rowX = x + (line.Member ? S(14) : 0f);
+            return px >= rowX && py < rowTop + rowH - S(4) ? line : null;
+        }
+
+        private static string ClashDockRowKey(ClashDisplayRow row) => row == null ? null
+            : row.Row == null ? "group:" + row.Group?.Id : "clash:" + row.Row.Clash?.Id;
 
         /// <summary>The display row showing a clash: its own row, or its group's row when the group is collapsed (−1: none).</summary>
         private int ClashDisplayIndexOf(ClashRecord clash)
@@ -565,6 +692,7 @@ namespace BimGo.Game
             float thumbW, float thumbH, bool hover, bool even)
         {
             bool current = row.Clash == _clashCurrent || IsClashSelected(row.Clash);
+            Vector2 pencilAt = ClashRowGeometry.PencilCenter(x, ry, w, thumbW, UiScale, pictures, group: false);
             _ui.Rect(x, ry, w, rowH - S(4), current ? Rgba.Hex(0x22D3EE, 0.14f) : hover ? Rgba.Hex(0xFFFFFF, 0.08f) : (even ? Rgba.Hex(0xFFFFFF, 0.03f) : 0u));
             _ui.Rect(x, ry, S(4), rowH - S(4), StatusColour(row.Clash.Status));
             uint titleColour = row.Clash.Status == ClashStatus.RESOLVED ? UiTheme.TEXT_FAINT : UiTheme.TEXT;
@@ -573,7 +701,7 @@ namespace BimGo.Game
                 // The picture on the left (asked for when missing or stale), the text beside it
                 float px = x + S(10), py = ry + S(3);
                 DrawClashRowPicture(f, row.Clash, px, py, thumbW, thumbH);
-                if (ClashCommentPencil(f, input, px + thumbW - S(14), py + S(14), row.Clash)) { _clashMarkupClick = row.Clash; }
+                if (ClashCommentPencil(f, input, pencilAt.X, pencilAt.Y, row.Clash)) { _clashMarkupClick = row.Clash; }
                 float tx = px + thumbW + S(10), tw = x + w - S(8) - tx;
                 _ui.Text(f.Small, tx, ry + S(5), row.Status, StatusColour(row.Clash.Status));
                 _ui.TextWrapped(f.Body, tx, ry + S(22), tw, row.Title, titleColour, maxLines: 2);
@@ -584,7 +712,7 @@ namespace BimGo.Game
                 _ui.TextWrapped(f.Body, x + S(12), ry + S(5), w - S(110), row.Title, titleColour, maxLines: 1);
                 _ui.TextWrapped(f.Small, x + S(12), ry + S(26), w - S(24), row.Detail, UiTheme.TEXT_MUTED, maxLines: 1);
                 _ui.TextRight(f.Small, x + w - S(8), ry + S(7), row.Status, StatusColour(row.Clash.Status));
-                if (ClashCommentPencil(f, input, x + w - S(20), ry + S(32), row.Clash)) { _clashMarkupClick = row.Clash; }
+                if (ClashCommentPencil(f, input, pencilAt.X, pencilAt.Y, row.Clash)) { _clashMarkupClick = row.Clash; }
             }
         }
 
@@ -613,6 +741,7 @@ namespace BimGo.Game
             float thumbW, float thumbH, bool hover)
         {
             ClashGroup group = line.Group;
+            Vector2 pencilAt = ClashRowGeometry.PencilCenter(x, ry, w, thumbW, UiScale, pictures, group: true);
             bool current = group == _clashGroupCurrent || (_clashGroupPicks.Contains(group) && ClashMultiActive);
             float h = rowH - S(4);
             _ui.Rect(x, ry, w, h, current ? Rgba.Hex(0x22D3EE, 0.18f) : hover ? Rgba.Hex(0xFFFFFF, 0.1f) : Rgba.Hex(0xFFFFFF, 0.06f));
@@ -636,7 +765,7 @@ namespace BimGo.Game
                 _ui.Outline(px + S(8), py, pw, ph, MathF.Max(1f, UiScale), Rgba.Hex(0xFFFFFF, 0.2f));
                 _ui.Outline(px + S(4), py + S(3), pw, ph, MathF.Max(1f, UiScale), Rgba.Hex(0xFFFFFF, 0.3f));
                 DrawClashRowPicture(f, line.First, px, py + S(6), pw, ph);
-                if (CommentPencil(input, px + pw - S(14), py + S(6) + S(14), FindClashGroupComment(group))) { _clashGroupMarkupClick = group; }
+                if (CommentPencil(input, pencilAt.X, pencilAt.Y, FindClashGroupComment(group))) { _clashGroupMarkupClick = group; }
                 tx = px + thumbW + S(6);
             }
             float tw = x + w - S(8) - tx;
@@ -653,7 +782,7 @@ namespace BimGo.Game
                 // Text rows: status, MIXED and the counts on the first line, the name under them
                 float detailW = x + w - S(16) - tagW - after;
                 if (detailW > S(40)) { _ui.TextWrapped(f.Small, after, ry + S(5), detailW, line.Detail, UiTheme.TEXT_MUTED, maxLines: 1); }
-                bool pencil = CommentPencil(input, x + w - S(20), ry + S(32), FindClashGroupComment(group));
+                bool pencil = CommentPencil(input, pencilAt.X, pencilAt.Y, FindClashGroupComment(group));
                 if (pencil) { _clashGroupMarkupClick = group; }
                 _ui.TextWrapped(f.Body, tx, ry + S(23), tw - (FindClashGroupComment(group) != null ? S(30) : 0f), line.Title, UiTheme.TEXT, maxLines: 1);
             }

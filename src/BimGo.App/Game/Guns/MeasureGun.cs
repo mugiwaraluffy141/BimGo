@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text;
 using BimGo.Audio;
 using BimGo.Format;
 using BimGo.Physics;
@@ -226,10 +227,11 @@ namespace BimGo.Game.Guns
         // Panel hints naming keys (rebuilt when a binding changes)
         private static readonly KeyHint HINT_NORMAL = new(() => $"Normal projection ({Hotkeys.Label(InputAction.MeasureNormal)})");
         private static readonly KeyHint HINT_AGAIN = new(() => $"Press {Hotkeys.Label(InputAction.Gun2)} again: area · angle · clearance");
-        private static readonly KeyHint HINT_SAVED = new(() => $"{Hotkeys.Label(InputAction.MeasureShowAll)} hide · {Hotkeys.Label(InputAction.MeasureExport)} CSV · {Hotkeys.Label(InputAction.ClearMarkers)}×2 clear");
+        private static readonly KeyHint HINT_SAVED = new(() => $"{Hotkeys.Label(InputAction.MeasureCopyInfo)} copy · {Hotkeys.Label(InputAction.MeasureShowAll)} hide · {Hotkeys.Label(InputAction.MeasureExport)} CSV · {Hotkeys.Label(InputAction.ClearMarkers)}×2 clear");
 
         public override void OnKeys(InputState input)
         {
+            if (input.Pressed(InputAction.MeasureCopyInfo)) { Session.CopyMeasurementInformation(input, CopyCurrentInformation()); }
             if (_mode == MeasureMode.Distance && input.Pressed(InputAction.MeasureNormal))
             {
                 _normalSnap = !_normalSnap;
@@ -237,6 +239,85 @@ namespace BimGo.Game.Guns
             }
             if (input.Pressed(InputAction.MeasureShowAll)) { SetHidden(!_hidden, announce: true); }
             if (input.Pressed(InputAction.MeasureExport)) { Session.ExportMeasurements(); }
+        }
+
+        private string CopyCurrentInformation()
+        {
+            var text = new StringBuilder().AppendLine($"Measurement · {_mode.ToString().ToUpperInvariant()}");
+            switch (_mode)
+            {
+                case MeasureMode.Distance:
+                {
+                    Measurement last = LastOf(MeasureMode.Distance);
+                    bool live = _hasLive && _pending.Count > 0;
+                    if (!live && last == null) { return string.Empty; }
+                    Vector3 a = live ? _pending[0] : last.Points[0];
+                    Vector3 b = live ? _liveEnd : last.Points[1];
+                    Vector3 delta = b - a;
+                    text.AppendLine($"Distance: {UnitFormat.Length(delta.Length())}")
+                        .AppendLine($"ΔX: {UnitFormat.Length(delta.X)}")
+                        .AppendLine($"ΔY: {UnitFormat.Length(delta.Y)}")
+                        .AppendLine($"ΔZ: {UnitFormat.Length(delta.Z)}");
+                    if (live) { text.AppendLine("State: live preview"); }
+                    break;
+                }
+                case MeasureMode.Area:
+                {
+                    Measurement last = LastOf(MeasureMode.Area);
+                    if (_pending.Count == 0 && last == null) { return string.Empty; }
+                    double area, perimeter;
+                    int corners;
+                    if (_pending.Count > 0)
+                    {
+                        List<Vector3> outline = LiveOutline();
+                        area = MeasureMath.PolygonArea(outline, _planeNormal);
+                        perimeter = MeasureMath.Perimeter(outline, closed: outline.Count >= 3);
+                        corners = _pending.Count;
+                    }
+                    else { area = last.Value; perimeter = last.Value2; corners = last.Points.Length; }
+                    text.AppendLine($"Area: {UnitFormat.Area(area, 2)}")
+                        .AppendLine($"Perimeter: {UnitFormat.Length(perimeter, 2)}")
+                        .AppendLine($"Corners: {corners}");
+                    if (_pending.Count > 0) { text.AppendLine("State: live preview"); }
+                    break;
+                }
+                case MeasureMode.Angle:
+                {
+                    Measurement last = LastOf(MeasureMode.Angle);
+                    if (_pending.Count == 0 && last == null) { return string.Empty; }
+                    double degrees = _pending.Count == 2 && _hasLive
+                        ? MeasureMath.AngleDegrees(_pending[0], _pending[1], _liveEnd)
+                        : _pending.Count == 0 ? last?.Value ?? double.NaN : double.NaN;
+                    int pointsPlaced = _pending.Count > 0 ? _pending.Count : last?.Points.Length ?? 0;
+                    text.AppendLine($"Angle: {(double.IsNaN(degrees) ? "—" : degrees.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture) + "°")}")
+                        .AppendLine($"Points placed: {pointsPlaced}/3");
+                    break;
+                }
+                case MeasureMode.Clearance:
+                {
+                    Measurement last = LastOf(MeasureMode.Clearance);
+                    if (!_previewValid && last == null) { return string.Empty; }
+                    bool above = _previewValid ? _previewAbove : last.Above;
+                    bool below = _previewValid ? _previewBelow : last.Below;
+                    Vector3 top = _previewValid ? _previewTop : last.Points[0];
+                    Vector3 point = _previewValid ? _previewPoint : last.Points[1];
+                    Vector3 bottom = _previewValid ? _previewBottom : last.Points[2];
+                    Vector3 axis = _previewValid ? _previewAxis : last.Normal;
+                    if (IsAcross(axis))
+                    {
+                        text.AppendLine($"Across: {(above ? UnitFormat.Length(Vector3.Distance(point, top)) : "none")}");
+                    }
+                    else
+                    {
+                        text.AppendLine($"Below: {(below ? UnitFormat.Length(point.Z - bottom.Z) : "—")}")
+                            .AppendLine($"Above: {(above ? UnitFormat.Length(top.Z - point.Z) : "none")}")
+                            .AppendLine($"Vertical clearance: {UnitFormat.Length(top.Z - bottom.Z)}");
+                    }
+                    if (_previewValid) { text.AppendLine("State: live preview"); }
+                    break;
+                }
+            }
+            return text.ToString();
         }
 
         public override void OnPrimary(in AimInfo aim)

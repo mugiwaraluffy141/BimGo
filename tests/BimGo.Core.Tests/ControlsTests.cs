@@ -155,6 +155,193 @@ namespace BimGo.Tests
             Assert.IsTrue(InputCatalog.LiveTogether(InputAction.GizmoDrop, InputAction.FindRoom)); // F vs Ctrl+F
         }
 
+        [TestMethod]
+        public void SetupCommands_HaveContextualDefaultsHelpAndRebinding()
+        {
+            var map = new KeyMap();
+            InputSituation setup = InputCatalog.Situation(InputCatalog.SIT_CLASH_SETUP);
+            var expected = new Dictionary<InputAction, string>
+            {
+                [InputAction.SetupRename] = "F2", [InputAction.SetupCopy] = "Ctrl+C",
+                [InputAction.SetupPaste] = "Ctrl+V", [InputAction.SetupDelete] = "Delete",
+                [InputAction.SetupContextMenu] = "Shift+F10"
+            };
+            foreach ((InputAction action, string chord) in expected)
+            {
+                Assert.AreEqual(KeyChord.Parse(chord), map.Primary(action));
+                Assert.IsTrue(setup.Contains(action));
+                Assert.IsTrue(setup.Help.Any(row => row.Actions.Contains(action)));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_PAUSE).Contains(action));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_CLASHES).Contains(action));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_MARKUP).Contains(action));
+            }
+            Assert.AreEqual(InputAction.SetupRename, setup.Help[0].Actions[0]);
+            Assert.IsTrue(map.Assign(InputAction.SetupRename, 0, KeyChord.Parse("F3"), swap: false).Done);
+            Assert.IsFalse(map.Pressed(InputAction.SetupRename, new FakeKeys().Press(KeyCodes.F1 + 1)));
+            Assert.IsTrue(map.Pressed(InputAction.SetupRename, new FakeKeys().Press(KeyCodes.F1 + 2)));
+            Assert.AreEqual("F3", map.Label(InputAction.SetupRename));
+            Assert.IsTrue(map.Pressed(InputAction.SetupContextMenu, new FakeKeys().Press(0x5D)));
+            Assert.IsTrue(map.Pressed(InputAction.SetupContextMenu, new FakeKeys().Hold(KeyCodes.SHIFT).Press(KeyCodes.F1 + 9)));
+        }
+
+        [TestMethod]
+        public void SetupDefaultsMigration_PreservesExistingGlobalOverridesAndBlocksDestructiveConflict()
+        {
+            var settings = new LaunchSettings { ControlsDefaultsVersion = 9,
+                KeyBindings = new() { ["Screenshot"] = new() { "Delete" }, ["Help"] = new() { "F2" } } };
+            settings.Sanitise();
+            var map = new KeyMap();
+            Assert.AreEqual(2, map.ApplyOverrides(settings.KeyBindings));
+            Assert.AreEqual(KeyChord.Parse("Delete"), map.Primary(InputAction.Screenshot));
+            Assert.AreEqual(KeyChord.Parse("F2"), map.Primary(InputAction.Help));
+            Assert.AreEqual(13, InputCatalog.ChangesSince(settings.ControlsDefaultsVersion).Count);
+            Assert.AreEqual(5, InputCatalog.ChangesSince(9).Count(c => c.Added && c.Version == 10));
+            Assert.IsTrue(map.FindClashes(InputAction.SetupDelete, KeyChord.Parse("Delete")).Any(c => c.Action == InputAction.Screenshot));
+            var delete = new FakeKeys().Press(KeyCodes.DELETE);
+            Assert.AreEqual(InputAction.Screenshot, InputCatalog.SetupCommandConflict(map, InputAction.SetupDelete, delete));
+            Assert.IsTrue(map.Pressed(InputAction.Screenshot, delete), "suppression must leave the existing action available");
+            Assert.AreEqual(InputAction.Help, InputCatalog.SetupCommandConflict(map, InputAction.SetupRename, new FakeKeys().Press(KeyCodes.F1 + 1)));
+            Assert.IsTrue(map.HasClash(InputAction.SetupDelete), "CONTROLS exposes the conflict for resolution");
+            map.Clear(InputAction.Screenshot, 0);
+            Assert.AreEqual(InputAction.None, InputCatalog.SetupCommandConflict(map, InputAction.SetupDelete, delete));
+        }
+
+        [TestMethod]
+        public void SetupConflicts_UseOnlyPressedSlotAndActiveSituation()
+        {
+            var map = new KeyMap();
+            map.ApplyOverrides(new Dictionary<string, List<string>>
+            {
+                ["SetupDelete"] = new() { "Delete", "Ctrl+C" },
+                ["Screenshot"] = new() { "Delete" },
+                ["SetupRename"] = new() { "R" }
+            });
+            Assert.AreEqual(InputAction.None, InputCatalog.SetupCommandConflict(map, InputAction.SetupDelete, new FakeKeys()));
+            Assert.AreEqual(InputAction.SetupCopy, InputCatalog.SetupCommandConflict(map, InputAction.SetupDelete,
+                new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C'))));
+            Assert.AreEqual(InputAction.None, InputCatalog.SetupCommandConflict(map, InputAction.SetupRename,
+                new FakeKeys().Press(KeyCodes.Letter('R'))), "Scan/Revit actions are not live in the setup panel");
+        }
+
+        [TestMethod]
+        public void ClashReviewCommands_DefaultsHelpAndContextAreRegistered()
+        {
+            var map = new KeyMap();
+            InputSituation review = InputCatalog.Situation(InputCatalog.SIT_CLASHES);
+            foreach ((InputAction action, string key) in new[]
+            {
+                (InputAction.ClashCopyInfo, "Ctrl+C"), (InputAction.ClashGroupRename, "F2"),
+                (InputAction.ClashRowContextMenu, "Shift+F10")
+            })
+            {
+                Assert.AreEqual(KeyChord.Parse(key), map.Primary(action));
+                Assert.IsTrue(review.Help.Any(h => h.Actions.Contains(action)));
+                Assert.IsTrue(review.Contains(action));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_CLASH_SETUP).Contains(action));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_MARKUP).Contains(action));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_PAUSE).Contains(action));
+            }
+            Assert.AreEqual(3, InputCatalog.ChangesSince(10).Count(c => c.Added && c.Version == 11));
+            Assert.IsTrue(map.Pressed(InputAction.ClashRowContextMenu, new FakeKeys().Press(0x5D)));
+            Assert.IsTrue(map.Assign(InputAction.ClashCopyInfo, 0, KeyChord.Parse("Ctrl+F3"), false).Done);
+            Assert.AreEqual("Ctrl+F3", map.Label(InputAction.ClashCopyInfo));
+            Assert.IsFalse(map.Pressed(InputAction.ClashCopyInfo, new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C'))));
+        }
+
+        [TestMethod]
+        public void ClashReviewMigration_PreservesGlobalOverridesAndDetectsConflictingPressedSlot()
+        {
+            var map = new KeyMap();
+            map.ApplyOverrides(new Dictionary<string, List<string>>
+            {
+                ["Screenshot"] = new() { "Ctrl+C" }, ["Help"] = new() { "F2" },
+                ["ClashCopyInfo"] = new() { "Ctrl+C", "Ctrl+F3" }
+            });
+            var copy = new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C'));
+            Assert.AreEqual(InputAction.Screenshot, InputCatalog.PressedCommandConflict(map, InputAction.ClashCopyInfo, copy, InputCatalog.SIT_CLASHES));
+            Assert.IsTrue(map.Pressed(InputAction.Screenshot, copy));
+            Assert.AreEqual(KeyChord.Parse("Ctrl+C"), map.Primary(InputAction.Screenshot));
+            Assert.IsTrue(map.HasClash(InputAction.ClashCopyInfo));
+            Assert.AreEqual(InputAction.Help, InputCatalog.PressedCommandConflict(map, InputAction.ClashGroupRename,
+                new FakeKeys().Press(KeyCodes.F1 + 1), InputCatalog.SIT_CLASHES));
+            Assert.AreEqual(InputAction.None, InputCatalog.PressedCommandConflict(map, InputAction.ClashCopyInfo,
+                new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.F1 + 2), InputCatalog.SIT_CLASHES));
+            Assert.AreEqual(InputAction.None, InputCatalog.PressedCommandConflict(map, InputAction.ClashCopyInfo, copy, InputCatalog.SIT_PAUSE));
+        }
+
+        [TestMethod]
+        public void IssuesCommands_DefaultsContextHelpAndRebindingAreRegistered()
+        {
+            var map = new KeyMap();
+            InputSituation issues = InputCatalog.Situation(InputCatalog.SIT_ISSUES);
+            foreach ((InputAction action, string key) in new[]
+            {
+                (InputAction.IssuesCopy, "Ctrl+C"), (InputAction.IssuesDelete, "Delete"), (InputAction.IssuesContextMenu, "Shift+F10")
+            })
+            {
+                Assert.AreEqual(InputContext.Issues, InputCatalog.Get(action).Context);
+                Assert.AreEqual(KeyChord.Parse(key), map.Primary(action));
+                Assert.IsTrue(issues.Contains(action));
+                Assert.IsTrue(issues.Help.Any(h => h.Actions.Contains(action)));
+                foreach (string inactive in new[] { InputCatalog.SIT_PAUSE, InputCatalog.SIT_CLASHES, InputCatalog.SIT_CLASH_SETUP, InputCatalog.SIT_MARKUP })
+                { Assert.IsFalse(InputCatalog.Situation(inactive).Contains(action)); }
+            }
+            Assert.AreEqual(InputAction.IssuesCopy, issues.Help[0].Actions[0]);
+            Assert.IsTrue(map.Pressed(InputAction.IssuesContextMenu, new FakeKeys().Press(0x5D)));
+            Assert.IsTrue(map.Assign(InputAction.IssuesCopy, 0, KeyChord.Parse("Ctrl+F3"), false).Done);
+            Assert.AreEqual("Ctrl+F3", map.Label(InputAction.IssuesCopy));
+            Assert.IsFalse(map.Pressed(InputAction.IssuesCopy, new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C'))));
+            Assert.AreEqual(5, InputCatalog.ChangesSince(11).Count);
+            Assert.IsTrue(InputCatalog.ChangesSince(11).Where(c => c.Version == 12).All(c => c.Added));
+            Assert.AreEqual(2, InputCatalog.ChangesSince(12).Count);
+            Assert.IsTrue(InputCatalog.ChangesSince(12).All(c => c.Added && c.Version == 13));
+            Assert.IsFalse(issues.Contains(InputAction.SetupRename), "Issue content editing is not F2 Rename");
+        }
+
+        [TestMethod]
+        public void IssuesMigration_PreservesGlobalsAndSuppressesOnlyActivePressedConflicts()
+        {
+            var map = new KeyMap();
+            map.ApplyOverrides(new Dictionary<string, List<string>>
+            {
+                ["Screenshot"] = new() { "Delete" }, ["Save"] = new() { "Ctrl+C" },
+                ["IssuesDelete"] = new() { "Delete", "Ctrl+F3" }
+            });
+            var delete = new FakeKeys().Press(KeyCodes.DELETE);
+            Assert.AreEqual(InputAction.Screenshot, InputCatalog.PressedCommandConflict(map, InputAction.IssuesDelete, delete, InputCatalog.SIT_ISSUES));
+            Assert.IsTrue(map.Pressed(InputAction.Screenshot, delete));
+            Assert.AreEqual(KeyChord.Parse("Delete"), map.Primary(InputAction.Screenshot));
+            Assert.IsTrue(map.HasClash(InputAction.IssuesDelete));
+            Assert.AreEqual(InputAction.Save, InputCatalog.PressedCommandConflict(map, InputAction.IssuesCopy,
+                new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C')), InputCatalog.SIT_ISSUES));
+            Assert.AreEqual(InputAction.None, InputCatalog.PressedCommandConflict(map, InputAction.IssuesDelete,
+                new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.F1 + 2), InputCatalog.SIT_ISSUES));
+            Assert.AreEqual(InputAction.None, InputCatalog.PressedCommandConflict(map, InputAction.IssuesDelete, delete, InputCatalog.SIT_PAUSE));
+        }
+
+        [TestMethod]
+        public void InspectCopyCommands_AreLimitedToScanAndMeasureSituations()
+        {
+            var map = new KeyMap();
+            map.ApplyOverrides(new Dictionary<string, List<string>> { ["Save"] = new() { "Ctrl+C" } });
+            foreach ((InputAction action, string situationName) in new[]
+            {
+                (InputAction.ScanCopyInfo, InputCatalog.SIT_SCAN),
+                (InputAction.MeasureCopyInfo, InputCatalog.SIT_MEASURE)
+            })
+            {
+                InputSituation situation = InputCatalog.Situation(situationName);
+                Assert.AreEqual(KeyChord.Parse("Ctrl+C"), map.Primary(action));
+                Assert.IsTrue(situation.Contains(action));
+                Assert.IsTrue(situation.Help.Any(h => h.Actions.Contains(action)));
+                Assert.IsFalse(InputCatalog.Situation(InputCatalog.SIT_WALKING).Contains(action));
+                Assert.AreEqual(InputAction.Save, InputCatalog.PressedCommandConflict(map, action,
+                    new FakeKeys().Hold(KeyCodes.CTRL).Press(KeyCodes.Letter('C')), situationName));
+            }
+            Assert.AreEqual(2, InputCatalog.ChangesSince(12).Count);
+            Assert.IsTrue(InputCatalog.ChangesSince(12).All(c => c.Added && c.Version == 13));
+        }
+
         #endregion
 
         #region Chords
@@ -490,12 +677,12 @@ namespace BimGo.Tests
             var map = new KeyMap();
             Assert.AreEqual(0, map.ToOverrides().Count);
 
-            map.Assign(InputAction.Help, 0, KeyChord.Parse("F2"), swap: false);
+            Assert.IsTrue(map.Assign(InputAction.Help, 0, KeyChord.Parse("F3"), swap: false).Done);
             map.Clear(InputAction.MoveForward, 1);
             map.Clear(InputAction.Fly, 0);
             Dictionary<string, List<string>> overrides = map.ToOverrides();
             Assert.AreEqual(3, overrides.Count);
-            CollectionAssert.AreEqual(new[] { "F2" }, overrides["Help"]);
+            CollectionAssert.AreEqual(new[] { "F3" }, overrides["Help"]);
             CollectionAssert.AreEqual(new[] { "W" }, overrides["MoveForward"]);
             CollectionAssert.AreEqual(new[] { "" }, overrides["Fly"]);
 
@@ -506,7 +693,7 @@ namespace BimGo.Tests
             var problems = new List<string>();
             Assert.AreEqual(3, restored.ApplyOverrides(copy.KeyBindings, problems));
             Assert.AreEqual(0, problems.Count);
-            Assert.AreEqual(KeyChord.Parse("F2"), restored.Primary(InputAction.Help));
+            Assert.AreEqual(KeyChord.Parse("F3"), restored.Primary(InputAction.Help));
             Assert.IsTrue(restored.Get(InputAction.MoveForward, 1).IsEmpty);
             Assert.IsTrue(restored.IsUnbound(InputAction.Fly));
             Assert.IsTrue(restored.IsDefault(InputAction.Jump));
@@ -566,7 +753,7 @@ namespace BimGo.Tests
             StringAssert.Contains(json, "\"Ctrl+[\"");
 
             var other = new KeyMap();
-            other.Assign(InputAction.Help, 0, KeyChord.Parse("F2"), swap: false); // the file names Help: back to F1
+            Assert.IsTrue(other.Assign(InputAction.Help, 0, KeyChord.Parse("F3"), swap: false).Done); // the file names Help: back to F1
             KeymapImport result = other.Import(json);
             Assert.IsTrue(result.Valid);
             Assert.AreEqual(0, result.Problems.Count);
@@ -581,11 +768,11 @@ namespace BimGo.Tests
         public void KeymapFile_RefusesOtherFiles()
         {
             var map = new KeyMap();
-            map.Assign(InputAction.Help, 0, KeyChord.Parse("F2"), swap: false);
+            Assert.IsTrue(map.Assign(InputAction.Help, 0, KeyChord.Parse("F3"), swap: false).Done);
             Assert.IsFalse(map.Import("{ \"format\": \"something-else\" }").Valid);
             Assert.IsFalse(map.Import("not json").Valid);
             Assert.IsFalse(map.Import("{ \"format\": \"bimgo-keymap\", \"version\": 99, \"bindings\": {} }").Valid);
-            Assert.AreEqual(KeyChord.Parse("F2"), map.Primary(InputAction.Help)); // nothing changed
+            Assert.AreEqual(KeyChord.Parse("F3"), map.Primary(InputAction.Help)); // nothing changed
 
             // A file with a clash imports, and reports it
             KeymapImport clash = map.Import("{ \"format\": \"bimgo-keymap\", \"version\": 1, \"bindings\": { \"Help\": [\"V\"] } }");

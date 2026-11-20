@@ -147,6 +147,10 @@ namespace BimGo.Game
         // Hide-UI mode (U): HUD, minimap, crosshair, markers and ordinary toasts hidden; every control still works.
         // Esc or U shows the UI again. Not saved: each session starts with the UI shown.
         private bool _uiHidden;
+        internal int WindowWidth => _window.Width;
+        internal int WindowHeight => _window.Height;
+        internal bool IsScanValueContextVisible(int width, int height) => !_uiHidden && !_paused && !AnyDockOpen
+            && _window.Width == width && _window.Height == height;
         private uint _flashColour;
         private float _flashUntil, _flashLength;
 
@@ -610,7 +614,15 @@ namespace BimGo.Game
             if (_window.FocusLost)
             {
                 CancelReviewPointerGesture();
+                _setupRightTarget = _setupMenuTarget = null;
                 _window.FocusLost = false;
+            }
+
+            // A pending text edit owns input before any toolbar or review-panel command can see it.
+            if (IsEditingComment)
+            {
+                UpdateCommentEditor(input);
+                return;
             }
 
             if (UpdateViewerToolbarInput(input)) { return; }
@@ -630,11 +642,9 @@ namespace BimGo.Game
                 return;
             }
 
-            if (IsEditingComment)
-            {
-                UpdateCommentEditor(input);
-                return;
-            }
+            if (UpdateCommentCommands(input)) { return; }
+
+            if (UpdateClashSetupCommands(input)) { return; }
 
             // The sun hours study has the cursor: the player stands still, RMB-drag looks, clicks pick surfaces
 
@@ -1045,6 +1055,7 @@ namespace BimGo.Game
                 return;
             }
             _uiHidden = true;
+            _window.HideNativeSearch();
             Sound.Play(SoundId.UiClick);
             Toast($"UI hidden · Esc or {Key(InputAction.HideUi)} to show it", 1.8f, important: true);
         }
@@ -1186,6 +1197,7 @@ namespace BimGo.Game
         public void Dispose()
         {
             EndFrameLimit();
+            _window.CloseNativeSearch();
             try { SaveSettings(); } catch { /* logged inside */ }
             try { FlushSunSidecar(); } catch { /* logged inside */ }
             try { FlushVisibilitySidecar(); } catch { /* logged inside */ }

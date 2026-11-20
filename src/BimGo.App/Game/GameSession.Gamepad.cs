@@ -16,9 +16,11 @@ namespace BimGo.Game
         /// </summary>
         private string CurrentSituation()
         {
-            if (_menuPreview) { return InputCatalog.SIT_SETTINGS; }
-            if (_paused) { return InputCatalog.SIT_PAUSE; }
             if (_markupOpen) { return InputCatalog.SIT_MARKUP; }
+            if (_menuPreview) { return InputCatalog.SIT_SETTINGS; }
+            if (CommentCommandsHaveFocus) { return InputCatalog.SIT_ISSUES; }
+            if (ClashSetupSelectionHasFocus) { return InputCatalog.SIT_CLASH_SETUP; }
+            if (_paused) { return InputCatalog.SIT_PAUSE; }
             if (_sectionOpen) { return InputCatalog.SIT_SECTION; }
             if (_sunPanelOpen) { return InputCatalog.SIT_SUN_PANEL; }
             if (GridsPanelHasKeys) { return InputCatalog.SIT_GRIDS; }
